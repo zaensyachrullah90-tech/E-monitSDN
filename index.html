@@ -2,19 +2,19 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>MonitorPro - Aplikasi Monitoring</title>
   
   <script>
-    window.onerror = function(msg, url, lineNo, columnNo, error) {
+    window.onerror = function(msg, url, lineNo) {
       document.body.innerHTML = `
         <div style="padding: 20px; font-family: sans-serif; background: #fee2e2; color: #991b1b; min-height: 100vh;">
-          <h2 style="font-weight: bold; margin-bottom: 10px;">Oops! Terjadi Kesalahan (Error) 🚨</h2>
+          <h2 style="font-weight: bold; margin-bottom: 10px;">Oops! Terjadi Kesalahan (Error) <i class="fa-solid fa-triangle-exclamation"></i></h2>
           <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #f87171; font-family: monospace; font-size: 14px; overflow-x: auto;">
             <p style="margin-bottom:5px;"><strong>Pesan:</strong> ${msg}</p>
             <p><strong>Baris Error:</strong> ${lineNo}</p>
           </div>
-          <p style="margin-top: 15px; font-size: 14px;"><strong>Solusi:</strong> Periksa kembali baris kode tempat Anda memasukkan link GAS API.</p>
+          <p style="margin-top: 15px; font-size: 14px;"><strong>Solusi:</strong> Periksa tanda kutip di link GAS_API_URL Anda.</p>
         </div>
       `;
       return false;
@@ -22,20 +22,24 @@
   </script>
 
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
   <style>
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    .animate-fade-in { animation: fadeIn 0.2s ease-in-out forwards; }
+    .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    /* Memastikan tombol tidak ter-zoom di HP saat diklik */
+    input, select, button { touch-action: manipulation; }
   </style>
 </head>
 <body class="bg-slate-50 font-sans text-slate-900">
@@ -46,36 +50,13 @@
     const { useState, useMemo, useRef, useEffect, memo } = React;
 
     // =========================================================================
-    // MASUKKAN KEMBALI URL GAS API ANDA DI BAWAH INI:
+    // ⚠️ MASUKKAN URL GOOGLE APPS SCRIPT ANDA DI SINI:
+    // Pastikan tanda kutip ("") di awal dan di akhir URL tidak terhapus!
     // =========================================================================
-    
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbykR47zPvdcwAaThHx0SV-XcRzCV2-floPJAFTsXczK1iRXWPRf6tKDbyFznar0LaEz/exec"; 
-
     // =========================================================================
 
-    // Komponen Ikon (DIPERBAIKI)
-    const Icon = ({ name, size = 24, className = '' }) => {
-      const iconRef = useRef(null);
-      useEffect(() => {
-        if (iconRef.current && window.lucide) {
-          // Render ulang icon secara aman
-          iconRef.current.innerHTML = `<i data-lucide="${name}"></i>`;
-          lucide.createIcons({
-            root: iconRef.current,
-            attrs: {
-              width: size,
-              height: size,
-              class: className,
-              'stroke-width': 2
-            }
-          });
-        }
-      }, [name, size, className]);
-      
-      return <span ref={iconRef} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} />;
-    };
-
-    // Fungsi Pembantu
+    // Fungsi Pembantu Tanggal
     const getDaysLeft = (deadline) => {
       const today = new Date();
       const dueDate = new Date(deadline);
@@ -83,7 +64,7 @@
       return diffTime > 0 ? diffTime : 0;
     };
 
-    // Komponen Card Tugas
+    // Komponen Card Tugas (Optimasi RAM dengan memo)
     const TaskCard = memo(({ task, picName }) => {
       const percent = Math.min(Math.round((task.progress / task.target) * 100), 100);
       const daysLeft = getDaysLeft(task.deadline);
@@ -98,7 +79,7 @@
             </span>
           </div>
           <div className="flex items-center gap-2 mb-6 text-slate-600 text-xs md:text-sm pl-3 bg-slate-50 w-max px-3 py-1.5 rounded-lg border border-slate-100">
-            <Icon name="UserCog" size={16} className="text-slate-400" />
+            <i className="fa-solid fa-user-gear text-slate-400"></i>
             <span>PIC: <span className="font-bold text-slate-700">{picName}</span></span>
           </div>
           <div className="mb-4 pl-3">
@@ -144,7 +125,7 @@
             })));
           }
         } catch (error) {
-          alert("Gagal mengambil data. Pastikan link GAS API yang Anda salin sudah lengkap dan benar.");
+          alert("Gagal mengambil data dari Google Sheets. Pastikan link API benar.");
         }
         setIsLoading(false);
       };
@@ -152,9 +133,9 @@
       useEffect(() => { fetchData(); }, []);
 
       const DemoWarning = () => GAS_API_URL === "URL_GAS_ANDA_DISINI" ? (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
-          <p className="text-red-700 text-sm font-bold"><Icon name="AlertTriangle" size={16} className="inline mr-1" /> LINK DATABASE KOSONG</p>
-          <p className="text-red-600 text-xs mt-1">Anda belum memasukkan URL API Google Apps Script. Data kosong dan fitur simpan tidak akan berfungsi.</p>
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r-lg">
+          <p className="text-red-700 text-sm font-bold"><i className="fa-solid fa-triangle-exclamation mr-1"></i> MODE OFFLINE</p>
+          <p className="text-red-600 text-xs mt-1">Anda belum memasukkan URL API Google Apps Script. Fitur simpan data tidak akan berfungsi ke database.</p>
         </div>
       ) : null;
 
@@ -181,37 +162,37 @@
             <DemoWarning />
             <div className="flex justify-between items-center">
               <h2 className="text-xl md:text-2xl font-extrabold text-slate-800">Dashboard</h2>
-              <button onClick={fetchData} className="flex items-center gap-1 text-xs md:text-sm bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100">
-                 <Icon name="RefreshCw" size={14} className={isLoading ? "animate-spin" : ""} /> Refresh
+              <button onClick={fetchData} className="flex items-center gap-2 text-xs md:text-sm bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100 font-bold">
+                 <i className={`fa-solid fa-rotate ${isLoading ? "fa-spin" : ""}`}></i> Refresh
               </button>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-                <div className="p-3 bg-blue-500 text-white rounded-lg"><Icon name="LayoutDashboard" size={20}/></div>
+                <div className="p-3 bg-blue-500 text-white rounded-lg flex items-center justify-center w-12 h-12"><i className="fa-solid fa-chart-pie text-xl"></i></div>
                 <div><p className="text-[10px] font-bold text-slate-500 uppercase">Total Kegiatan</p><p className="text-2xl font-black text-slate-800">{totalTasks}</p></div>
               </div>
               <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-                <div className="p-3 bg-emerald-500 text-white rounded-lg"><Icon name="CheckCircle" size={20}/></div>
+                <div className="p-3 bg-emerald-500 text-white rounded-lg flex items-center justify-center w-12 h-12"><i className="fa-solid fa-circle-check text-xl"></i></div>
                 <div><p className="text-[10px] font-bold text-slate-500 uppercase">Telah Selesai</p><p className="text-2xl font-black text-slate-800">{completedTasks}</p></div>
               </div>
               <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-                <div className="p-3 bg-orange-500 text-white rounded-lg"><Icon name="Clock" size={20}/></div>
+                <div className="p-3 bg-orange-500 text-white rounded-lg flex items-center justify-center w-12 h-12"><i className="fa-solid fa-clock-rotate-left text-xl"></i></div>
                 <div><p className="text-[10px] font-bold text-slate-500 uppercase">Sedang Berjalan</p><p className="text-2xl font-black text-slate-800">{totalTasks - completedTasks}</p></div>
               </div>
             </div>
 
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4">
-              <div className="flex items-center gap-2 w-full">
-                <Icon name="Filter" size={16} className="text-slate-400" />
-                <select className="bg-slate-50 border border-slate-200 rounded-lg p-2 w-full text-xs outline-none" value={filterEmp} onChange={(e) => setFilterEmp(e.target.value)}>
+              <div className="flex items-center gap-3 w-full">
+                <i className="fa-solid fa-filter text-slate-400"></i>
+                <select className="bg-slate-50 border border-slate-200 rounded-lg p-2 w-full text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500" value={filterEmp} onChange={(e) => setFilterEmp(e.target.value)}>
                   <option value="all">Semua Pegawai</option>
                   {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
                 </select>
               </div>
-              <div className="flex items-center gap-2 w-full">
-                <Icon name="TrendingUp" size={16} className="text-slate-400" />
-                <select className="bg-slate-50 border border-slate-200 rounded-lg p-2 w-full text-xs outline-none" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
+              <div className="flex items-center gap-3 w-full">
+                <i className="fa-solid fa-arrow-trend-up text-slate-400"></i>
+                <select className="bg-slate-50 border border-slate-200 rounded-lg p-2 w-full text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
                   <option value="highest">Progres Terbesar (%)</option>
                   <option value="lowest">Progres Terkecil (%)</option>
                 </select>
@@ -221,7 +202,7 @@
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {displayTasks.length === 0 ? (
                 <div className="col-span-full text-center py-10 bg-white rounded-2xl border border-dashed border-slate-300">
-                  <p className="text-slate-500 text-sm">Tidak ada kegiatan yang berjalan saat ini.</p>
+                  <p className="text-slate-500 text-sm font-medium">Tidak ada kegiatan yang berjalan saat ini.</p>
                 </div>
               ) : (
                 displayTasks.map(task => <TaskCard key={task.id} task={task} picName={employees.find(e => e.id === task.picId)?.name || 'Anonim'} />)
@@ -245,7 +226,7 @@
 
         return (
           <div className="space-y-6 animate-fade-in">
-            <h2 className="text-xl md:text-2xl font-extrabold text-slate-800"><Icon name="Trophy" size={20} className="text-yellow-500 inline mr-2"/>Peringkat Kinerja</h2>
+            <h2 className="text-xl md:text-2xl font-extrabold text-slate-800"><i className="fa-solid fa-trophy text-yellow-500 mr-2"></i>Peringkat Kinerja</h2>
             <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200">
                 <thead className="bg-slate-50">
@@ -260,10 +241,12 @@
                 <tbody className="bg-white divide-y divide-slate-100">
                   {stats.map((stat, index) => (
                     <tr key={stat.id}>
-                      <td className="px-4 py-3 whitespace-nowrap font-bold text-sm">{index + 1}</td>
-                      <td className="px-4 py-3 whitespace-nowrap font-bold text-sm">{stat.name}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">{stat.taskCount}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600">{stat.totalProgress} / {stat.totalTarget}</td>
+                      <td className="px-4 py-3 whitespace-nowrap font-bold text-sm">
+                        {index === 0 ? <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded"><i className="fa-solid fa-medal"></i> 1</span> : index + 1}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap font-bold text-sm text-slate-800">{stat.name}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-slate-500">{stat.taskCount}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-slate-600">{stat.totalProgress} / {stat.totalTarget}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-2 min-w-[100px]">
                           <div className="w-full bg-slate-200 rounded-full h-1.5"><div className={`h-full rounded-full ${stat.percent >= 80 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${stat.percent}%` }}></div></div>
@@ -316,35 +299,36 @@
 
         return (
           <div className="max-w-md mx-auto space-y-4 animate-fade-in">
-            <h2 className="text-xl font-extrabold text-slate-800 text-center">Lapor Progres</h2>
-            {message && <div className="bg-emerald-50 text-emerald-800 p-3 rounded-lg text-xs font-bold">{message}</div>}
+            <h2 className="text-xl font-extrabold text-slate-800 text-center">Lapor Progres Harian</h2>
+            {message && <div className="bg-emerald-50 text-emerald-800 p-3 rounded-lg text-xs font-bold border border-emerald-200"><i className="fa-solid fa-circle-check mr-1"></i> {message}</div>}
             
             <form onSubmit={handleSubmit} className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 space-y-4">
-              <select required className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none" value={selectedEmp} onChange={(e) => { setSelectedEmp(e.target.value); setSelectedTask(''); }}>
+              <select required className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500" value={selectedEmp} onChange={(e) => { setSelectedEmp(e.target.value); setSelectedTask(''); }}>
                 <option value="">Pilih Nama Anda...</option>
                 {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
               </select>
               {selectedEmp && (
-                <select required className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
+                <select required className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
                   <option value="">Tugas yang dikerjakan...</option>
                   {availableTasks.map(t => <option key={t.id} value={t.id}>{t.taskName} (Sisa: {t.target - t.progress})</option>)}
                 </select>
               )}
               {selectedTask && (
-                <input type="number" required min="1" className="w-full bg-white border border-slate-200 rounded-lg p-3 font-bold text-slate-800 text-sm outline-none" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Jumlah capaian hari ini..." />
+                <input type="number" required min="1" className="w-full bg-white border border-slate-200 rounded-lg p-3 font-bold text-slate-800 text-sm outline-none focus:ring-2 focus:ring-blue-500" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Jumlah capaian hari ini..." />
               )}
               <button type="submit" disabled={!selectedTask || isSyncing} className="w-full bg-blue-600 text-white font-bold text-sm py-3 rounded-lg flex justify-center items-center gap-2 disabled:bg-slate-300">
-                {isSyncing ? <Icon name="RefreshCw" size={16} className="animate-spin" /> : 'Kirim Laporan'}
+                {isSyncing ? <i className="fa-solid fa-spinner fa-spin"></i> : <><i className="fa-solid fa-paper-plane"></i> Kirim Laporan</>}
               </button>
             </form>
           </div>
         );
       };
 
-      // --- KOMPONEN: ADMIN PANEL ---
+      // --- KOMPONEN: ADMIN PANEL (Diperbaiki Fitur Importnya) ---
       const AdminPanel = () => {
         const [newTask, setNewTask] = useState({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
         const [successMsg, setSuccessMsg] = useState('');
+        const [errorMsg, setErrorMsg] = useState('');
         const fileInputRef = useRef(null);
 
         const handleAddTask = async (e) => {
@@ -368,13 +352,14 @@
 
             setTasks([...tasks, ...addedTasks]);
             setNewTask({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
-            setSuccessMsg('Penugasan berhasil!'); setTimeout(() => setSuccessMsg(''), 3000);
+            setSuccessMsg('Penugasan berhasil ditambahkan!'); setTimeout(() => setSuccessMsg(''), 4000);
           } catch (err) {
-            alert("Gagal menyimpan tugas ke database.");
+            setErrorMsg("Gagal menyimpan tugas ke database."); setTimeout(() => setErrorMsg(''), 4000);
           }
           setIsSyncing(false);
         };
 
+        // MESIN IMPORT EXCEL & CSV (DIPERBAIKI)
         const handleExcelUpload = (e) => {
           const file = e.target.files[0];
           if (!file) return;
@@ -383,38 +368,75 @@
           reader.onload = async (event) => {
             try {
               const data = new Uint8Array(event.target.result);
+              // Membaca file (Support CSV & XLSX)
               const workbook = XLSX.read(data, { type: 'array' });
-              const excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+              
+              // Opsi raw:false memastikan format tanggal di excel terbaca sebagai text, bukan angka serial aneh.
+              const excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { raw: false });
 
               const newTasks = excelData.map((row, idx) => {
+                // AUTO DETECT KOLOM: Mendeteksi berbagai variasi nama kolom (Anti-Gagal)
+                const taskName = row['Nama Kegiatan'] || row['nama kegiatan'] || row['Kegiatan'] || row['Task Name'];
+                const rawPicId = row['ID PIC'] || row['id pic'] || row['PIC'];
+                const picId = parseInt(rawPicId);
+                const target = parseInt(row['Target'] || row['target']);
+                
                 let deadline = new Date().toISOString().split('T')[0];
-                if (row['Deadline']) deadline = typeof row['Deadline'] === 'number' ? new Date((row['Deadline'] - (25567 + 1)) * 86400 * 1000).toISOString().split('T')[0] : row['Deadline'];
-                return { id: Date.now() + idx, taskName: row['Nama Kegiatan'], picId: parseInt(row['ID PIC']), target: parseInt(row['Target']), progress: 0, deadline: deadline, status: 'On Progress' };
-              }).filter(t => t.taskName && t.picId && t.target);
+                const rawDeadline = row['Deadline'] || row['deadline'] || row['Tanggal'];
+                if (rawDeadline) {
+                    deadline = rawDeadline; // Ambil nilai stringnya langsung
+                }
+
+                // Jika data baris ini tidak valid (kosong/salah format), lewati.
+                if (!taskName || isNaN(picId) || isNaN(target)) {
+                    return null;
+                }
+
+                return { 
+                  id: Date.now() + Math.floor(Math.random() * 1000) + idx, 
+                  taskName: taskName, 
+                  picId: picId, 
+                  target: target, 
+                  progress: 0, 
+                  deadline: deadline, 
+                  status: 'On Progress' 
+                };
+              }).filter(t => t !== null); // Buang yang null
 
               if (newTasks.length > 0) {
                 setIsSyncing(true);
+                // POST ke GAS
                 await fetch(GAS_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'IMPORT_TASKS', payload: newTasks }) });
+                
                 setTasks(prev => [...prev, ...newTasks]);
-                setSuccessMsg(`Import ${newTasks.length} tugas berhasil!`); setTimeout(() => setSuccessMsg(''), 3000);
-                setIsSyncing(false);
+                setSuccessMsg(`Berhasil! ${newTasks.length} data tugas ditambahkan dari file.`); 
+                setTimeout(() => setSuccessMsg(''), 5000);
+              } else {
+                throw new Error("Data Kosong / Format Salah. Pastikan ada kolom 'Nama Kegiatan', 'ID PIC', dan 'Target'.");
               }
-            } catch (error) { alert("Format file excel salah."); setIsSyncing(false); }
+            } catch (error) { 
+              setErrorMsg(error.message || "Gagal membaca file CSV/Excel."); 
+              setTimeout(() => setErrorMsg(''), 6000);
+            } finally {
+              setIsSyncing(false);
+            }
           };
           reader.readAsArrayBuffer(file);
-          e.target.value = null;
+          e.target.value = null; // Reset input
         };
 
         return (
           <div className="space-y-6 animate-fade-in pb-10">
-            <h2 className="text-xl md:text-2xl font-extrabold text-slate-800"><Icon name="UserCog" size={20} className="inline mr-2 text-indigo-600"/>Admin</h2>
-            {successMsg && <div className="bg-emerald-50 text-emerald-800 p-3 rounded-lg text-xs font-bold">{successMsg}</div>}
+            <h2 className="text-xl md:text-2xl font-extrabold text-slate-800"><i className="fa-solid fa-users-gear text-indigo-600 mr-2"></i>Panel Admin</h2>
+            
+            {successMsg && <div className="bg-emerald-50 text-emerald-800 p-3 rounded-lg text-xs font-bold border border-emerald-200"><i className="fa-solid fa-circle-check mr-1"></i> {successMsg}</div>}
+            {errorMsg && <div className="bg-red-50 text-red-800 p-3 rounded-lg text-xs font-bold border border-red-200"><i className="fa-solid fa-triangle-exclamation mr-1"></i> {errorMsg}</div>}
             
             <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-              <h3 className="font-bold text-sm mb-3">Tugas Baru</h3>
+              <h3 className="font-bold text-sm mb-3">Tugas Manual Baru</h3>
               <form onSubmit={handleAddTask} className="space-y-3">
-                <input required type="text" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none" value={newTask.taskName} onChange={e => setNewTask({...newTask, taskName: e.target.value})} placeholder="Nama Kegiatan..." />
-                <select required className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none" value={newTask.picId} onChange={e => setNewTask({...newTask, picId: e.target.value})}>
+                <input required type="text" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500" value={newTask.taskName} onChange={e => setNewTask({...newTask, taskName: e.target.value})} placeholder="Nama Kegiatan..." />
+                <select required className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500" value={newTask.picId} onChange={e => setNewTask({...newTask, picId: e.target.value})}>
                   <option value="">Pilih Pegawai...</option>
                   <option value="all">🚀 Semua Pegawai</option>
                   {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
@@ -425,42 +447,46 @@
                     {employees.map(emp => (
                       <div key={emp.id} className="flex justify-between items-center text-xs">
                         <span className="font-bold text-slate-700">{emp.name}</span>
-                        <input type="number" min="0" placeholder="Target" className="border rounded p-1 w-16" value={newTask.multiTargets[emp.id] || ''} onChange={e => setNewTask({...newTask, multiTargets: {...newTask.multiTargets, [emp.id]: e.target.value}})} />
+                        <input type="number" min="0" placeholder="Target" className="border rounded p-1.5 w-16 outline-none focus:border-indigo-500" value={newTask.multiTargets[emp.id] || ''} onChange={e => setNewTask({...newTask, multiTargets: {...newTask.multiTargets, [emp.id]: e.target.value}})} />
                       </div>
                     ))}
-                    <input required type="date" className="w-full mt-2 rounded p-2 text-xs" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
+                    <input required type="date" className="w-full mt-2 rounded p-2 text-xs border border-slate-200" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
                   </div>
                 ) : (
                   <div className="flex gap-2">
-                    <input required type="number" min="1" placeholder="Target" className="w-1/2 bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs outline-none" value={newTask.target} onChange={e => setNewTask({...newTask, target: e.target.value})} />
-                    <input required type="date" className="w-1/2 bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs outline-none" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
+                    <input required type="number" min="1" placeholder="Target" className="w-1/2 bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs outline-none focus:ring-2 focus:ring-indigo-500" value={newTask.target} onChange={e => setNewTask({...newTask, target: e.target.value})} />
+                    <input required type="date" className="w-1/2 bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs outline-none focus:ring-2 focus:ring-indigo-500" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
                   </div>
                 )}
-                <button type="submit" disabled={isSyncing} className="w-full bg-indigo-600 text-white font-bold text-xs py-2.5 rounded-lg flex justify-center items-center gap-2">
-                  {isSyncing ? <Icon name="RefreshCw" size={14} className="animate-spin" /> : 'Tugaskan'}
+                <button type="submit" disabled={isSyncing} className="w-full bg-indigo-600 text-white font-bold text-xs py-3 rounded-lg flex justify-center items-center gap-2">
+                  {isSyncing ? <i className="fa-solid fa-spinner fa-spin"></i> : <><i className="fa-solid fa-plus"></i> Tugaskan</>}
                 </button>
               </form>
             </div>
 
-            <div className="bg-emerald-700 p-5 rounded-xl text-white">
-              <h3 className="font-bold text-sm mb-2"><Icon name="FileSpreadsheet" size={16} className="inline mr-1"/> Import Excel (.xlsx)</h3>
-              <input type="file" accept=".xlsx, .xls" ref={fileInputRef} onChange={handleExcelUpload} className="hidden" />
-              <button onClick={() => fileInputRef.current.click()} disabled={isSyncing} className="bg-white text-emerald-800 font-bold text-xs py-2 px-4 rounded-lg w-full flex justify-center items-center gap-2">
-                 {isSyncing ? <Icon name="RefreshCw" size={14} className="animate-spin text-emerald-600" /> : 'Pilih File'}
-              </button>
+            <div className="bg-emerald-700 p-5 rounded-xl text-white shadow-sm relative overflow-hidden">
+              <i className="fa-solid fa-file-excel absolute -right-4 -bottom-4 text-6xl text-emerald-800 opacity-50"></i>
+              <div className="relative z-10">
+                <h3 className="font-bold text-sm mb-2"><i className="fa-solid fa-cloud-arrow-up mr-1"></i> Import Data Massal</h3>
+                <p className="text-[10px] text-emerald-200 mb-4">Support file <b>.xlsx</b> dan <b>.csv</b>. Pastikan header kolom adalah "Nama Kegiatan", "ID PIC", dan "Target".</p>
+                <input type="file" accept=".xlsx, .xls, .csv" ref={fileInputRef} onChange={handleExcelUpload} className="hidden" />
+                <button onClick={() => fileInputRef.current.click()} disabled={isSyncing} className="bg-white text-emerald-800 font-bold text-xs py-2.5 px-4 rounded-lg w-full flex justify-center items-center gap-2">
+                   {isSyncing ? <><i className="fa-solid fa-spinner fa-spin text-emerald-600"></i> Memproses Data...</> : <><i className="fa-solid fa-folder-open"></i> Pilih File</>}
+                </button>
+              </div>
             </div>
           </div>
         );
       };
 
-      if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Icon name="RefreshCw" size={32} className="animate-spin text-blue-600" /></div>;
+      if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><i className="fa-solid fa-circle-notch fa-spin text-3xl text-blue-600"></i></div>;
 
       // --- MAIN LAYOUT ---
       return (
-        <div className="min-h-screen flex flex-col max-w-lg mx-auto bg-slate-50 md:border-x md:border-slate-200">
+        <div className="min-h-screen flex flex-col max-w-lg mx-auto bg-slate-50 md:border-x md:border-slate-200 shadow-xl">
           <header className="bg-white shadow-sm sticky top-0 z-50">
             <div className="px-4 h-14 flex items-center gap-2">
-              <div className="bg-blue-600 p-1.5 rounded-md text-white"><Icon name="TrendingUp" size={16} /></div>
+              <div className="bg-blue-600 p-1.5 rounded-md text-white"><i className="fa-solid fa-chart-line"></i></div>
               <h1 className="text-lg font-black text-slate-800">Monitor<span className="text-blue-600">Pro</span></h1>
             </div>
           </header>
@@ -472,16 +498,16 @@
             {activeTab === 'admin' && <AdminPanel />}
           </main>
 
-          <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-2 flex justify-around max-w-lg mx-auto pb-safe">
+          <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-1.5 flex justify-around max-w-lg mx-auto pb-safe">
             {[
-              { id: 'dashboard', icon: 'LayoutDashboard', label: 'Home' },
-              { id: 'peringkat', icon: 'Trophy', label: 'Rank' },
-              { id: 'input', icon: 'FileEdit', label: 'Lapor' },
-              { id: 'admin', icon: 'UserCog', label: 'Admin' }
+              { id: 'dashboard', icon: 'fa-house', label: 'Home' },
+              { id: 'peringkat', icon: 'fa-ranking-star', label: 'Rank' },
+              { id: 'input', icon: 'fa-pen-to-square', label: 'Lapor' },
+              { id: 'admin', icon: 'fa-user-gear', label: 'Admin' }
             ].map(item => (
               <button key={item.id} onClick={() => setActiveTab(item.id)} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeTab === item.id ? 'text-blue-600' : 'text-slate-400'}`}>
-                <Icon name={item.icon} size={20} className={activeTab === item.id ? 'fill-blue-100' : ''} /> 
-                <span className="text-[10px] mt-1 font-bold">{item.label}</span>
+                <i className={`fa-solid ${item.icon} text-lg mb-1`}></i>
+                <span className="text-[10px] font-bold">{item.label}</span>
               </button>
             ))}
           </nav>
