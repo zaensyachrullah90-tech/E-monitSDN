@@ -10,12 +10,11 @@
       document.body.innerHTML = `
         <div style="padding: 20px; font-family: sans-serif; background: #fee2e2; color: #991b1b; min-height: 100vh;">
           <h2 style="font-weight: bold; margin-bottom: 10px;">Oops! Terjadi Kesalahan (Error) 🚨</h2>
-          <p style="margin-bottom: 15px; font-size: 14px;">Layar blank biasanya terjadi karena ada tanda kutip atau kurung yang terhapus tidak sengaja di TrebEdit.</p>
           <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #f87171; font-family: monospace; font-size: 14px; overflow-x: auto;">
             <p style="margin-bottom:5px;"><strong>Pesan:</strong> ${msg}</p>
             <p><strong>Baris Error:</strong> ${lineNo}</p>
           </div>
-          <p style="margin-top: 15px; font-size: 14px;"><strong>Solusi:</strong> Periksa kembali baris kode tempat Anda memasukkan link GAS API. Pastikan tanda kutip ganda (") mengapit URL Anda secara sempurna.</p>
+          <p style="margin-top: 15px; font-size: 14px;"><strong>Solusi:</strong> Periksa kembali baris kode tempat Anda memasukkan link GAS API.</p>
         </div>
       `;
       return false;
@@ -26,7 +25,7 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/lucide@0.292.0"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
   <style>
@@ -47,25 +46,33 @@
     const { useState, useMemo, useRef, useEffect, memo } = React;
 
     // =========================================================================
-    // PERHATIAN: GANTI TULISAN URL_GAS_ANDA_DISINI DENGAN URL DARI GOOGLE
-    // Pastikan tanda kutip (" ") di awal dan di akhir URL TIDAK TERHAPUS!
+    // MASUKKAN KEMBALI URL GAS API ANDA DI BAWAH INI:
     // =========================================================================
     
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbykR47zPvdcwAaThHx0SV-XcRzCV2-floPJAFTsXczK1iRXWPRf6tKDbyFznar0LaEz/exec"; 
 
     // =========================================================================
 
-    // Komponen Ikon (Dengan Fallback Anti-Crash)
+    // Komponen Ikon (DIPERBAIKI)
     const Icon = ({ name, size = 24, className = '' }) => {
       const iconRef = useRef(null);
       useEffect(() => {
-        if (iconRef.current && window.lucide && lucide.icons[name]) {
-          iconRef.current.innerHTML = lucide.icons[name].toSvg({ width: size, height: size, class: className, 'stroke-width': 2 });
-        } else if (iconRef.current) {
-          iconRef.current.innerHTML = `<span style="color:red; font-size:10px;">[?]</span>`;
+        if (iconRef.current && window.lucide) {
+          // Render ulang icon secara aman
+          iconRef.current.innerHTML = `<i data-lucide="${name}"></i>`;
+          lucide.createIcons({
+            root: iconRef.current,
+            attrs: {
+              width: size,
+              height: size,
+              class: className,
+              'stroke-width': 2
+            }
+          });
         }
       }, [name, size, className]);
-      return <span ref={iconRef} className={className} style={{ display: 'inline-flex', alignItems: 'center' }} />;
+      
+      return <span ref={iconRef} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} />;
     };
 
     // Fungsi Pembantu
@@ -76,7 +83,7 @@
       return diffTime > 0 ? diffTime : 0;
     };
 
-    // Komponen Card Tugas (Optimasi RAM dengan memo)
+    // Komponen Card Tugas
     const TaskCard = memo(({ task, picName }) => {
       const percent = Math.min(Math.round((task.progress / task.target) * 100), 100);
       const daysLeft = getDaysLeft(task.deadline);
@@ -120,7 +127,7 @@
 
       const fetchData = async () => {
         if(GAS_API_URL === "URL_GAS_ANDA_DISINI") {
-          setIsLoading(false); // Stop loading jika API belum diganti
+          setIsLoading(false); 
           return;
         }
 
@@ -487,365 +494,3 @@
   </script>
 </body>
 </html>
-          const response = await fetch(GAS_API_URL);
-          const data = await response.json();
-          
-          setEmployees(data.pegawai.map(p => ({ id: p.id, name: p.nama })));
-          setTasks(data.kegiatan.map(t => ({
-            id: t.id, taskName: t.taskName, picId: t.picId, target: t.target,
-            progress: t.progress || 0, deadline: t.deadline.split('T')[0], status: t.status
-          })));
-        } catch (error) {
-          alert("Gagal mengambil data. Pastikan link GAS benar.");
-        }
-        setIsLoading(false);
-      };
-
-      useEffect(() => { fetchData(); }, []);
-
-      const DemoWarning = () => GAS_API_URL === "URL_GAS_ANDA_DISINI" ? (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
-          <p className="text-red-700 text-sm font-bold"><Icon name="AlertTriangle" size={16} className="inline mr-1" /> MODE OFFLINE</p>
-          <p className="text-red-600 text-xs mt-1">Anda belum memasukkan URL API Google Apps Script. Fitur simpan data tidak akan berfungsi.</p>
-        </div>
-      ) : null;
-
-      // --- KOMPONEN: DASHBOARD ---
-      const Dashboard = () => {
-        const [filterEmp, setFilterEmp] = useState('all');
-        const [sortOrder, setSortOrder] = useState('highest');
-
-        const displayTasks = useMemo(() => {
-          let filtered = tasks.filter(t => t.status === 'On Progress');
-          if (filterEmp !== 'all') filtered = filtered.filter(t => t.picId === parseInt(filterEmp));
-          return filtered.sort((a, b) => {
-            const progA = (a.progress / a.target) * 100;
-            const progB = (b.progress / b.target) * 100;
-            return sortOrder === 'highest' ? progB - progA : progA - progB;
-          });
-        }, [tasks, filterEmp, sortOrder]);
-
-        const totalTasks = tasks.length;
-        const completedTasks = tasks.filter(t => t.status === 'Selesai').length;
-        
-        return (
-          <div className="space-y-6 animate-fade-in">
-            <DemoWarning />
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl md:text-2xl font-extrabold text-slate-800">Dashboard</h2>
-              <button onClick={fetchData} className="flex items-center gap-1 text-xs md:text-sm bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100">
-                 <Icon name="RefreshCw" size={14} className={isLoading ? "animate-spin" : ""} /> Refresh
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-                <div className="p-3 bg-blue-500 text-white rounded-lg"><Icon name="LayoutDashboard" size={20}/></div>
-                <div><p className="text-[10px] font-bold text-slate-500 uppercase">Total Kegiatan</p><p className="text-2xl font-black text-slate-800">{totalTasks}</p></div>
-              </div>
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-                <div className="p-3 bg-emerald-500 text-white rounded-lg"><Icon name="CheckCircle" size={20}/></div>
-                <div><p className="text-[10px] font-bold text-slate-500 uppercase">Telah Selesai</p><p className="text-2xl font-black text-slate-800">{completedTasks}</p></div>
-              </div>
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-                <div className="p-3 bg-orange-500 text-white rounded-lg"><Icon name="Clock" size={20}/></div>
-                <div><p className="text-[10px] font-bold text-slate-500 uppercase">Sedang Berjalan</p><p className="text-2xl font-black text-slate-800">{totalTasks - completedTasks}</p></div>
-              </div>
-            </div>
-
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4">
-              <div className="flex items-center gap-2 w-full">
-                <Icon name="Filter" size={16} className="text-slate-400" />
-                <select className="bg-slate-50 border border-slate-200 rounded-lg p-2 w-full text-xs outline-none" value={filterEmp} onChange={(e) => setFilterEmp(e.target.value)}>
-                  <option value="all">Semua Pegawai</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                </select>
-              </div>
-              <div className="flex items-center gap-2 w-full">
-                <Icon name="TrendingUp" size={16} className="text-slate-400" />
-                <select className="bg-slate-50 border border-slate-200 rounded-lg p-2 w-full text-xs outline-none" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
-                  <option value="highest">Progres Terbesar (%)</option>
-                  <option value="lowest">Progres Terkecil (%)</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {displayTasks.length === 0 ? (
-                <div className="col-span-full text-center py-10 bg-white rounded-2xl border border-dashed border-slate-300">
-                  <p className="text-slate-500 text-sm">Tidak ada kegiatan yang berjalan.</p>
-                </div>
-              ) : (
-                displayTasks.map(task => <TaskCard key={task.id} task={task} picName={employees.find(e => e.id === task.picId)?.name || 'Anonim'} />)
-              )}
-            </div>
-          </div>
-        );
-      };
-
-      // --- KOMPONEN: LEADERBOARD ---
-      const Leaderboard = () => {
-        const stats = useMemo(() => {
-          return employees.map(emp => {
-            const empTasks = tasks.filter(t => t.picId === emp.id);
-            const totalTarget = empTasks.reduce((sum, t) => sum + t.target, 0);
-            const totalProgress = empTasks.reduce((sum, t) => sum + t.progress, 0);
-            const percent = totalTarget === 0 ? 0 : Math.min(Math.round((totalProgress / totalTarget) * 100), 100);
-            return { ...emp, totalTarget, totalProgress, percent, taskCount: empTasks.length };
-          }).sort((a, b) => b.percent - a.percent);
-        }, [tasks, employees]);
-
-        return (
-          <div className="space-y-6 animate-fade-in">
-            <h2 className="text-xl md:text-2xl font-extrabold text-slate-800"><Icon name="Trophy" size={20} className="text-yellow-500 inline mr-2"/>Peringkat Kinerja</h2>
-            <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Rank</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Nama</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Tugas</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Capaian</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Kinerja</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-slate-100">
-                  {stats.map((stat, index) => (
-                    <tr key={stat.id}>
-                      <td className="px-4 py-3 whitespace-nowrap font-bold text-sm">{index + 1}</td>
-                      <td className="px-4 py-3 whitespace-nowrap font-bold text-sm">{stat.name}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-500">{stat.taskCount}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600">{stat.totalProgress} / {stat.totalTarget}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center gap-2 min-w-[100px]">
-                          <div className="w-full bg-slate-200 rounded-full h-1.5"><div className={`h-full rounded-full ${stat.percent >= 80 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${stat.percent}%` }}></div></div>
-                          <span className="font-bold text-xs">{stat.percent}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        );
-      };
-
-      // --- KOMPONEN: INPUT PROGRES ---
-      const ProgressForm = () => {
-        const [selectedEmp, setSelectedEmp] = useState('');
-        const [selectedTask, setSelectedTask] = useState('');
-        const [amount, setAmount] = useState('');
-        const [message, setMessage] = useState('');
-
-        const availableTasks = tasks.filter(t => t.picId === parseInt(selectedEmp) && t.status === 'On Progress');
-
-        const handleSubmit = async (e) => {
-          e.preventDefault();
-          if (GAS_API_URL === "URL_GAS_ANDA_DISINI") { alert("Masukkan URL GAS di Script Code terlebih dahulu."); return; }
-          
-          setIsSyncing(true);
-          try {
-            const payload = { action: 'UPDATE_PROGRESS', payload: { id: parseInt(selectedTask), amount: parseInt(amount) } };
-            await fetch(GAS_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
-
-            const updatedTasks = [...tasks];
-            const taskIndex = updatedTasks.findIndex(t => t.id === parseInt(selectedTask));
-            const task = updatedTasks[taskIndex];
-            const newProgress = task.progress + parseInt(amount);
-            const isDone = newProgress >= task.target;
-
-            updatedTasks[taskIndex] = { ...task, progress: isDone ? task.target : newProgress, status: isDone ? 'Selesai' : 'On Progress' };
-            setTasks(updatedTasks);
-            setAmount('');
-            setMessage(`Capaian tersimpan. ${isDone ? '🎉 Selesai!' : ''}`);
-            setTimeout(() => setMessage(''), 4000);
-          } catch (err) {
-            alert("Gagal menyimpan, cek koneksi.");
-          }
-          setIsSyncing(false);
-        };
-
-        return (
-          <div className="max-w-md mx-auto space-y-4 animate-fade-in">
-            <h2 className="text-xl font-extrabold text-slate-800 text-center">Lapor Progres</h2>
-            {message && <div className="bg-emerald-50 text-emerald-800 p-3 rounded-lg text-xs font-bold">{message}</div>}
-            
-            <form onSubmit={handleSubmit} className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 space-y-4">
-              <select required className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none" value={selectedEmp} onChange={(e) => { setSelectedEmp(e.target.value); setSelectedTask(''); }}>
-                <option value="">Pilih Nama Anda...</option>
-                {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-              </select>
-              {selectedEmp && (
-                <select required className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
-                  <option value="">Tugas yang dikerjakan...</option>
-                  {availableTasks.map(t => <option key={t.id} value={t.id}>{t.taskName} (Sisa: {t.target - t.progress})</option>)}
-                </select>
-              )}
-              {selectedTask && (
-                <input type="number" required min="1" className="w-full bg-white border border-slate-200 rounded-lg p-3 font-bold text-slate-800 text-sm outline-none" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Jumlah capaian hari ini..." />
-              )}
-              <button type="submit" disabled={!selectedTask || isSyncing} className="w-full bg-blue-600 text-white font-bold text-sm py-3 rounded-lg flex justify-center items-center gap-2">
-                {isSyncing ? <Icon name="RefreshCw" size={16} className="animate-spin" /> : 'Kirim Laporan'}
-              </button>
-            </form>
-          </div>
-        );
-      };
-
-      // --- KOMPONEN: ADMIN PANEL ---
-      const AdminPanel = () => {
-        const [newTask, setNewTask] = useState({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
-        const [successMsg, setSuccessMsg] = useState('');
-        const fileInputRef = useRef(null);
-
-        const handleAddTask = async (e) => {
-          e.preventDefault();
-          if (GAS_API_URL === "URL_GAS_ANDA_DISINI") { alert("URL GAS belum diset."); return; }
-          
-          setIsSyncing(true);
-          try {
-            let addedTasks = [];
-            if (newTask.picId === 'all') {
-              employees.forEach((emp, idx) => {
-                const empTarget = parseInt(newTask.multiTargets[emp.id]);
-                if (empTarget > 0) addedTasks.push({ id: Date.now() + idx, taskName: newTask.taskName, picId: emp.id, target: empTarget, progress: 0, deadline: newTask.deadline, status: 'On Progress' });
-              });
-              await fetch(GAS_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'IMPORT_TASKS', payload: addedTasks }) });
-            } else {
-              const task = { id: Date.now(), taskName: newTask.taskName, picId: parseInt(newTask.picId), target: parseInt(newTask.target), progress: 0, deadline: newTask.deadline, status: 'On Progress' };
-              addedTasks.push(task);
-              await fetch(GAS_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'ADD_TASK', payload: task }) });
-            }
-
-            setTasks([...tasks, ...addedTasks]);
-            setNewTask({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
-            setSuccessMsg('Penugasan berhasil!'); setTimeout(() => setSuccessMsg(''), 3000);
-          } catch (err) {
-            alert("Gagal menyimpan tugas.");
-          }
-          setIsSyncing(false);
-        };
-
-        const handleExcelUpload = (e) => {
-          const file = e.target.files[0];
-          if (!file) return;
-
-          const reader = new FileReader();
-          reader.onload = async (event) => {
-            try {
-              const data = new Uint8Array(event.target.result);
-              const workbook = XLSX.read(data, { type: 'array' });
-              const excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-
-              const newTasks = excelData.map((row, idx) => {
-                let deadline = new Date().toISOString().split('T')[0];
-                if (row['Deadline']) deadline = typeof row['Deadline'] === 'number' ? new Date((row['Deadline'] - (25567 + 1)) * 86400 * 1000).toISOString().split('T')[0] : row['Deadline'];
-                return { id: Date.now() + idx, taskName: row['Nama Kegiatan'], picId: parseInt(row['ID PIC']), target: parseInt(row['Target']), progress: 0, deadline: deadline, status: 'On Progress' };
-              }).filter(t => t.taskName && t.picId && t.target);
-
-              if (newTasks.length > 0) {
-                setIsSyncing(true);
-                await fetch(GAS_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'IMPORT_TASKS', payload: newTasks }) });
-                setTasks(prev => [...prev, ...newTasks]);
-                setSuccessMsg(`Import ${newTasks.length} tugas berhasil!`); setTimeout(() => setSuccessMsg(''), 3000);
-                setIsSyncing(false);
-              }
-            } catch (error) { alert("Format excel salah."); setIsSyncing(false); }
-          };
-          reader.readAsArrayBuffer(file);
-          e.target.value = null;
-        };
-
-        return (
-          <div className="space-y-6 animate-fade-in pb-10">
-            <h2 className="text-xl md:text-2xl font-extrabold text-slate-800"><Icon name="UserCog" size={20} className="inline mr-2 text-indigo-600"/>Admin</h2>
-            {successMsg && <div className="bg-emerald-50 text-emerald-800 p-3 rounded-lg text-xs font-bold">{successMsg}</div>}
-            
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
-              <h3 className="font-bold text-sm mb-3">Tugas Baru</h3>
-              <form onSubmit={handleAddTask} className="space-y-3">
-                <input required type="text" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none" value={newTask.taskName} onChange={e => setNewTask({...newTask, taskName: e.target.value})} placeholder="Nama Kegiatan..." />
-                <select required className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none" value={newTask.picId} onChange={e => setNewTask({...newTask, picId: e.target.value})}>
-                  <option value="">Pilih Pegawai...</option>
-                  <option value="all">🚀 Semua Pegawai</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                </select>
-                
-                {newTask.picId === 'all' ? (
-                  <div className="bg-indigo-50 p-3 rounded-lg space-y-2">
-                    {employees.map(emp => (
-                      <div key={emp.id} className="flex justify-between items-center text-xs">
-                        <span className="font-bold text-slate-700">{emp.name}</span>
-                        <input type="number" min="0" placeholder="Target" className="border rounded p-1 w-16" value={newTask.multiTargets[emp.id] || ''} onChange={e => setNewTask({...newTask, multiTargets: {...newTask.multiTargets, [emp.id]: e.target.value}})} />
-                      </div>
-                    ))}
-                    <input required type="date" className="w-full mt-2 rounded p-2 text-xs" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
-                  </div>
-                ) : (
-                  <div className="flex gap-2">
-                    <input required type="number" min="1" placeholder="Target" className="w-1/2 bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs outline-none" value={newTask.target} onChange={e => setNewTask({...newTask, target: e.target.value})} />
-                    <input required type="date" className="w-1/2 bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs outline-none" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
-                  </div>
-                )}
-                <button type="submit" disabled={isSyncing} className="w-full bg-indigo-600 text-white font-bold text-xs py-2.5 rounded-lg flex justify-center items-center gap-2">
-                  {isSyncing ? <Icon name="RefreshCw" size={14} className="animate-spin" /> : 'Tugaskan'}
-                </button>
-              </form>
-            </div>
-
-            <div className="bg-emerald-700 p-5 rounded-xl text-white">
-              <h3 className="font-bold text-sm mb-2"><Icon name="FileSpreadsheet" size={16} className="inline mr-1"/> Import Excel (.xlsx)</h3>
-              <input type="file" accept=".xlsx, .xls" ref={fileInputRef} onChange={handleExcelUpload} className="hidden" />
-              <button onClick={() => fileInputRef.current.click()} disabled={isSyncing} className="bg-white text-emerald-800 font-bold text-xs py-2 px-4 rounded-lg w-full flex justify-center items-center gap-2">
-                 {isSyncing ? <Icon name="RefreshCw" size={14} className="animate-spin text-emerald-600" /> : 'Pilih File'}
-              </button>
-            </div>
-          </div>
-        );
-      };
-
-      if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Icon name="RefreshCw" size={32} className="animate-spin text-blue-600" /></div>;
-
-      // --- MAIN LAYOUT ---
-      return (
-        <div className="min-h-screen flex flex-col max-w-lg mx-auto bg-slate-50 md:border-x md:border-slate-200">
-          <header className="bg-white shadow-sm sticky top-0 z-50">
-            <div className="px-4 h-14 flex items-center gap-2">
-              <div className="bg-blue-600 p-1.5 rounded-md text-white"><Icon name="TrendingUp" size={16} /></div>
-              <h1 className="text-lg font-black text-slate-800">Monitor<span className="text-blue-600">Pro</span></h1>
-            </div>
-          </header>
-
-          <main className="flex-grow w-full px-4 py-6 overflow-y-auto pb-24">
-            {activeTab === 'dashboard' && <Dashboard />}
-            {activeTab === 'peringkat' && <Leaderboard />}
-            {activeTab === 'input' && <ProgressForm />}
-            {activeTab === 'admin' && <AdminPanel />}
-          </main>
-
-          {/* Bottom Navigation for Mobile */}
-          <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-2 flex justify-around max-w-lg mx-auto pb-safe">
-            {[
-              { id: 'dashboard', icon: 'LayoutDashboard', label: 'Home' },
-              { id: 'peringkat', icon: 'Trophy', label: 'Rank' },
-              { id: 'input', icon: 'FileEdit', label: 'Lapor' },
-              { id: 'admin', icon: 'UserCog', label: 'Admin' }
-            ].map(item => (
-              <button key={item.id} onClick={() => setActiveTab(item.id)} className={`flex flex-col items-center p-2 rounded-xl transition-colors ${activeTab === item.id ? 'text-blue-600' : 'text-slate-400'}`}>
-                <Icon name={item.icon} size={20} className={activeTab === item.id ? 'fill-blue-100' : ''} /> 
-                <span className="text-[10px] mt-1 font-bold">{item.label}</span>
-              </button>
-            ))}
-          </nav>
-        </div>
-      );
-    }
-
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
-  </script>
-</body>
-</html>
-
-
