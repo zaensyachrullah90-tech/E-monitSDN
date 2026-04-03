@@ -4,17 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>MonitorPro - Aplikasi Monitoring</title>
-  
-  <script>
-    window.onerror = function(msg, url, lineNo) {
-      if (msg.indexOf('Script error') > -1 && lineNo === 0) {
-        console.warn("Abaikan: Error dari ekstensi browser atau CDN pihak ketiga.");
-        return true; 
-      }
-      console.error("Error System:", msg, "di baris", lineNo);
-      return false;
-    };
-  </script>
 
   <script src="https://cdn.tailwindcss.com"></script>
   
@@ -57,12 +46,18 @@
       const [isExpired, setIsExpired] = useState(false);
 
       useEffect(() => {
-        // Set target ke jam 23:59:59 pada hari deadline tersebut
         const targetDate = new Date(`${deadline}T23:59:59`).getTime();
 
         const updateTimer = () => {
           const now = new Date().getTime();
           const distance = targetDate - now;
+
+          // Pengaman jika format tanggal error
+          if (isNaN(distance)) {
+            setTimeLeft("Tenggat Invalid");
+            setIsExpired(true);
+            return;
+          }
 
           if (distance < 0) {
             setTimeLeft("Waktu Habis!");
@@ -78,7 +73,6 @@
           let timeString = '';
           if (days > 0) timeString += `${days}h `;
           
-          // Format 00:00:00
           const h = hours < 10 ? `0${hours}` : hours;
           const m = minutes < 10 ? `0${minutes}` : minutes;
           const s = seconds < 10 ? `0${seconds}` : seconds;
@@ -86,13 +80,12 @@
           timeString += `${h}:${m}:${s}`;
           
           setTimeLeft(timeString);
-          setIsExpired(days <= 2); // Merah jika sisa <= 2 hari
+          setIsExpired(days <= 2);
         };
 
-        updateTimer(); // Initial call
-        const interval = setInterval(updateTimer, 1000); // Update setiap 1 detik
-
-        return () => clearInterval(interval); // Bersihkan memori saat komponen ditutup
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
       }, [deadline]);
 
       return (
@@ -113,7 +106,6 @@
           
           <div className="flex justify-between items-start mb-4 pl-3 gap-2">
             <h3 className="text-lg md:text-xl font-bold text-slate-800 leading-tight">{task.taskName}</h3>
-            {/* Live Countdown Dipasang Disini */}
             <LiveCountdown deadline={task.deadline} />
           </div>
 
@@ -165,7 +157,7 @@
             })));
           }
         } catch (error) {
-          console.error("Fetch Data Gagal:", error);
+          console.error(error);
         }
         setIsLoading(false);
       };
@@ -356,7 +348,7 @@
               {selectedTask && (
                 <input type="number" required min="1" className="w-full bg-white border border-slate-200 rounded-lg p-3 font-bold text-slate-800 text-sm outline-none focus:ring-2 focus:ring-blue-500" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Jumlah capaian hari ini..." />
               )}
-              <button type="submit" disabled={!selectedTask || isSyncing} className="w-full bg-blue-600 text-white font-bold text-sm py-3 rounded-lg flex justify-center items-center gap-2 disabled:bg-slate-300">
+              <button type="submit" disabled={!selectedTask || isSyncing} className="w-full bg-blue-600 text-white font-bold text-sm py-3 rounded-lg flex justify-center items-center gap-2 disabled:bg-slate-300 transition-colors">
                 {isSyncing ? <i className="fa-solid fa-spinner fa-spin"></i> : <><i className="fa-solid fa-paper-plane"></i> Kirim Laporan</>}
               </button>
             </form>
@@ -407,80 +399,97 @@
               ["Contoh Tugas A", 1, 100, "2026-12-31"],
               ["Contoh Tugas B", 2, 50, "2026-11-30"]
             ];
-            const worksheet = XLSX.utils.aoa_to_sheet(templateData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Template_Import");
+            const worksheet = window.XLSX.utils.aoa_to_sheet(templateData);
+            const workbook = window.XLSX.utils.book_new();
+            window.XLSX.utils.book_append_sheet(workbook, worksheet, "Template_Import");
             
-            XLSX.writeFile(workbook, "Template_Import_MonitorPro.xlsx");
+            window.XLSX.writeFile(workbook, "Template_MonitorPro.xlsx");
           } catch (err) {
-            alert("Gagal mendownload template.");
+            alert("Gagal mendownload template. Pastikan browser mengizinkan pop-up download.");
           }
         };
 
-        // --- MESIN IMPORT EXCEL & CSV ---
-        const handleExcelUpload = (e) => {
-          const file = e.target.files[0];
+        // --- MESIN IMPORT EXCEL & CSV (SUPER KEBAL / AUTO NORMALIZE) ---
+        const handleExcelUpload = async (e) => {
+          const file = e.target?.files?.[0];
           if (!file) return;
 
-          const reader = new FileReader();
-          reader.onload = async (event) => {
-            try {
-              const data = new Uint8Array(event.target.result);
-              const workbook = XLSX.read(data, { type: 'array' });
-              const excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
+          setIsSyncing(true);
+          setErrorMsg('');
+          
+          try {
+            const data = await file.arrayBuffer();
+            const workbook = window.XLSX.read(data);
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const excelData = window.XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-              const newTasks = [];
-              for(let i = 0; i < excelData.length; i++) {
-                const row = excelData[i];
-                
-                const taskName = row['Nama Kegiatan'] || row['nama kegiatan'] || row['Kegiatan'] || row['Task Name'];
-                const picId = parseInt(row['ID PIC'] || row['id pic'] || row['PIC'] || row['ID']);
-                const target = parseInt(row['Target'] || row['target']);
-                
-                if (!taskName || isNaN(picId) || isNaN(target)) continue;
+            const newTasks = [];
+            for(let i = 0; i < excelData.length; i++) {
+              const row = excelData[i];
+              
+              // Normalize Keys (Membuang karakter gaib BOM dari CSV dan mengabaikan huruf besar/kecil)
+              const normRow = {};
+              for (const key in row) {
+                const safeKey = key.replace(/^[\u200B\u200C\u200D\uFEFF]/, '').trim().toLowerCase();
+                normRow[safeKey] = row[key];
+              }
+              
+              const taskName = normRow['nama kegiatan'] || normRow['kegiatan'] || normRow['task name'];
+              const picId = parseInt(normRow['id pic'] || normRow['pic'] || normRow['id']);
+              const target = parseInt(normRow['target']);
+              
+              // Lewati baris yang kosong atau tidak valid
+              if (!taskName || isNaN(picId) || isNaN(target)) continue;
 
-                let finalDeadline = new Date().toISOString().split('T')[0];
-                const rawDeadline = row['Deadline'] || row['deadline'] || row['Tanggal'];
-                
-                if (rawDeadline) {
-                  if (typeof rawDeadline === 'number') {
-                    const dateObj = new Date((rawDeadline - (25567 + 2)) * 86400 * 1000);
-                    finalDeadline = dateObj.toISOString().split('T')[0];
-                  } else {
-                    finalDeadline = rawDeadline;
+              let finalDeadline = new Date().toISOString().split('T')[0];
+              const rawDeadline = normRow['deadline'] || normRow['tanggal'];
+              
+              if (rawDeadline) {
+                if (typeof rawDeadline === 'number') {
+                  const dateObj = new Date((rawDeadline - (25567 + 2)) * 86400 * 1000);
+                  finalDeadline = dateObj.toISOString().split('T')[0];
+                } else {
+                  // Parse format text (misal "DD/MM/YYYY" atau "YYYY-MM-DD" dari CSV)
+                  const strDate = String(rawDeadline).trim();
+                  const parts = strDate.split(/[-/]/);
+                  if (parts.length === 3) {
+                     if (parts[0].length === 2 && parts[2].length === 4) {
+                         finalDeadline = `${parts[2]}-${parts[1]}-${parts[0]}`; // Convert DD/MM/YYYY ke YYYY-MM-DD
+                     } else {
+                         const d = new Date(strDate);
+                         if(!isNaN(d.getTime())) finalDeadline = d.toISOString().split('T')[0];
+                     }
                   }
                 }
-
-                newTasks.push({ 
-                  id: Date.now() + Math.floor(Math.random() * 1000) + i, 
-                  taskName: taskName, 
-                  picId: picId, 
-                  target: target, 
-                  progress: 0, 
-                  deadline: finalDeadline, 
-                  status: 'On Progress' 
-                });
               }
 
-              if (newTasks.length > 0) {
-                setIsSyncing(true);
-                await fetch(GAS_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'IMPORT_TASKS', payload: newTasks }) });
-                
-                setTasks(prev => [...prev, ...newTasks]);
-                setSuccessMsg(`Berhasil! ${newTasks.length} data tugas ditambahkan.`); 
-                setTimeout(() => setSuccessMsg(''), 5000);
-              } else {
-                throw new Error("Data Kosong / Format Salah. Silakan Download Template!");
-              }
-            } catch (error) { 
-              setErrorMsg(error.message || "Gagal membaca file CSV/Excel."); 
-              setTimeout(() => setErrorMsg(''), 6000);
-            } finally {
-              setIsSyncing(false);
-              e.target.value = null;
+              newTasks.push({ 
+                id: Date.now() + Math.floor(Math.random() * 1000) + i, 
+                taskName: String(taskName).trim(), 
+                picId: picId, 
+                target: target, 
+                progress: 0, 
+                deadline: finalDeadline, 
+                status: 'On Progress' 
+              });
             }
-          };
-          reader.readAsArrayBuffer(file);
+
+            if (newTasks.length > 0) {
+              await fetch(GAS_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'IMPORT_TASKS', payload: newTasks }) });
+              setTasks(prev => [...prev, ...newTasks]);
+              setSuccessMsg(`Berhasil! ${newTasks.length} data tugas ditambahkan.`); 
+              setTimeout(() => setSuccessMsg(''), 5000);
+            } else {
+              throw new Error("Data Kosong / Format Salah. Pastikan kolom Nama Kegiatan, ID PIC, dan Target terisi.");
+            }
+          } catch (error) { 
+            console.error(error);
+            setErrorMsg(error.message || "Gagal membaca file CSV/Excel."); 
+            setTimeout(() => setErrorMsg(''), 6000);
+          } finally {
+            setIsSyncing(false);
+            if(fileInputRef.current) fileInputRef.current.value = '';
+          }
         };
 
         return (
@@ -507,8 +516,8 @@
                 <h3 className="font-bold text-sm mb-2"><i className="fa-solid fa-cloud-arrow-up mr-1"></i> Upload Data Massal</h3>
                 <p className="text-[10px] text-emerald-200 mb-4">Pilih file hasil isian dari template (.xlsx atau .csv).</p>
                 <input type="file" accept=".xlsx, .xls, .csv" ref={fileInputRef} onChange={handleExcelUpload} className="hidden" />
-                <button onClick={() => fileInputRef.current.click()} disabled={isSyncing} className="bg-white text-emerald-800 font-bold text-xs py-2.5 px-4 rounded-lg w-full flex justify-center items-center gap-2">
-                   {isSyncing ? <><i className="fa-solid fa-spinner fa-spin text-emerald-600"></i> Memproses Data...</> : <><i className="fa-solid fa-folder-open"></i> Pilih File Excel</>}
+                <button onClick={() => fileInputRef.current.click()} disabled={isSyncing} className="bg-white text-emerald-800 font-bold text-xs py-2.5 px-4 rounded-lg w-full flex justify-center items-center gap-2 transition-colors">
+                   {isSyncing ? <><i className="fa-solid fa-spinner fa-spin text-emerald-600"></i> Memproses Data...</> : <><i className="fa-solid fa-folder-open"></i> Pilih File Excel / CSV</>}
                 </button>
               </div>
             </div>
@@ -539,7 +548,7 @@
                     <input required type="date" className="w-1/2 bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs outline-none focus:ring-2 focus:ring-indigo-500" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
                   </div>
                 )}
-                <button type="submit" disabled={isSyncing} className="w-full bg-indigo-600 text-white font-bold text-xs py-3 rounded-lg flex justify-center items-center gap-2">
+                <button type="submit" disabled={isSyncing} className="w-full bg-indigo-600 text-white font-bold text-xs py-3 rounded-lg flex justify-center items-center gap-2 transition-colors">
                   {isSyncing ? <i className="fa-solid fa-spinner fa-spin"></i> : <><i className="fa-solid fa-plus"></i> Tugaskan</>}
                 </button>
               </form>
