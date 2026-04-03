@@ -7,15 +7,11 @@
   
   <script>
     window.onerror = function(msg, url, lineNo) {
-      document.body.innerHTML = `
-        <div style="padding: 20px; font-family: sans-serif; background: #fee2e2; color: #991b1b; min-height: 100vh;">
-          <h2 style="font-weight: bold; margin-bottom: 10px;">Oops! Terjadi Kesalahan (Error) <i class="fa-solid fa-triangle-exclamation"></i></h2>
-          <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #f87171; font-family: monospace; font-size: 14px; overflow-x: auto;">
-            <p style="margin-bottom:5px;"><strong>Pesan:</strong> ${msg}</p>
-            <p><strong>Baris Error:</strong> ${lineNo}</p>
-          </div>
-        </div>
-      `;
+      if (msg.indexOf('Script error') > -1 && lineNo === 0) {
+        console.warn("Abaikan: Error dari ekstensi browser atau CDN pihak ketiga.");
+        return true; 
+      }
+      console.error("Error System:", msg, "di baris", lineNo);
       return false;
     };
   </script>
@@ -24,11 +20,11 @@
   
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
   <style>
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -50,13 +46,12 @@
 
     // =========================================================================
     // ⚠️ MASUKKAN URL GOOGLE APPS SCRIPT ANDA DI SINI:
-    // Pastikan tanda kutip ("") tidak terhapus!
     // =========================================================================
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxJCZoevRfQhF37EI5nJEIHU4N6dwvPZqXrg8MZ521GCJdO316NbcHRN_AqX_ktIktB/exec"; 
     // =========================================================================
 
 
-    // --- KOMPONEN BARU: LIVE COUNTDOWN REAL-TIME ---
+    // --- KOMPONEN: LIVE COUNTDOWN REAL-TIME ---
     const LiveCountdown = memo(({ deadline }) => {
       const [timeLeft, setTimeLeft] = useState('');
       const [isExpired, setIsExpired] = useState(false);
@@ -170,7 +165,7 @@
             })));
           }
         } catch (error) {
-          alert("Gagal mengambil data dari Google Sheets. Pastikan link API benar.");
+          console.error("Fetch Data Gagal:", error);
         }
         setIsLoading(false);
       };
@@ -354,211 +349,6 @@
               </select>
               {selectedEmp && (
                 <select required className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
-                  <option value="">Tugas yang dikerjakan...</o      const [isSyncing, setIsSyncing] = useState(false);
-
-      const fetchData = async () => {
-        if(GAS_API_URL === "URL_GAS_ANDA_DISINI") {
-          setIsLoading(false); 
-          return;
-        }
-
-        setIsLoading(true);
-        try {
-          const response = await fetch(GAS_API_URL);
-          const data = await response.json();
-          
-          if(data && data.pegawai && data.kegiatan) {
-            setEmployees(data.pegawai.map(p => ({ id: p.id, name: p.nama })));
-            setTasks(data.kegiatan.map(t => ({
-              id: t.id, taskName: t.taskName, picId: t.picId, target: t.target,
-              progress: t.progress || 0, deadline: t.deadline ? t.deadline.split('T')[0] : '2026-12-31', status: t.status
-            })));
-          }
-        } catch (error) {
-          alert("Gagal mengambil data dari Google Sheets. Pastikan link API benar.");
-        }
-        setIsLoading(false);
-      };
-
-      useEffect(() => { fetchData(); }, []);
-
-      const DemoWarning = () => GAS_API_URL === "URL_GAS_ANDA_DISINI" ? (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r-lg">
-          <p className="text-red-700 text-sm font-bold"><i className="fa-solid fa-triangle-exclamation mr-1"></i> MODE OFFLINE</p>
-          <p className="text-red-600 text-xs mt-1">Anda belum memasukkan URL API Google Apps Script. Fitur simpan data tidak akan berfungsi ke database.</p>
-        </div>
-      ) : null;
-
-      // --- KOMPONEN: DASHBOARD ---
-      const Dashboard = () => {
-        const [filterEmp, setFilterEmp] = useState('all');
-        const [sortOrder, setSortOrder] = useState('highest');
-
-        const displayTasks = useMemo(() => {
-          let filtered = tasks.filter(t => t.status === 'On Progress');
-          if (filterEmp !== 'all') filtered = filtered.filter(t => t.picId === parseInt(filterEmp));
-          return filtered.sort((a, b) => {
-            const progA = (a.progress / a.target) * 100;
-            const progB = (b.progress / b.target) * 100;
-            return sortOrder === 'highest' ? progB - progA : progA - progB;
-          });
-        }, [tasks, filterEmp, sortOrder]);
-
-        const totalTasks = tasks.length;
-        const completedTasks = tasks.filter(t => t.status === 'Selesai').length;
-        
-        return (
-          <div className="space-y-6 animate-fade-in">
-            <DemoWarning />
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl md:text-2xl font-extrabold text-slate-800">Dashboard</h2>
-              <button onClick={fetchData} className="flex items-center gap-2 text-xs md:text-sm bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100 font-bold">
-                 <i className={`fa-solid fa-rotate ${isLoading ? "fa-spin" : ""}`}></i> Refresh
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-                <div className="p-3 bg-blue-500 text-white rounded-lg flex items-center justify-center w-12 h-12"><i className="fa-solid fa-chart-pie text-xl"></i></div>
-                <div><p className="text-[10px] font-bold text-slate-500 uppercase">Total Kegiatan</p><p className="text-2xl font-black text-slate-800">{totalTasks}</p></div>
-              </div>
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-                <div className="p-3 bg-emerald-500 text-white rounded-lg flex items-center justify-center w-12 h-12"><i className="fa-solid fa-circle-check text-xl"></i></div>
-                <div><p className="text-[10px] font-bold text-slate-500 uppercase">Telah Selesai</p><p className="text-2xl font-black text-slate-800">{completedTasks}</p></div>
-              </div>
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
-                <div className="p-3 bg-orange-500 text-white rounded-lg flex items-center justify-center w-12 h-12"><i className="fa-solid fa-clock-rotate-left text-xl"></i></div>
-                <div><p className="text-[10px] font-bold text-slate-500 uppercase">Sedang Berjalan</p><p className="text-2xl font-black text-slate-800">{totalTasks - completedTasks}</p></div>
-              </div>
-            </div>
-
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4">
-              <div className="flex items-center gap-3 w-full">
-                <i className="fa-solid fa-filter text-slate-400"></i>
-                <select className="bg-slate-50 border border-slate-200 rounded-lg p-2 w-full text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500" value={filterEmp} onChange={(e) => setFilterEmp(e.target.value)}>
-                  <option value="all">Semua Pegawai</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                </select>
-              </div>
-              <div className="flex items-center gap-3 w-full">
-                <i className="fa-solid fa-arrow-trend-up text-slate-400"></i>
-                <select className="bg-slate-50 border border-slate-200 rounded-lg p-2 w-full text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
-                  <option value="highest">Progres Terbesar (%)</option>
-                  <option value="lowest">Progres Terkecil (%)</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {displayTasks.length === 0 ? (
-                <div className="col-span-full text-center py-10 bg-white rounded-2xl border border-dashed border-slate-300">
-                  <p className="text-slate-500 text-sm font-medium">Tidak ada kegiatan yang berjalan saat ini.</p>
-                </div>
-              ) : (
-                displayTasks.map(task => <TaskCard key={task.id} task={task} picName={employees.find(e => e.id === task.picId)?.name || 'Anonim'} />)
-              )}
-            </div>
-          </div>
-        );
-      };
-
-      // --- KOMPONEN: LEADERBOARD ---
-      const Leaderboard = () => {
-        const stats = useMemo(() => {
-          return employees.map(emp => {
-            const empTasks = tasks.filter(t => t.picId === emp.id);
-            const totalTarget = empTasks.reduce((sum, t) => sum + t.target, 0);
-            const totalProgress = empTasks.reduce((sum, t) => sum + t.progress, 0);
-            const percent = totalTarget === 0 ? 0 : Math.min(Math.round((totalProgress / totalTarget) * 100), 100);
-            return { ...emp, totalTarget, totalProgress, percent, taskCount: empTasks.length };
-          }).sort((a, b) => b.percent - a.percent);
-        }, [tasks, employees]);
-
-        return (
-          <div className="space-y-6 animate-fade-in">
-            <h2 className="text-xl md:text-2xl font-extrabold text-slate-800"><i className="fa-solid fa-trophy text-yellow-500 mr-2"></i>Peringkat Kinerja</h2>
-            <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Rank</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Nama</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Tugas</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Capaian</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase">Kinerja</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-slate-100">
-                  {stats.map((stat, index) => (
-                    <tr key={stat.id}>
-                      <td className="px-4 py-3 whitespace-nowrap font-bold text-sm">
-                        {index === 0 ? <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded"><i className="fa-solid fa-medal"></i> 1</span> : index + 1}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap font-bold text-sm text-slate-800">{stat.name}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-slate-500">{stat.taskCount}</td>
-                      <td className="px-4 py-3 whitespace-nowrap text-xs font-medium text-slate-600">{stat.totalProgress} / {stat.totalTarget}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center gap-2 min-w-[100px]">
-                          <div className="w-full bg-slate-200 rounded-full h-1.5"><div className={`h-full rounded-full ${stat.percent >= 80 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${stat.percent}%` }}></div></div>
-                          <span className="font-bold text-xs">{stat.percent}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        );
-      };
-
-      // --- KOMPONEN: INPUT PROGRES ---
-      const ProgressForm = () => {
-        const [selectedEmp, setSelectedEmp] = useState('');
-        const [selectedTask, setSelectedTask] = useState('');
-        const [amount, setAmount] = useState('');
-        const [message, setMessage] = useState('');
-
-        const availableTasks = tasks.filter(t => t.picId === parseInt(selectedEmp) && t.status === 'On Progress');
-
-        const handleSubmit = async (e) => {
-          e.preventDefault();
-          if (GAS_API_URL === "URL_GAS_ANDA_DISINI") { alert("Link API masih kosong."); return; }
-          
-          setIsSyncing(true);
-          try {
-            const payload = { action: 'UPDATE_PROGRESS', payload: { id: parseInt(selectedTask), amount: parseInt(amount) } };
-            await fetch(GAS_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
-
-            const updatedTasks = [...tasks];
-            const taskIndex = updatedTasks.findIndex(t => t.id === parseInt(selectedTask));
-            const task = updatedTasks[taskIndex];
-            const newProgress = task.progress + parseInt(amount);
-            const isDone = newProgress >= task.target;
-
-            updatedTasks[taskIndex] = { ...task, progress: isDone ? task.target : newProgress, status: isDone ? 'Selesai' : 'On Progress' };
-            setTasks(updatedTasks);
-            setAmount('');
-            setMessage(`Capaian tersimpan. ${isDone ? '🎉 Selesai!' : ''}`);
-            setTimeout(() => setMessage(''), 4000);
-          } catch (err) {
-            alert("Gagal menyimpan, cek koneksi internet.");
-          }
-          setIsSyncing(false);
-        };
-
-        return (
-          <div className="max-w-md mx-auto space-y-4 animate-fade-in">
-            <h2 className="text-xl font-extrabold text-slate-800 text-center">Lapor Progres Harian</h2>
-            {message && <div className="bg-emerald-50 text-emerald-800 p-3 rounded-lg text-xs font-bold border border-emerald-200"><i className="fa-solid fa-circle-check mr-1"></i> {message}</div>}
-            
-            <form onSubmit={handleSubmit} className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 space-y-4">
-              <select required className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500" value={selectedEmp} onChange={(e) => { setSelectedEmp(e.target.value); setSelectedTask(''); }}>
-                <option value="">Pilih Nama Anda...</option>
-                {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-              </select>
-              {selectedEmp && (
-                <select required className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
                   <option value="">Tugas yang dikerjakan...</option>
                   {availableTasks.map(t => <option key={t.id} value={t.id}>{t.taskName} (Sisa: {t.target - t.progress})</option>)}
                 </select>
@@ -574,7 +364,7 @@
         );
       };
 
-      // --- KOMPONEN: ADMIN PANEL (Diperbaiki Fitur Importnya) ---
+      // --- KOMPONEN: ADMIN PANEL ---
       const AdminPanel = () => {
         const [newTask, setNewTask] = useState({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
         const [successMsg, setSuccessMsg] = useState('');
@@ -609,7 +399,25 @@
           setIsSyncing(false);
         };
 
-        // MESIN IMPORT EXCEL & CSV (DIPERBAIKI)
+        // --- FITUR DOWNLOAD TEMPLATE EXCEL ---
+        const handleDownloadTemplate = () => {
+          try {
+            const templateData = [
+              ["Nama Kegiatan", "ID PIC", "Target", "Deadline"],
+              ["Contoh Tugas A", 1, 100, "2026-12-31"],
+              ["Contoh Tugas B", 2, 50, "2026-11-30"]
+            ];
+            const worksheet = XLSX.utils.aoa_to_sheet(templateData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Template_Import");
+            
+            XLSX.writeFile(workbook, "Template_Import_MonitorPro.xlsx");
+          } catch (err) {
+            alert("Gagal mendownload template.");
+          }
+        };
+
+        // --- MESIN IMPORT EXCEL & CSV ---
         const handleExcelUpload = (e) => {
           const file = e.target.files[0];
           if (!file) return;
@@ -618,61 +426,61 @@
           reader.onload = async (event) => {
             try {
               const data = new Uint8Array(event.target.result);
-              // Membaca file (Support CSV & XLSX)
               const workbook = XLSX.read(data, { type: 'array' });
-              
-              // Opsi raw:false memastikan format tanggal di excel terbaca sebagai text, bukan angka serial aneh.
-              const excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { raw: false });
+              const excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
 
-              const newTasks = excelData.map((row, idx) => {
-                // AUTO DETECT KOLOM: Mendeteksi berbagai variasi nama kolom (Anti-Gagal)
+              const newTasks = [];
+              for(let i = 0; i < excelData.length; i++) {
+                const row = excelData[i];
+                
                 const taskName = row['Nama Kegiatan'] || row['nama kegiatan'] || row['Kegiatan'] || row['Task Name'];
-                const rawPicId = row['ID PIC'] || row['id pic'] || row['PIC'];
-                const picId = parseInt(rawPicId);
+                const picId = parseInt(row['ID PIC'] || row['id pic'] || row['PIC'] || row['ID']);
                 const target = parseInt(row['Target'] || row['target']);
                 
-                let deadline = new Date().toISOString().split('T')[0];
+                if (!taskName || isNaN(picId) || isNaN(target)) continue;
+
+                let finalDeadline = new Date().toISOString().split('T')[0];
                 const rawDeadline = row['Deadline'] || row['deadline'] || row['Tanggal'];
+                
                 if (rawDeadline) {
-                    deadline = rawDeadline; // Ambil nilai stringnya langsung
+                  if (typeof rawDeadline === 'number') {
+                    const dateObj = new Date((rawDeadline - (25567 + 2)) * 86400 * 1000);
+                    finalDeadline = dateObj.toISOString().split('T')[0];
+                  } else {
+                    finalDeadline = rawDeadline;
+                  }
                 }
 
-                // Jika data baris ini tidak valid (kosong/salah format), lewati.
-                if (!taskName || isNaN(picId) || isNaN(target)) {
-                    return null;
-                }
-
-                return { 
-                  id: Date.now() + Math.floor(Math.random() * 1000) + idx, 
+                newTasks.push({ 
+                  id: Date.now() + Math.floor(Math.random() * 1000) + i, 
                   taskName: taskName, 
                   picId: picId, 
                   target: target, 
                   progress: 0, 
-                  deadline: deadline, 
+                  deadline: finalDeadline, 
                   status: 'On Progress' 
-                };
-              }).filter(t => t !== null); // Buang yang null
+                });
+              }
 
               if (newTasks.length > 0) {
                 setIsSyncing(true);
-                // POST ke GAS
                 await fetch(GAS_API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'IMPORT_TASKS', payload: newTasks }) });
                 
                 setTasks(prev => [...prev, ...newTasks]);
-                setSuccessMsg(`Berhasil! ${newTasks.length} data tugas ditambahkan dari file.`); 
+                setSuccessMsg(`Berhasil! ${newTasks.length} data tugas ditambahkan.`); 
                 setTimeout(() => setSuccessMsg(''), 5000);
               } else {
-                throw new Error("Data Kosong / Format Salah. Pastikan ada kolom 'Nama Kegiatan', 'ID PIC', dan 'Target'.");
+                throw new Error("Data Kosong / Format Salah. Silakan Download Template!");
               }
             } catch (error) { 
               setErrorMsg(error.message || "Gagal membaca file CSV/Excel."); 
               setTimeout(() => setErrorMsg(''), 6000);
             } finally {
               setIsSyncing(false);
+              e.target.value = null;
             }
           };
           reader.readAsArrayBuffer(file);
-          e.target.value = null; // Reset input
         };
 
         return (
@@ -682,6 +490,29 @@
             {successMsg && <div className="bg-emerald-50 text-emerald-800 p-3 rounded-lg text-xs font-bold border border-emerald-200"><i className="fa-solid fa-circle-check mr-1"></i> {successMsg}</div>}
             {errorMsg && <div className="bg-red-50 text-red-800 p-3 rounded-lg text-xs font-bold border border-red-200"><i className="fa-solid fa-triangle-exclamation mr-1"></i> {errorMsg}</div>}
             
+            {/* FITUR DOWNLOAD TEMPLATE */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-5 rounded-xl text-white shadow-sm flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-sm mb-1"><i className="fa-solid fa-file-arrow-down mr-1"></i> Template Import Excel</h3>
+                <p className="text-[10px] text-blue-100">Gunakan file ini agar format upload berhasil.</p>
+              </div>
+              <button onClick={handleDownloadTemplate} className="bg-white text-indigo-700 font-bold text-xs py-2 px-3 rounded-lg shadow hover:bg-blue-50 transition">
+                Download
+              </button>
+            </div>
+
+            <div className="bg-emerald-700 p-5 rounded-xl text-white shadow-sm relative overflow-hidden">
+              <i className="fa-solid fa-file-excel absolute -right-4 -bottom-4 text-6xl text-emerald-800 opacity-50"></i>
+              <div className="relative z-10">
+                <h3 className="font-bold text-sm mb-2"><i className="fa-solid fa-cloud-arrow-up mr-1"></i> Upload Data Massal</h3>
+                <p className="text-[10px] text-emerald-200 mb-4">Pilih file hasil isian dari template (.xlsx atau .csv).</p>
+                <input type="file" accept=".xlsx, .xls, .csv" ref={fileInputRef} onChange={handleExcelUpload} className="hidden" />
+                <button onClick={() => fileInputRef.current.click()} disabled={isSyncing} className="bg-white text-emerald-800 font-bold text-xs py-2.5 px-4 rounded-lg w-full flex justify-center items-center gap-2">
+                   {isSyncing ? <><i className="fa-solid fa-spinner fa-spin text-emerald-600"></i> Memproses Data...</> : <><i className="fa-solid fa-folder-open"></i> Pilih File Excel</>}
+                </button>
+              </div>
+            </div>
+
             <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
               <h3 className="font-bold text-sm mb-3">Tugas Manual Baru</h3>
               <form onSubmit={handleAddTask} className="space-y-3">
@@ -713,18 +544,6 @@
                 </button>
               </form>
             </div>
-
-            <div className="bg-emerald-700 p-5 rounded-xl text-white shadow-sm relative overflow-hidden">
-              <i className="fa-solid fa-file-excel absolute -right-4 -bottom-4 text-6xl text-emerald-800 opacity-50"></i>
-              <div className="relative z-10">
-                <h3 className="font-bold text-sm mb-2"><i className="fa-solid fa-cloud-arrow-up mr-1"></i> Import Data Massal</h3>
-                <p className="text-[10px] text-emerald-200 mb-4">Support file <b>.xlsx</b> dan <b>.csv</b>. Pastikan header kolom adalah "Nama Kegiatan", "ID PIC", dan "Target".</p>
-                <input type="file" accept=".xlsx, .xls, .csv" ref={fileInputRef} onChange={handleExcelUpload} className="hidden" />
-                <button onClick={() => fileInputRef.current.click()} disabled={isSyncing} className="bg-white text-emerald-800 font-bold text-xs py-2.5 px-4 rounded-lg w-full flex justify-center items-center gap-2">
-                   {isSyncing ? <><i className="fa-solid fa-spinner fa-spin text-emerald-600"></i> Memproses Data...</> : <><i className="fa-solid fa-folder-open"></i> Pilih File</>}
-                </button>
-              </div>
-            </div>
           </div>
         );
       };
@@ -748,7 +567,7 @@
             {activeTab === 'admin' && <AdminPanel />}
           </main>
 
-          <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-1.5 flex justify-around max-w-lg mx-auto pb-safe">
+          <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-1.5 flex justify-around max-w-lg mx-auto pb-safe z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
             {[
               { id: 'dashboard', icon: 'fa-house', label: 'Home' },
               { id: 'peringkat', icon: 'fa-ranking-star', label: 'Rank' },
