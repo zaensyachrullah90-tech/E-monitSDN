@@ -9,7 +9,8 @@
   <script>
     window.onerror = function(msg, url, line) { 
       if(msg.includes("ResizeObserver")) return true;
-      document.getElementById('native-loader').innerHTML = `<h3 style="color:red; font-family:sans-serif; text-align:center; margin-top:20px;">Gagal memuat. Silakan Refresh (Muat Ulang) browser Anda.</h3>`;
+      const loader = document.getElementById('native-loader');
+      if(loader) loader.innerHTML = `<h3 style="color:red; font-family:sans-serif; text-align:center; margin-top:20px;">Gagal memuat. Silakan Refresh browser Anda.</h3>`;
       return false; 
     };
   </script>
@@ -51,7 +52,9 @@
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
+    .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
     .card-btn { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer; display: block; width: 100%; text-align: left; border: none; outline: none; }
     .card-btn:active { transform: scale(0.96); }
     input, select, button { outline: none; }
@@ -190,7 +193,7 @@
                 <i className="fa-solid fa-users text-slate-400"></i> {group.assignees.length} Pelaksana
               </div>
               <div className="text-xs font-black text-white bg-midnight px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5">
-                <i className="fa-solid fa-check-double text-blue-400"></i> Selesai: {group.assignees.filter(a => a.progress >= a.target).length}
+                <i className="fa-solid fa-check-double text-status-selesai"></i> Selesai: {group.assignees.filter(a => a.progress >= a.target).length}
               </div>
             </div>
           </div>
@@ -211,6 +214,9 @@
               <h3 className="text-2xl font-black text-midnight tracking-tight">Beranda</h3>
               <p className="text-slate-500 text-sm font-bold mt-0.5">Ringkasan Evaluasi Kinerja</p>
             </div>
+            <span className="bg-white border border-slate-200 text-midnight font-bold px-3 py-1.5 rounded-full shadow-sm text-xs flex items-center gap-1.5">
+              <i className="fa-solid fa-wifi fa-fade text-status-selesai"></i> Online
+            </span>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -286,7 +292,7 @@
                 </span>
                 <h3 className="text-2xl font-black mb-2 relative z-10 leading-tight">{activeGroup.taskName}</h3>
                 <p className="text-white/80 font-bold text-sm m-0 flex items-center gap-2 relative z-10">
-                  <i className="fa-solid fa-calendar-day text-blue-300"></i> Tenggat: {formatDateId(activeGroup.deadline)}
+                  <i className="fa-solid fa-calendar-day text-status-selesai"></i> Tenggat: {formatDateId(activeGroup.deadline)}
                 </p>
               </div>
               
@@ -497,13 +503,19 @@
       );
     };
 
-    // --- MENU 5: ADMIN PANEL ---
-    const AdminPanel = ({ db, tasks, groupedTasks, isAdminLogged, setIsAdminLogged }) => {
+    // --- MENU 5: ADMIN PANEL DENGAN FULL CRUD ---
+    const AdminPanel = ({ db, tasks, groupedTasks, employees, isAdminLogged, setIsAdminLogged }) => {
       const [pwd, setPwd] = useState('');
       const [successMsg, setSuccessMsg] = useState('');
       const [errorMsg, setErrorMsg] = useState('');
       const [isSyncing, setIsSyncing] = useState(false);
       const fileInputRef = useRef(null);
+
+      // STATE UNTUK TAMBAH MANUAL
+      const [newTask, setNewTask] = useState({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
+      
+      // STATE UNTUK EDIT MODAL
+      const [editModal, setEditModal] = useState({ isOpen: false, type: '', data: {}, oldTaskName: '' });
 
       if (!isAdminLogged) {
         return (
@@ -528,19 +540,56 @@
         );
       }
 
+      // --- 1. FUNGSI CREATE (TAMBAH MANUAL) ---
+      const handleAddManual = async (e) => {
+        e.preventDefault();
+        setIsSyncing(true);
+        setErrorMsg(''); setSuccessMsg('');
+        try {
+          const updates = {};
+          let addedCount = 0;
+          const baseId = Date.now();
+
+          if (newTask.picId === 'all') {
+             employees.forEach((emp, idx) => {
+                const tgt = parseInt(newTask.multiTargets[emp.id]);
+                if (tgt > 0) {
+                   const newId = baseId + idx;
+                   updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = {
+                      id: newId, taskName: newTask.taskName.trim(), picId: emp.name, target: tgt, progress: 0, deadline: newTask.deadline, status: 'On Progress'
+                   };
+                   addedCount++;
+                }
+             });
+          } else {
+             const newId = baseId;
+             updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = {
+                id: newId, taskName: newTask.taskName.trim(), picId: newTask.picId.toUpperCase().trim(), target: parseInt(newTask.target), progress: 0, deadline: newTask.deadline, status: 'On Progress'
+             };
+             addedCount++;
+          }
+
+          if (addedCount > 0) {
+             await db.ref().update(updates);
+             setSuccessMsg(`Berhasil menambah ${addedCount} tugas manual!`);
+             setNewTask({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
+             setTimeout(() => setSuccessMsg(''), 5000);
+          } else { setErrorMsg("Data belum lengkap."); }
+        } catch (err) { setErrorMsg("Gagal menambah tugas."); }
+        setIsSyncing(false);
+      };
+
+      // --- 2. FUNGSI CREATE (UPLOAD EXCEL) ---
       const handleExcelUpload = (e) => {
         const file = e.target.files[0];
         if (!file || !db) return;
-
         setIsSyncing(true); setErrorMsg(''); setSuccessMsg('');
-        
         const fileExt = file.name.toLowerCase().split('.').pop();
         const reader = new FileReader();
 
         reader.onload = async (event) => {
            try {
              let excelData = [];
-             
              if (fileExt === 'csv') {
                const text = event.target.result;
                const workbook = window.XLSX.read(text, { type: 'string' });
@@ -557,11 +606,9 @@
              for(let i = 1; i < excelData.length; i++) {
                const row = excelData[i];
                if (!row || row.length === 0) continue; 
-
                const taskName = String(row[0] || "").trim();
                const picIndicator = String(row[1] || "").trim(); 
                const target = parseInt(row[2]);
-               
                if (!taskName || !picIndicator || isNaN(target)) continue;
 
                let finalDeadline = new Date().toISOString().split('T')[0];
@@ -579,50 +626,70 @@
                    }
                  }
                }
-
                const newId = Date.now() + Math.floor(Math.random() * 10000) + i;
-               
                updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = {
-                 id: newId, taskName: taskName, picId: picIndicator.toUpperCase(), 
-                 target: target, progress: 0, deadline: finalDeadline, status: 'On Progress'
+                 id: newId, taskName: taskName, picId: picIndicator.toUpperCase(), target: target, progress: 0, deadline: finalDeadline, status: 'On Progress'
                };
                addedCount++;
              }
 
              if (addedCount > 0) {
-               try {
-                 await db.ref().update(updates); 
-                 setSuccessMsg(`BERHASIL! ${addedCount} kegiatan masuk ke database.`); 
-                 setTimeout(() => setSuccessMsg(''), 6000);
-               } catch (fbError) {
-                 setErrorMsg("UPLOAD DITOLAK! Pastikan database Anda tersetting '.write: true'");
-               }
+               await db.ref().update(updates); 
+               setSuccessMsg(`BERHASIL! ${addedCount} kegiatan masuk ke database.`); 
+               setTimeout(() => setSuccessMsg(''), 6000);
              } else { setErrorMsg("Data Kosong. File harus berisi isian data."); }
-           } catch (error) { 
-             setErrorMsg("Format file gagal terbaca. Harus .xlsx atau .csv"); 
-           } finally {
-             setIsSyncing(false); if(fileInputRef.current) fileInputRef.current.value = '';
-           }
+           } catch (error) { setErrorMsg("Format file gagal terbaca. Harus .xlsx atau .csv"); 
+           } finally { setIsSyncing(false); if(fileInputRef.current) fileInputRef.current.value = ''; }
         };
-
-        reader.onerror = () => {
-           setErrorMsg("Gagal membaca file.");
-           setIsSyncing(false);
-        };
-
-        if (fileExt === 'csv') reader.readAsText(file);
-        else reader.readAsArrayBuffer(file);
+        reader.onerror = () => { setErrorMsg("Gagal membaca file."); setIsSyncing(false); };
+        if (fileExt === 'csv') reader.readAsText(file); else reader.readAsArrayBuffer(file);
       };
 
+      // --- 3. FUNGSI UPDATE (EDIT) ---
+      const handleSaveEdit = async (e) => {
+        e.preventDefault();
+        setIsSyncing(true); setErrorMsg('');
+        try {
+          const updates = {};
+          
+          if (editModal.type === 'group') {
+             // Edit Sekaligus 1 Grup (Ubah Nama Kegiatan & Deadline)
+             const groupTasks = tasks.filter(t => t.taskName === editModal.oldTaskName);
+             groupTasks.forEach(t => {
+                updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/taskName`] = editModal.data.taskName.trim();
+                updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/deadline`] = editModal.data.deadline;
+             });
+          } else {
+             // Edit Perorangan (Ubah Nama, PIC, Target, Deadline)
+             const target = parseInt(editModal.data.target);
+             const currentProgress = tasks.find(t => t.id === editModal.data.id).progress;
+             const isDone = currentProgress >= target;
+
+             updates[`artifacts/${APP_ID}/public/data/tasks/${editModal.data.id}`] = {
+                ...tasks.find(t => t.id === editModal.data.id),
+                taskName: editModal.data.taskName.trim(),
+                picId: editModal.data.picId.toUpperCase().trim(),
+                target: target,
+                deadline: editModal.data.deadline,
+                status: isDone ? 'Selesai' : 'On Progress'
+             };
+          }
+          await db.ref().update(updates);
+          setSuccessMsg('Perubahan berhasil disimpan!');
+          setEditModal({ isOpen: false, type: '', data: {}, oldTaskName: '' });
+          setTimeout(() => setSuccessMsg(''), 4000);
+        } catch (err) { setErrorMsg("Gagal menyimpan editan."); }
+        setIsSyncing(false);
+      };
+
+      // --- 4. FUNGSI DELETE ---
       const handleDeleteGroup = async (taskName) => {
         if(!window.confirm(`HAPUS PERMANEN seluruh kegiatan "${taskName}" ?`)) return;
         setIsSyncing(true);
         try {
           const updates = {};
           const groupTasks = tasks.filter(t => t.taskName === taskName);
-          groupTasks.forEach(t => {
-             updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}`] = null;
-          });
+          groupTasks.forEach(t => { updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}`] = null; });
           await db.ref().update(updates);
         } catch (e) { alert("Gagal menghapus."); }
         setIsSyncing(false);
@@ -631,9 +698,7 @@
       const handleDeletePerson = async (id, name) => {
         if(!window.confirm(`Hapus pegawai "${name}" dari kegiatan ini?`)) return;
         setIsSyncing(true);
-        try {
-          await db.ref(`artifacts/${APP_ID}/public/data/tasks/${id}`).remove();
-        } catch (e) { alert("Gagal menghapus."); }
+        try { await db.ref(`artifacts/${APP_ID}/public/data/tasks/${id}`).remove(); } catch (e) { alert("Gagal menghapus."); }
         setIsSyncing(false);
       };
 
@@ -667,38 +732,91 @@
           </div>
           
           {successMsg && <div className="bg-midnight text-white p-4 rounded-2xl shadow-lg font-bold flex items-center gap-3 animate-slide-up text-sm"><i className="fa-solid fa-circle-check text-status-selesai text-xl"></i> {successMsg}</div>}
-          {errorMsg && <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-2xl shadow-lg font-bold flex flex-col gap-2 animate-slide-up text-sm">
-            <div className="flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-xl"></i> <span>ERROR UPLOAD:</span></div>
-            <span className="font-medium text-xs">{errorMsg}</span>
-          </div>}
+          {errorMsg && <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-2xl shadow-lg font-bold flex flex-col gap-2 animate-slide-up text-sm"><div className="flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-xl"></i> <span>ERROR:</span></div><span className="font-medium text-xs">{errorMsg}</span></div>}
           
-          <div className="bg-gradient-to-br from-midnight to-midnight-light rounded-3xl p-6 text-white relative overflow-hidden shadow-glossy">
-            <i className="fa-solid fa-cloud-arrow-up absolute -right-8 -bottom-8 text-9xl opacity-10 text-white"></i>
-            <div className="relative z-10">
-              <h4 className="text-xl font-black mb-1 flex items-center gap-2"><i className="fa-solid fa-database text-status-selesai"></i> Upload Database</h4>
-              <p className="text-white/60 text-xs font-bold mb-5 leading-relaxed max-w-sm">File CSV/XLSX. Kolom A=Kegiatan, B=Nama, C=Target, D=Tanggal.</p>
-              
-              <button onClick={handleDownloadTemplate} className="bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold px-4 py-2 rounded-full text-xs transition-colors mb-5 flex items-center gap-2 backdrop-blur-md outline-none">
-                <i className="fa-solid fa-download"></i> Template Excel
-              </button>
+          {/* BAGIAN 1: TAMBAH DATA (MANUAL & UPLOAD) */}
+          <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
+            <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
+              <i className="fa-solid fa-square-plus text-status-selesai"></i> <span className="font-black text-midnight text-sm uppercase tracking-wider">Tambah Data Baru</span>
+            </div>
+            <div className="p-5 space-y-6">
+               
+               {/* FORM MANUAL */}
+               <form onSubmit={handleAddManual} className="space-y-4">
+                  <h6 className="font-bold text-midnight text-xs uppercase tracking-wider border-b border-slate-100 pb-2">1. Input Manual</h6>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Kegiatan</label>
+                    <input required type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:border-midnight focus:ring-1 focus:ring-midnight shadow-inner" value={newTask.taskName} onChange={e => setNewTask({...newTask, taskName: e.target.value})} placeholder="Contoh: Audit Tahunan" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Tugaskan Ke (Ketik / Pilih)</label>
+                    <input required list="emp-list" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:border-midnight focus:ring-1 focus:ring-midnight shadow-inner" value={newTask.picId} onChange={e => setNewTask({...newTask, picId: e.target.value})} placeholder="Ketik nama baru atau pilih..." />
+                    <datalist id="emp-list">
+                      <option value="all">🚀 SEMUA PEGAWAI (MULTI TARGET)</option>
+                      {employees.map(emp => <option key={emp.id} value={emp.name} />)}
+                    </datalist>
+                  </div>
+                  
+                  {newTask.picId === 'all' ? (
+                    <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3">
+                      <label className="block text-[10px] font-bold text-blue-800 uppercase">Set Target Masing-Masing</label>
+                      {employees.map(emp => (
+                        <div key={emp.id} className="flex justify-between items-center gap-3 bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
+                          <span className="text-xs font-bold text-midnight pl-1 truncate">{emp.name}</span>
+                          <input type="number" min="0" placeholder="Target" className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 w-20 text-xs font-bold outline-none text-center" value={newTask.multiTargets[emp.id] || ''} onChange={e => setNewTask({...newTask, multiTargets: {...newTask.multiTargets, [emp.id]: e.target.value}})} />
+                        </div>
+                      ))}
+                      <div className="pt-2">
+                        <label className="block text-[10px] font-bold text-blue-800 uppercase mb-1">Tenggat Waktu Bersama</label>
+                        <input required type="date" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Target Angka</label>
+                        <input required type="number" min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none text-center shadow-inner" value={newTask.target} onChange={e => setNewTask({...newTask, target: e.target.value})} placeholder="0" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Tenggat</label>
+                        <input required type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none shadow-inner" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
+                      </div>
+                    </div>
+                  )}
+                  <button type="submit" disabled={isSyncing || !db} className="w-full bg-midnight text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none">
+                    {isSyncing ? 'Menyimpan...' : 'Simpan Tugas'}
+                  </button>
+               </form>
 
-              <input type="file" accept=".xlsx, .csv" ref={fileInputRef} onChange={handleExcelUpload} className="hidden" />
-              <button onClick={() => fileInputRef.current.click()} disabled={isSyncing || !db} className="w-full bg-white text-midnight font-black py-3.5 rounded-xl shadow-soft hover:bg-slate-50 transition-colors flex justify-center items-center gap-2 outline-none">
-                 {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin text-status-selesai"></i> Mengekstrak...</> : <><i className="fa-solid fa-file-excel text-emerald-500"></i> Pilih File Data</>}
-              </button>
+               {/* UPLOAD EXCEL */}
+               <div className="border-t border-slate-100 pt-6">
+                 <h6 className="font-bold text-midnight text-xs uppercase tracking-wider border-b border-slate-100 pb-2 mb-3">2. Upload Excel Massal</h6>
+                 <div className="bg-gradient-to-br from-midnight to-midnight-light rounded-2xl p-5 text-white relative overflow-hidden shadow-glossy">
+                   <i className="fa-solid fa-cloud-arrow-up absolute -right-6 -bottom-6 text-7xl opacity-10 text-white"></i>
+                   <div className="relative z-10">
+                     <p className="text-white/60 text-[10px] font-bold mb-3 uppercase tracking-wide">Format: .xlsx atau .csv (Kolom A-D)</p>
+                     <div className="flex gap-2">
+                       <button onClick={handleDownloadTemplate} className="flex-1 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 backdrop-blur-md outline-none">
+                         <i className="fa-solid fa-download"></i> Template
+                       </button>
+                       <input type="file" accept=".xlsx, .csv" ref={fileInputRef} onChange={handleExcelUpload} className="hidden" />
+                       <button onClick={() => fileInputRef.current.click()} disabled={isSyncing || !db} className="flex-[2] bg-white text-midnight font-black py-2.5 rounded-xl shadow-soft hover:bg-slate-50 transition-colors flex justify-center items-center gap-2 text-xs outline-none">
+                          {isSyncing ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-file-excel text-emerald-500"></i>} Upload File
+                       </button>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+
             </div>
           </div>
 
+          {/* BAGIAN 2: KELOLA DATA (EDIT & HAPUS) */}
           <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
             <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
-              <i className="fa-solid fa-trash-can text-red-500"></i> <span className="font-black text-midnight text-sm uppercase tracking-wider">Manajemen Hapus</span>
+              <i className="fa-solid fa-pen-ruler text-status-proses"></i> <span className="font-black text-midnight text-sm uppercase tracking-wider">Kelola Data (Edit & Hapus)</span>
             </div>
             <div className="p-5 space-y-4">
-               <button onClick={handleResetAll} disabled={isSyncing || !db} className="w-full bg-red-50 text-red-600 border border-red-200 font-black py-3.5 rounded-xl shadow-sm hover:bg-red-100 transition-colors flex justify-center items-center gap-2 mb-2 outline-none">
-                 <i className="fa-solid fa-skull-crossbones"></i> FORMAT KOSONG DATABASE
-               </button>
-
-               <h6 className="font-bold text-midnight text-xs uppercase tracking-wider border-b border-slate-100 pb-2 mb-3 mt-5">Hapus Spesifik:</h6>
                {groupedTasks.length === 0 && <p className="text-center py-6 text-slate-400 font-bold text-sm bg-slate-50 rounded-xl">Database masih kosong.</p>}
                
                <div className="space-y-3">
@@ -708,23 +826,82 @@
                        <span className="flex items-center gap-3">
                          <i className="fa-solid fa-folder text-status-selesai group-open:text-status-proses transition-colors"></i> 
                          <span className="truncate max-w-[150px] sm:max-w-xs">{g.taskName}</span>
-                         <span className="bg-midnight text-white text-[10px] px-2 py-0.5 rounded-md">{g.assignees.length} Org</span>
+                         <span className="bg-midnight text-white text-[10px] px-2 py-0.5 rounded-md">{g.assignees.length}</span>
                        </span>
-                       <button onClick={(e) => { e.preventDefault(); handleDeleteGroup(g.taskName); }} className="bg-white border border-red-200 text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg text-xs transition-colors shadow-sm outline-none"><i className="fa-solid fa-trash"></i></button>
+                       <div className="flex gap-2">
+                         <button onClick={(e) => { e.preventDefault(); setEditModal({ isOpen: true, type: 'group', oldTaskName: g.taskName, data: { taskName: g.taskName, deadline: g.deadline } }); }} className="bg-white border border-slate-200 text-status-selesai hover:bg-blue-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none"><i className="fa-solid fa-pen"></i></button>
+                         <button onClick={(e) => { e.preventDefault(); handleDeleteGroup(g.taskName); }} className="bg-white border border-red-200 text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none"><i className="fa-solid fa-trash"></i></button>
+                       </div>
                      </summary>
-                     <div className="px-4 pb-4 pt-1 space-y-2">
+                     <div className="px-4 pb-4 pt-1 space-y-2 border-t border-slate-200/60 mt-1">
                        {g.assignees.map(a => (
-                         <div key={a.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-xl">
-                           <div className="text-xs font-bold text-midnight flex items-center gap-2"><i className="fa-solid fa-user-tag text-slate-300"></i> {a.picId}</div>
-                           <button onClick={() => handleDeletePerson(a.id, a.picId)} className="bg-red-50 text-red-500 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-100 transition-colors outline-none"><i className="fa-solid fa-xmark"></i></button>
+                         <div key={a.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-xl shadow-sm">
+                           <div>
+                             <div className="text-xs font-bold text-midnight flex items-center gap-2"><i className="fa-solid fa-user-tag text-slate-300"></i> {a.picId}</div>
+                             <div className="text-[10px] text-slate-400 font-bold mt-1">Trg: {a.target} | Sls: {a.progress}</div>
+                           </div>
+                           <div className="flex gap-1.5">
+                             <button onClick={() => setEditModal({ isOpen: true, type: 'individual', data: { id: a.id, taskName: a.taskName, picId: a.picId, target: a.target, deadline: a.deadline } })} className="bg-slate-50 text-status-selesai border border-slate-200 w-7 h-7 rounded-full flex items-center justify-center hover:bg-blue-50 transition-colors outline-none"><i className="fa-solid fa-pen text-[10px]"></i></button>
+                             <button onClick={() => handleDeletePerson(a.id, a.picId)} className="bg-red-50 text-red-500 border border-red-100 w-7 h-7 rounded-full flex items-center justify-center hover:bg-red-100 transition-colors outline-none"><i className="fa-solid fa-xmark text-[10px]"></i></button>
+                           </div>
                          </div>
                        ))}
                      </div>
                    </details>
                  ))}
                </div>
+
+               <div className="border-t border-slate-200 pt-5 mt-5">
+                 <button onClick={handleResetAll} disabled={isSyncing || !db} className="w-full bg-red-50 text-red-600 border border-red-200 font-black py-3.5 rounded-xl shadow-sm hover:bg-red-100 transition-colors flex justify-center items-center gap-2 outline-none">
+                   <i className="fa-solid fa-skull-crossbones"></i> FORMAT KOSONG DATABASE
+                 </button>
+               </div>
             </div>
           </div>
+          
+          {/* MODAL EDIT (GLASSMORPHISM) */}
+          {editModal.isOpen && (
+            <div className="fixed inset-0 z-[9999] bg-midnight/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+              <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-slide-up">
+                 <div className="bg-gradient-to-r from-midnight to-midnight-light p-4 px-5 flex justify-between items-center text-white">
+                    <h3 className="font-black text-sm uppercase tracking-wider"><i className="fa-solid fa-pen-to-square mr-2 text-status-selesai"></i> Edit {editModal.type === 'group' ? 'Grup Kegiatan' : 'Data Pegawai'}</h3>
+                    <button onClick={() => setEditModal({isOpen: false, type:'', data:{}, oldTaskName:''})} className="opacity-70 hover:opacity-100"><i className="fa-solid fa-xmark text-xl"></i></button>
+                 </div>
+                 <div className="p-6">
+                    <form onSubmit={handleSaveEdit} className="space-y-4">
+                       <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Kegiatan</label>
+                          <input required type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none" value={editModal.data.taskName} onChange={e => setEditModal({...editModal, data: {...editModal.data, taskName: e.target.value}})} />
+                       </div>
+                       
+                       {editModal.type === 'individual' && (
+                         <>
+                           <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Pegawai / PIC</label>
+                              <input required type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none" value={editModal.data.picId} onChange={e => setEditModal({...editModal, data: {...editModal.data, picId: e.target.value}})} />
+                           </div>
+                           <div>
+                              <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Target Angka</label>
+                              <input required type="number" min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none" value={editModal.data.target} onChange={e => setEditModal({...editModal, data: {...editModal.data, target: e.target.value}})} />
+                           </div>
+                         </>
+                       )}
+                       
+                       <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Tenggat Waktu</label>
+                          <input required type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none" value={editModal.data.deadline} onChange={e => setEditModal({...editModal, data: {...editModal.data, deadline: e.target.value}})} />
+                       </div>
+                       
+                       <div className="pt-2">
+                         <button type="submit" disabled={isSyncing} className="w-full bg-status-selesai text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none">
+                           {isSyncing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                         </button>
+                       </div>
+                    </form>
+                 </div>
+              </div>
+            </div>
+          )}
 
         </div>
       );
@@ -741,20 +918,13 @@
       
       const [isAdminLogged, setIsAdminLogged] = useState(() => sessionStorage.getItem('adminAuth') === 'true'); 
 
-      // INIT FIREBASE PINTAR (MENGABAIKAN KEBUTUHAN LOGIN AUTHENTICATION)
+      // INIT FIREBASE PINTAR
       useEffect(() => {
         try {
-          if (!window.firebase) { 
-             console.error("Firebase tidak termuat"); 
-             return; 
-          }
-          if (!window.firebase.apps.length) { 
-            window.firebase.initializeApp(firebaseConfig); 
-          }
-          // Ambil Database secara Langsung
+          if (!window.firebase) { console.error("Firebase tidak termuat"); return; }
+          if (!window.firebase.apps.length) { window.firebase.initializeApp(firebaseConfig); }
           const database = window.firebase.database();
           setDb(database);
-
         } catch (e) {
           console.error(e);
           setIsLoading(false);
@@ -764,23 +934,19 @@
       // LISTENER REALTIME DATABASE
       useEffect(() => {
         if (!db) return;
-        
-        // Hapus elemen Native Loader setelah React sukses merender Database
         const loader = document.getElementById('native-loader');
         if (loader) loader.style.display = 'none';
 
         const ref = db.ref(`artifacts/${APP_ID}/public/data/tasks`);
-        
         const listener = ref.on('value', (snapshot) => {
             const loadedTasks = [];
             snapshot.forEach(childSnapshot => {
                 loadedTasks.push({ id: childSnapshot.key, ...childSnapshot.val() });
             });
-            
             setTasks(loadedTasks);
+            
             const uniquePics = [...new Set(loadedTasks.map(t => t.picId))];
             setEmployees(uniquePics.map(pic => ({ id: pic, name: pic })));
-            
             setIsLoading(false);
         }, (error) => {
             console.error("Gagal terhubung ke database:", error);
@@ -821,7 +987,7 @@
             {activeTab === 'kegiatan' && <DaftarKegiatan groupedTasks={groupedTasks} selectedTaskName={selectedTaskName} setSelectedTaskName={setSelectedTaskName} />}
             {activeTab === 'peringkat' && <Leaderboard tasks={tasks} employees={employees} />}
             {activeTab === 'input' && <ProgressForm tasks={tasks} employees={employees} db={db} />}
-            {activeTab === 'admin' && <AdminPanel db={db} tasks={tasks} groupedTasks={groupedTasks} isAdminLogged={isAdminLogged} setIsAdminLogged={setIsAdminLogged} />}
+            {activeTab === 'admin' && <AdminPanel db={db} tasks={tasks} groupedTasks={groupedTasks} employees={employees} isAdminLogged={isAdminLogged} setIsAdminLogged={setIsAdminLogged} />}
           </main>
 
           <nav className="fixed bottom-0 w-full max-w-[600px] left-1/2 -translate-x-1/2 bg-white rounded-t-[30px] shadow-[0_-10px_40px_rgba(11,19,43,0.08)] z-50 flex justify-around items-center px-2 py-3 border-t border-slate-100">
@@ -843,7 +1009,7 @@
       );
     }
 
-    // Eksekusi React Aman dengan Pre-loader penghapus blank putih
+    // Eksekusi React Aman dengan Pre-loader
     const initApp = () => {
       const rootElement = document.getElementById('root');
       if (rootElement) {
@@ -852,7 +1018,6 @@
       }
     };
     
-    // Pastikan DOM dan script termuat sempurna sebelum React dijalankan
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initApp);
     } else {
