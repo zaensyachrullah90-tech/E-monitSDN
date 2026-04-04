@@ -7,7 +7,7 @@
 
   <!-- Mencegah blank screen akibat ekstensi browser -->
   <script>
-    window.onerror = function() { return true; };
+    window.onerror = function(msg, url, line) { console.log("Error Terdeteksi: ", msg); return true; };
   </script>
 
   <!-- Tailwind CSS -->
@@ -17,22 +17,12 @@
       theme: {
         extend: {
           colors: {
-            midnight: {
-              DEFAULT: '#0B132B',
-              light: '#1C2541',
-              accent: '#3A506B',
-              glow: '#4A607B'
-            },
-            status: {
-              proses: '#10b981', /* Hijau Emerald */
-              selesai: '#3b82f6' /* Biru */
-            }
+            midnight: { DEFAULT: '#0B132B', light: '#1C2541', accent: '#3A506B' },
+            status: { proses: '#10b981', selesai: '#3b82f6' }
           },
           boxShadow: {
             'glossy': '0 10px 25px -5px rgba(11, 19, 43, 0.4), 0 8px 10px -6px rgba(11, 19, 43, 0.1)',
-            'glass': 'inset 0 1px 1px rgba(255, 255, 255, 0.2)',
-            'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
-            'nav': '0 -10px 30px rgba(0,0,0,0.08)'
+            'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)'
           }
         }
       }
@@ -42,35 +32,31 @@
   <!-- Font Awesome 6 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" />
 
-  <!-- React & Dependencies -->
+  <!-- Menggunakan Firebase Versi COMPAT (Dijamin 100% jalan di TrebEdit/HP) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <!-- React & Excel Dependencies -->
   <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-  <!-- Mengimpor Modul Firebase -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, onSnapshot, doc, deleteDoc, updateDoc, writeBatch, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    
-    window.FirebaseAPI = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, writeBatch };
-  </script>
 
   <style>
     body { background-color: #f4f6f9; font-family: 'Inter', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     
-    /* Animasi Halus */
     @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-    .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
     
-    /* Efek Klik Kartu */
-    .card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer; }
-    .card-hover:active { transform: scale(0.98); }
+    /* Tombol Klik Area Penuh */
+    .card-btn { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer; display: block; width: 100%; text-align: left; border: none; outline: none; }
+    .card-btn:active { transform: scale(0.97); }
     
     input, select, button { outline: none; }
+    .progress-bar { transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
   </style>
 </head>
 <body class="text-slate-800 pb-24">
@@ -78,10 +64,10 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useMemo, useRef, useEffect, memo } = React;
+    const { useState, useMemo, useRef, useEffect } = React;
 
     // =========================================================================
-    // 🔥 KONFIGURASI FIREBASE MILIK ANDA
+    // 🔥 KONFIGURASI FIREBASE ANDA
     // =========================================================================
     const firebaseConfig = {
         apiKey: "AIzaSyBEc1KmTOURFvVkUsGXb1Q_sTwX0tm_z9E",
@@ -103,8 +89,8 @@
       return `${parts[2]} ${months[parseInt(parts[1])-1]} ${parts[0]}`;
     };
 
-    // --- KOMPONEN: LIVE COUNTDOWN (Kapsul Jam Digital Premium) ---
-    const LiveCountdown = memo(({ deadline }) => {
+    // --- KOMPONEN: LIVE COUNTDOWN ---
+    const LiveCountdown = ({ deadline }) => {
       const [timeLeft, setTimeLeft] = useState('');
       const [isExpired, setIsExpired] = useState(false);
 
@@ -137,28 +123,31 @@
       }, [deadline]);
 
       return (
-        <div className={`flex items-center gap-2.5 rounded-full px-3 py-1.5 shadow-glass shadow-sm border ${isExpired ? 'bg-red-600 border-red-500' : 'bg-gradient-to-r from-midnight to-midnight-light border-midnight-accent'}`}>
-          <i className={`fa-solid ${isExpired ? 'fa-triangle-exclamation fa-beat text-white' : 'fa-clock text-yellow-400'} text-sm`}></i>
+        <div className={`flex items-center gap-2 rounded-full px-3 py-1 shadow-sm border ${isExpired ? 'bg-red-600 border-red-500 text-white' : 'bg-midnight text-white border-midnight-accent'}`}>
+          <i className={`fa-solid ${isExpired ? 'fa-triangle-exclamation fa-beat' : 'fa-clock text-yellow-400'} text-xs`}></i>
           <div className="flex flex-col text-left">
-            <span className="text-[8px] uppercase tracking-widest text-white/70 leading-none">Tenggat</span>
-            <span className="font-mono font-bold text-xs text-white leading-none mt-1">{timeLeft}</span>
+            <span className="text-[8px] uppercase tracking-widest opacity-80 leading-none">Tenggat</span>
+            <span className="font-mono font-bold text-xs leading-none mt-1">{timeLeft}</span>
           </div>
         </div>
       );
-    });
+    };
 
-    // --- KOMPONEN: KARTU KEGIATAN UTAMA ---
-    const GroupedTaskCard = memo(({ group, onClick }) => {
+    // --- KOMPONEN: KARTU KEGIATAN (DENGAN ELEMEN BUTTON AGAR BISA DIKLIK DI HP) ---
+    const GroupedTaskCard = ({ group, onClick }) => {
       const percent = Math.min(Math.round((group.progress / group.target) * 100), 100);
       const isDone = percent >= 100;
       
-      // Aturan Warna: Proses = Hijau, Selesai = Biru
       const borderColor = isDone ? 'border-status-selesai' : 'border-status-proses';
       const progressBg = isDone ? 'bg-status-selesai' : 'bg-status-proses';
       const percentColor = isDone ? 'text-status-selesai' : 'text-status-proses';
       
       return (
-        <div className={`bg-white rounded-3xl shadow-soft border-l-[6px] ${borderColor} card-hover relative overflow-hidden`} onClick={() => onClick && onClick(group)}>
+        <button 
+          type="button"
+          className={`card-btn bg-white rounded-3xl shadow-soft border-l-[6px] ${borderColor} relative overflow-hidden`} 
+          onClick={() => onClick(group.taskName)}
+        >
           <div className="p-5">
             <div className="flex justify-between items-start gap-3 mb-4">
               <div className="flex-1">
@@ -176,25 +165,25 @@
                 <span className={`font-black text-sm ${percentColor}`}>{percent}%</span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2.5 shadow-inner">
-                <div className={`${progressBg} h-2.5 rounded-full transition-all duration-1000 ease-out`} style={{ width: `${percent}%` }}></div>
+                <div className={`${progressBg} h-2.5 rounded-full`} style={{ width: `${percent}%` }}></div>
               </div>
             </div>
             
             <div className="flex justify-between items-center pt-4 border-t border-slate-100/80">
               <div className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
-                <i className="fa-solid fa-users"></i> {group.assignees.length} Pelaksana
+                <i className="fa-solid fa-users text-slate-400"></i> {group.assignees.length} Pelaksana
               </div>
-              <div className="text-xs font-black text-white bg-gradient-to-r from-midnight to-midnight-light px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5">
-                <i className="fa-solid fa-check-double text-blue-300"></i> Selesai: {group.assignees.filter(a => a.progress >= a.target).length}
+              <div className="text-xs font-black text-white bg-midnight px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5">
+                <i className="fa-solid fa-check-double text-blue-400"></i> Selesai: {group.assignees.filter(a => a.progress >= a.target).length}
               </div>
             </div>
           </div>
-        </div>
+        </button>
       );
-    });
+    };
 
     // --- MENU 1: DASHBOARD ---
-    const Dashboard = ({ groupedTasks, setActiveTab, setSelectedGroup }) => {
+    const Dashboard = ({ groupedTasks, setActiveTab, setSelectedTaskName }) => {
       const totalTasks = groupedTasks.length;
       const completedTasks = groupedTasks.filter(g => g.status === 'Selesai').length;
       const activeGroups = groupedTasks.filter(g => g.status === 'On Progress');
@@ -212,8 +201,8 @@
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-gradient-to-br from-midnight to-midnight-light rounded-3xl shadow-glossy shadow-glass p-5 text-white relative overflow-hidden flex items-center justify-between">
-              <i className="fa-solid fa-layer-group absolute -right-4 -bottom-4 text-7xl opacity-20 text-white"></i>
+            <div className="bg-gradient-to-br from-midnight to-midnight-light rounded-3xl shadow-glossy p-5 text-white relative overflow-hidden flex items-center justify-between">
+              <i className="fa-solid fa-layer-group absolute -right-4 -bottom-4 text-7xl opacity-20"></i>
               <div className="relative z-10">
                 <h6 className="text-[10px] text-white/70 uppercase tracking-widest font-bold mb-1">Semua Kegiatan</h6>
                 <h2 className="text-4xl font-black">{totalTasks}</h2>
@@ -246,7 +235,7 @@
             </h5>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {activeGroups.sort((a, b) => new Date(a.deadline) - new Date(b.deadline)).slice(0, 4).map(group => (
-                <GroupedTaskCard key={group.taskName} group={group} onClick={() => { setSelectedGroup(group); setActiveTab('kegiatan'); }} />
+                <GroupedTaskCard key={group.taskName} group={group} onClick={(name) => { setSelectedTaskName(name); setActiveTab('kegiatan'); }} />
               ))}
               {activeGroups.length === 0 && (
                 <div className="col-span-full bg-white rounded-3xl shadow-soft border border-slate-100 text-center py-10">
@@ -262,43 +251,43 @@
     };
 
     // --- MENU 2: KEGIATAN & EVALUASI DETAIL ---
-    const DaftarKegiatan = ({ groupedTasks, selectedGroup, setSelectedGroup }) => {
-      if (selectedGroup) {
-        const totalPelaksana = selectedGroup.assignees.length;
-        const selesaiCount = selectedGroup.assignees.filter(a => a.progress >= a.target).length;
+    const DaftarKegiatan = ({ groupedTasks, selectedTaskName, setSelectedTaskName }) => {
+      const activeGroup = groupedTasks.find(g => g.taskName === selectedTaskName);
+
+      if (activeGroup) {
+        const totalPelaksana = activeGroup.assignees.length;
+        const selesaiCount = activeGroup.assignees.filter(a => a.progress >= a.target).length;
         const belumCount = totalPelaksana - selesaiCount;
 
         return (
           <div className="animate-slide-up space-y-5">
-            <button onClick={() => setSelectedGroup(null)} className="bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-5 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors">
+            <button onClick={() => setSelectedTaskName(null)} className="bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-5 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors outline-none">
               <i className="fa-solid fa-arrow-left-long text-status-selesai"></i> Kembali
             </button>
             
             <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
               <div className="bg-gradient-to-r from-midnight to-midnight-light p-6 text-white relative">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <i className="fa-solid fa-folder-open text-8xl"></i>
-                </div>
-                <span className={`inline-flex items-center gap-1.5 ${selectedGroup.status === 'Selesai' ? 'bg-status-selesai' : 'bg-status-proses'} text-white text-xs font-black px-3 py-1.5 rounded-lg mb-4 shadow-sm uppercase tracking-wider`}>
-                  <i className={`fa-solid ${selectedGroup.status === 'Selesai' ? 'fa-check-double' : 'fa-spinner fa-spin'}`}></i> {selectedGroup.status}
+                <div className="absolute top-0 right-0 p-4 opacity-10"><i className="fa-solid fa-folder-open text-8xl"></i></div>
+                <span className={`inline-flex items-center gap-1.5 ${activeGroup.status === 'Selesai' ? 'bg-status-selesai' : 'bg-status-proses'} text-white text-xs font-black px-3 py-1.5 rounded-lg mb-4 shadow-sm uppercase tracking-wider`}>
+                  <i className={`fa-solid ${activeGroup.status === 'Selesai' ? 'fa-check-double' : 'fa-spinner fa-spin'}`}></i> {activeGroup.status}
                 </span>
-                <h3 className="text-2xl font-black mb-2 relative z-10 leading-tight">{selectedGroup.taskName}</h3>
+                <h3 className="text-2xl font-black mb-2 relative z-10 leading-tight">{activeGroup.taskName}</h3>
                 <p className="text-white/80 font-bold text-sm m-0 flex items-center gap-2 relative z-10">
-                  <i className="fa-solid fa-calendar-day text-blue-300"></i> Tenggat: {formatDateId(selectedGroup.deadline)}
+                  <i className="fa-solid fa-calendar-day text-blue-300"></i> Tenggat: {formatDateId(activeGroup.deadline)}
                 </p>
               </div>
               
               <div className="p-6">
                 <div className="grid grid-cols-3 gap-3 mb-6">
-                  <div className="bg-slate-50 rounded-2xl border border-slate-100 p-3 text-center flex flex-col justify-center">
+                  <div className="bg-slate-50 rounded-2xl border border-slate-100 p-3 text-center flex flex-col justify-center shadow-sm">
                     <h2 className="text-2xl font-black text-midnight mb-0.5">{totalPelaksana}</h2>
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Pelaksana</span>
                   </div>
-                  <div className="bg-blue-50 rounded-2xl border border-blue-100 p-3 text-center flex flex-col justify-center">
+                  <div className="bg-status-selesai/10 rounded-2xl border border-status-selesai/20 p-3 text-center flex flex-col justify-center shadow-sm">
                     <h2 className="text-2xl font-black text-status-selesai mb-0.5">{selesaiCount}</h2>
                     <span className="text-[10px] text-status-selesai font-bold uppercase tracking-wider">Selesai</span>
                   </div>
-                  <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-3 text-center flex flex-col justify-center">
+                  <div className="bg-status-proses/10 rounded-2xl border border-status-proses/20 p-3 text-center flex flex-col justify-center shadow-sm">
                     <h2 className="text-2xl font-black text-status-proses mb-0.5">{belumCount}</h2>
                     <span className="text-[10px] text-status-proses font-bold uppercase tracking-wider">Proses</span>
                   </div>
@@ -308,15 +297,14 @@
                   <i className="fa-solid fa-list-check text-slate-400"></i> Rincian Capaian Pegawai
                 </h6>
                 <div className="space-y-3">
-                  {selectedGroup.assignees.map((a, idx) => {
+                  {activeGroup.assignees.map((a, idx) => {
                     const isDone = a.progress >= a.target;
-                    // ATURAN WARNA: PROSES = HIJAU, SELESAI = BIRU
-                    const badgeBg = isDone ? 'bg-status-selesai' : 'bg-white border border-status-proses text-status-proses';
+                    const badgeBg = isDone ? 'bg-status-selesai border-status-selesai' : 'bg-white border-status-proses border-2';
                     const iconClass = isDone ? 'fa-solid fa-circle-check text-white' : 'fa-solid fa-spinner fa-spin text-status-proses';
                     const textColor = isDone ? 'text-white' : 'text-status-proses';
                     
                     return (
-                      <div key={idx} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <div key={idx} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
                         <div>
                           <div className="font-bold text-midnight text-sm mb-1">{a.picId}</div>
                           <div className="text-xs text-slate-500 font-medium">Capaian: <span className="font-bold text-midnight">{a.progress}</span> / {a.target}</div>
@@ -347,7 +335,7 @@
                 <p className="font-black text-slate-500">Belum ada kegiatan terdaftar.</p>
               </div>
             )}
-            {groupedTasks.map(group => <GroupedTaskCard key={group.taskName} group={group} onClick={setSelectedGroup} />)}
+            {groupedTasks.map(group => <GroupedTaskCard key={group.taskName} group={group} onClick={setSelectedTaskName} />)}
           </div>
         </div>
       );
@@ -399,8 +387,8 @@
                       </td>
                       <td className="p-4 min-w-[120px]">
                         <div className="flex items-center gap-3">
-                          <div className="w-full bg-slate-100 rounded-full h-2 shadow-inner">
-                            <div className={`${stat.percent >= 100 ? 'bg-status-selesai' : 'bg-status-proses'} h-2 rounded-full`} style={{ width: `${stat.percent}%` }}></div>
+                          <div className="w-full bg-slate-100 rounded-full h-2.5 shadow-inner">
+                            <div className={`${stat.percent >= 100 ? 'bg-status-selesai' : 'bg-status-proses'} h-2.5 rounded-full`} style={{ width: `${stat.percent}%` }}></div>
                           </div>
                           <span className="text-xs font-black text-midnight">{stat.percent}%</span>
                         </div>
@@ -416,7 +404,7 @@
     };
 
     // --- MENU 4: INPUT PROGRES ---
-    const ProgressForm = ({ tasks, employees, user, db }) => {
+    const ProgressForm = ({ tasks, employees, user }) => {
       const [selectedEmp, setSelectedEmp] = useState('');
       const [selectedTask, setSelectedTask] = useState('');
       const [amount, setAmount] = useState('');
@@ -427,18 +415,19 @@
 
       const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!user) { alert("Sistem sedang menghubungkan ke Firebase, tunggu sebentar."); return; }
+        if (!user) { alert("Sistem sedang menghubungkan ke server, tunggu sebentar."); return; }
         setIsSyncing(true);
         try {
           const task = tasks.find(t => String(t.id) === String(selectedTask));
           const newProgress = Math.min(task.progress + parseInt(amount), task.target);
           const isDone = newProgress >= task.target;
           
-          const docRef = window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(task.id));
-          await window.FirebaseAPI.updateDoc(docRef, { progress: newProgress, status: isDone ? 'Selesai' : 'On Progress' });
+          const db = window.firebase.firestore();
+          const docRef = db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('tasks').doc(String(task.id));
+          await docRef.update({ progress: newProgress, status: isDone ? 'Selesai' : 'On Progress' });
 
           setAmount('');
-          setMessage(`Laporan berhasil dikirim. ${isDone ? 'Kegiatan Selesai!' : ''}`);
+          setMessage(`Laporan dikirim. ${isDone ? 'Kegiatan Tuntas!' : ''}`);
           setTimeout(() => setMessage(''), 4000);
         } catch (err) { alert("Gagal mengirim laporan. Pastikan internet Anda lancar."); }
         setIsSyncing(false);
@@ -451,7 +440,7 @@
                <i className="fa-solid fa-pen-to-square text-3xl"></i>
             </div>
             <h3 className="text-2xl font-black text-midnight tracking-tight">Lapor Progres</h3>
-            <p className="text-slate-500 text-sm font-bold mt-1">Laporkan hasil pekerjaan harian Anda.</p>
+            <p className="text-slate-500 text-sm font-bold mt-1">Kirim hasil pekerjaan harian Anda.</p>
           </div>
 
           {message && (
@@ -464,7 +453,7 @@
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-user-tag text-slate-400 mr-2"></i>Pilih Identitas</label>
-                <select required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight focus:ring-2 focus:ring-midnight focus:border-transparent transition-all shadow-inner" value={selectedEmp} onChange={(e) => { setSelectedEmp(e.target.value); setSelectedTask(''); }}>
+                <select required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight focus:ring-2 focus:ring-midnight transition-all shadow-inner" value={selectedEmp} onChange={(e) => { setSelectedEmp(e.target.value); setSelectedTask(''); }}>
                   <option value="">-- Ketuk untuk memilih --</option>
                   {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
                 </select>
@@ -473,7 +462,7 @@
               {selectedEmp && (
                 <div className="animate-slide-up">
                   <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-list-check text-slate-400 mr-2"></i>Pilih Pekerjaan Aktif</label>
-                  <select required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight focus:ring-2 focus:ring-midnight focus:border-transparent transition-all shadow-inner" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
+                  <select required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight focus:ring-2 focus:ring-midnight transition-all shadow-inner" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
                     <option value="">-- Pilih Pekerjaan --</option>
                     {availableTasks.map(t => <option key={t.id} value={t.id}>{t.taskName} (Sisa: {t.target - t.progress})</option>)}
                   </select>
@@ -483,11 +472,11 @@
               {selectedTask && (
                 <div className="animate-slide-up">
                   <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-arrow-up-9-1 text-slate-400 mr-2"></i>Jumlah Diselesaikan</label>
-                  <input type="number" required min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-3xl text-center font-black text-status-selesai focus:ring-2 focus:ring-status-selesai focus:border-transparent transition-all shadow-inner placeholder:text-slate-300" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
+                  <input type="number" required min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-3xl text-center font-black text-status-selesai focus:ring-2 focus:ring-status-selesai transition-all shadow-inner placeholder:text-slate-300" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
                 </div>
               )}
               
-              <button type="submit" disabled={!selectedTask || isSyncing} className="w-full bg-gradient-to-r from-midnight to-midnight-light text-white font-bold py-4 rounded-xl shadow-glossy shadow-glass hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 flex justify-center items-center gap-2 mt-2">
+              <button type="submit" disabled={!selectedTask || isSyncing} className="w-full bg-gradient-to-r from-midnight to-midnight-light text-white font-bold py-4 rounded-xl shadow-glossy hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 flex justify-center items-center gap-2 mt-2 outline-none">
                 {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Memproses...</> : <><i className="fa-solid fa-paper-plane text-status-selesai"></i> Kirim Laporan</>}
               </button>
             </form>
@@ -497,14 +486,14 @@
     };
 
     // --- MENU 5: ADMIN PANEL ---
-    const AdminPanel = ({ db, tasks, groupedTasks, user, isAdminLogged, setIsAdminLogged }) => {
+    const AdminPanel = ({ tasks, groupedTasks, user, isAdminLogged, setIsAdminLogged }) => {
       const [pwd, setPwd] = useState('');
       const [successMsg, setSuccessMsg] = useState('');
       const [errorMsg, setErrorMsg] = useState('');
       const [isSyncing, setIsSyncing] = useState(false);
       const fileInputRef = useRef(null);
 
-      // KUNCI PASSWORD ADMIN
+      // KUNCI ADMIN
       if (!isAdminLogged) {
         return (
           <div className="animate-slide-up text-center pt-10 px-4 max-w-sm mx-auto">
@@ -519,7 +508,7 @@
                 else { alert('Password Salah!'); setPwd(''); }
               }}>
                 <input type="password" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-center text-lg font-black text-midnight tracking-widest mb-4 focus:ring-2 focus:ring-midnight outline-none transition-all shadow-inner" placeholder="PASSWORD" value={pwd} onChange={e=>setPwd(e.target.value)}/>
-                <button className="w-full bg-midnight text-white font-bold py-3.5 rounded-xl shadow-glossy shadow-glass active:scale-95 transition-all flex justify-center items-center gap-2">
+                <button className="w-full bg-midnight text-white font-bold py-3.5 rounded-xl shadow-glossy active:scale-95 transition-all flex justify-center items-center gap-2 outline-none">
                   <i className="fa-solid fa-lock-open text-status-selesai"></i> Buka Panel
                 </button>
               </form>
@@ -528,10 +517,10 @@
         );
       }
 
-      // FUNGSI UPLOAD CERDAS CSV/EXCEL KUNCI INDEX
+      // FUNGSI UPLOAD CERDAS CSV/EXCEL KUNCI INDEX (COMPAT VERSION)
       const handleExcelUpload = async (e) => {
         const file = e.target?.files?.[0];
-        if (!file) return;
+        if (!file || !window.firebase) return;
 
         setIsSyncing(true); setErrorMsg(''); setSuccessMsg('');
         
@@ -547,7 +536,8 @@
               excelData = window.XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
           }
 
-          const batch = window.FirebaseAPI.writeBatch(db);
+          const db = window.firebase.firestore();
+          const batch = db.batch();
           let addedCount = 0;
 
           for(let i = 1; i < excelData.length; i++) {
@@ -577,7 +567,7 @@
             }
 
             const newId = Date.now() + Math.floor(Math.random() * 10000) + i;
-            const docRef = window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(newId));
+            const docRef = db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('tasks').doc(String(newId));
             batch.set(docRef, {
               id: newId, taskName: taskName, picId: picIndicator.toUpperCase(), 
               target: target, progress: 0, deadline: finalDeadline, status: 'On Progress'
@@ -588,11 +578,11 @@
           if (addedCount > 0) {
             try {
               await batch.commit(); 
-              setSuccessMsg(`BERHASIL! ${addedCount} data masuk ke Firebase.`); 
+              setSuccessMsg(`BERHASIL! ${addedCount} data masuk ke sistem.`); 
               setTimeout(() => setSuccessMsg(''), 6000);
             } catch (fbError) {
-              alert("UPLOAD GAGAL!\n\nPastikan Anda telah mengubah tab 'Rules' di Firebase menjadi 'allow read, write: if true;'.");
-              throw new Error("Akses ditolak Firebase.");
+              alert("UPLOAD GAGAL!\nPastikan Anda mengubah tab 'Rules' Firestore menjadi allow read, write: if true;");
+              throw new Error("Akses ditolak database.");
             }
           } else { throw new Error("Data Kosong. File harus berisi isian."); }
         } catch (error) { 
@@ -606,10 +596,11 @@
         if(!window.confirm(`HAPUS PERMANEN seluruh kegiatan "${taskName}" ?`)) return;
         setIsSyncing(true);
         try {
-          const batch = window.FirebaseAPI.writeBatch(db);
+          const db = window.firebase.firestore();
+          const batch = db.batch();
           const groupTasks = tasks.filter(t => t.taskName === taskName);
           groupTasks.forEach(t => {
-             const docRef = window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(t.id));
+             const docRef = db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('tasks').doc(String(t.id));
              batch.delete(docRef);
           });
           await batch.commit();
@@ -621,18 +612,20 @@
         if(!window.confirm(`Hapus pegawai "${name}" dari kegiatan ini?`)) return;
         setIsSyncing(true);
         try {
-          await window.FirebaseAPI.deleteDoc(window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(id)));
+          const db = window.firebase.firestore();
+          await db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('tasks').doc(String(id)).delete();
         } catch (e) { alert("Gagal menghapus."); }
         setIsSyncing(false);
       };
 
       const handleResetAll = async () => {
-        if(!window.confirm("BAHAYA! Yakin hapus SELURUH DATABASE? Aksi ini tidak bisa dibatalkan!")) return;
+        if(!window.confirm("BAHAYA! Yakin hapus SELURUH DATABASE? Aksi tidak bisa dibatalkan!")) return;
         setIsSyncing(true);
         try {
-          const batch = window.FirebaseAPI.writeBatch(db);
+          const db = window.firebase.firestore();
+          const batch = db.batch();
           tasks.forEach(t => {
-             const docRef = window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(t.id));
+             const docRef = db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('tasks').doc(String(t.id));
              batch.delete(docRef);
           });
           await batch.commit();
@@ -655,7 +648,7 @@
         <div className="animate-slide-up space-y-6">
           <div className="flex justify-between items-center">
             <h3 className="text-2xl font-black text-midnight tracking-tight">Panel Admin</h3>
-            <button onClick={() => { setIsAdminLogged(false); sessionStorage.removeItem('adminAuth'); }} className="bg-white border border-slate-200 text-red-500 font-bold px-4 py-1.5 rounded-full shadow-sm text-xs flex items-center gap-1.5 hover:bg-slate-50 transition-colors">
+            <button onClick={() => { setIsAdminLogged(false); sessionStorage.removeItem('adminAuth'); }} className="bg-white border border-slate-200 text-red-500 font-bold px-4 py-1.5 rounded-full shadow-sm text-xs flex items-center gap-1.5 hover:bg-slate-50 transition-colors outline-none">
               <i className="fa-solid fa-power-off"></i> Keluar
             </button>
           </div>
@@ -670,12 +663,12 @@
               <h4 className="text-xl font-black mb-1 flex items-center gap-2"><i className="fa-solid fa-database text-status-selesai"></i> Upload Database</h4>
               <p className="text-white/60 text-xs font-bold mb-5 leading-relaxed max-w-sm">File CSV/XLSX. Kolom A=Kegiatan, B=Nama, C=Target, D=Tanggal.</p>
               
-              <button onClick={handleDownloadTemplate} className="bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold px-4 py-2 rounded-full text-xs transition-colors mb-5 flex items-center gap-2 backdrop-blur-md">
+              <button onClick={handleDownloadTemplate} className="bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold px-4 py-2 rounded-full text-xs transition-colors mb-5 flex items-center gap-2 backdrop-blur-md outline-none">
                 <i className="fa-solid fa-download"></i> Template Excel
               </button>
 
               <input type="file" accept=".xlsx, .csv" ref={fileInputRef} onChange={handleExcelUpload} className="hidden" />
-              <button onClick={() => fileInputRef.current.click()} disabled={isSyncing || !user} className="w-full bg-white text-midnight font-black py-3.5 rounded-xl shadow-soft hover:bg-slate-50 transition-colors flex justify-center items-center gap-2">
+              <button onClick={() => fileInputRef.current.click()} disabled={isSyncing || !user} className="w-full bg-white text-midnight font-black py-3.5 rounded-xl shadow-soft hover:bg-slate-50 transition-colors flex justify-center items-center gap-2 outline-none">
                  {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin text-status-selesai"></i> Mengekstrak...</> : <><i className="fa-solid fa-file-excel text-emerald-500"></i> Pilih File Data</>}
               </button>
             </div>
@@ -686,7 +679,7 @@
               <i className="fa-solid fa-trash-can text-red-500"></i> <span className="font-black text-midnight text-sm uppercase tracking-wider">Manajemen Hapus</span>
             </div>
             <div className="p-5 space-y-4">
-               <button onClick={handleResetAll} disabled={isSyncing || !user} className="w-full bg-red-50 text-red-600 border border-red-200 font-black py-3.5 rounded-xl shadow-sm hover:bg-red-100 transition-colors flex justify-center items-center gap-2 mb-2">
+               <button onClick={handleResetAll} disabled={isSyncing || !user} className="w-full bg-red-50 text-red-600 border border-red-200 font-black py-3.5 rounded-xl shadow-sm hover:bg-red-100 transition-colors flex justify-center items-center gap-2 mb-2 outline-none">
                  <i className="fa-solid fa-skull-crossbones"></i> FORMAT KOSONG DATABASE
                </button>
 
@@ -696,19 +689,19 @@
                <div className="space-y-3">
                  {groupedTasks.map(g => (
                    <details key={g.taskName} className="group bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden [&_summary::-webkit-details-marker]:hidden">
-                     <summary className="p-4 font-bold text-midnight flex justify-between items-center cursor-pointer select-none">
+                     <summary className="p-4 font-bold text-midnight flex justify-between items-center cursor-pointer select-none outline-none">
                        <span className="flex items-center gap-3">
                          <i className="fa-solid fa-folder text-status-selesai group-open:text-status-proses transition-colors"></i> 
                          <span className="truncate max-w-[150px] sm:max-w-xs">{g.taskName}</span>
                          <span className="bg-midnight text-white text-[10px] px-2 py-0.5 rounded-md">{g.assignees.length} Org</span>
                        </span>
-                       <button onClick={(e) => { e.preventDefault(); handleDeleteGroup(g.taskName); }} className="bg-white border border-red-200 text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg text-xs transition-colors shadow-sm"><i className="fa-solid fa-trash"></i></button>
+                       <button onClick={(e) => { e.preventDefault(); handleDeleteGroup(g.taskName); }} className="bg-white border border-red-200 text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg text-xs transition-colors shadow-sm outline-none"><i className="fa-solid fa-trash"></i></button>
                      </summary>
                      <div className="px-4 pb-4 pt-1 space-y-2">
                        {g.assignees.map(a => (
                          <div key={a.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-xl">
                            <div className="text-xs font-bold text-midnight flex items-center gap-2"><i className="fa-solid fa-user-tag text-slate-300"></i> {a.picId}</div>
-                           <button onClick={() => handleDeletePerson(a.id, a.picId)} className="bg-red-50 text-red-500 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-100 transition-colors"><i className="fa-solid fa-xmark"></i></button>
+                           <button onClick={() => handleDeletePerson(a.id, a.picId)} className="bg-red-50 text-red-500 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-100 transition-colors outline-none"><i className="fa-solid fa-xmark"></i></button>
                          </div>
                        ))}
                      </div>
@@ -728,38 +721,40 @@
       const [employees, setEmployees] = useState([]);
       const [tasks, setTasks] = useState([]);
       const [isLoading, setIsLoading] = useState(true);
-      const [selectedGroup, setSelectedGroup] = useState(null);
+      const [selectedTaskName, setSelectedTaskName] = useState(null);
       const [user, setUser] = useState(null);
       
       const [isAdminLogged, setIsAdminLogged] = useState(() => sessionStorage.getItem('adminAuth') === 'true'); 
       const [db, setDb] = useState(null);
 
-      // INIT FIREBASE
+      // INIT FIREBASE COMPAT
       useEffect(() => {
-        const init = async () => {
+        const initFirebase = async () => {
           try {
-            const app = window.FirebaseAPI.initializeApp(firebaseConfig);
-            const database = window.FirebaseAPI.getFirestore(app);
+            if (!window.firebase.apps.length) {
+              window.firebase.initializeApp(firebaseConfig);
+            }
+            const database = window.firebase.firestore();
             setDb(database);
             
-            const auth = window.FirebaseAPI.getAuth(app);
-            await window.FirebaseAPI.signInAnonymously(auth);
+            const auth = window.firebase.auth();
+            await auth.signInAnonymously();
             
-            const unsubscribe = window.FirebaseAPI.onAuthStateChanged(auth, setUser);
+            const unsubscribe = auth.onAuthStateChanged(u => setUser(u));
             return () => unsubscribe();
           } catch (e) {
             console.error("Init failed:", e);
             setIsLoading(false);
           }
         };
-        init();
+        initFirebase();
       }, []);
 
-      // LISTENER REALTIME
+      // LISTENER REALTIME COMPAT
       useEffect(() => {
         if (!user || !db) return;
-        const tasksRef = window.FirebaseAPI.collection(db, 'artifacts', APP_ID, 'public', 'data', 'tasks');
-        const unsubscribe = window.FirebaseAPI.onSnapshot(tasksRef, (snapshot) => {
+        const ref = db.collection('artifacts').doc(APP_ID).collection('public').doc('data').collection('tasks');
+        const unsubscribe = ref.onSnapshot((snapshot) => {
             const loadedTasks = [];
             snapshot.forEach(doc => loadedTasks.push({ id: doc.id, ...doc.data() }));
             setTasks(loadedTasks);
@@ -775,25 +770,6 @@
         return () => unsubscribe();
       }, [user, db]);
 
-      // SYNC DETAIL VIEW
-      useEffect(() => {
-        if (selectedGroup) {
-           const updatedGroup = tasks.filter(t => t.taskName === selectedGroup.taskName);
-           if(updatedGroup.length > 0) {
-             const newGroupObj = { taskName: selectedGroup.taskName, deadline: updatedGroup[0].deadline, target: 0, progress: 0, assignees: [], status: 'Selesai' };
-             updatedGroup.forEach(t => {
-                newGroupObj.target += t.target;
-                newGroupObj.progress += t.progress;
-                newGroupObj.assignees.push(t);
-                if (newGroupObj.progress < newGroupObj.target) newGroupObj.status = 'On Progress';
-             });
-             if(JSON.stringify(newGroupObj) !== JSON.stringify(selectedGroup)) {
-                setSelectedGroup(newGroupObj);
-             }
-           } else { setSelectedGroup(null); }
-        }
-      }, [tasks]); 
-
       const groupedTasks = useMemo(() => {
         const groups = {};
         tasks.forEach(t => {
@@ -806,7 +782,7 @@
         return Object.values(groups);
       }, [tasks]);
 
-      if (isLoading) return <div className="min-h-screen d-flex flex-col gap-4 items-center justify-center bg-slate-50"><i className="fa-solid fa-circle-notch fa-spin text-midnight text-5xl"></i><h5 className="font-black text-midnight text-sm uppercase tracking-widest">Menghubungkan...</h5></div>;
+      if (isLoading) return <div className="min-h-screen flex flex-col gap-4 items-center justify-center bg-slate-50"><i className="fa-solid fa-circle-notch fa-spin text-midnight text-5xl"></i><h5 className="font-black text-midnight text-sm uppercase tracking-widest">Menghubungkan...</h5></div>;
 
       return (
         <div className="app-container">
@@ -818,13 +794,13 @@
                 </div>
                 MonitorPro
               </a>
-              {user && <span className="bg-white/10 border border-white/20 text-white rounded-full px-3 py-1.5 shadow-sm text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm"><i className="fa-solid fa-cloud-arrow-up fa-fade mr-1.5 text-blue-300"></i> Sync</span>}
+              {user && <span className="bg-white/10 border border-white/20 text-white rounded-full px-3 py-1.5 shadow-sm text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm"><i className="fa-solid fa-cloud-arrow-up fa-fade mr-1.5 text-status-selesai"></i> Sync</span>}
             </div>
           </header>
 
           <main className="p-5">
-            {activeTab === 'dashboard' && <Dashboard groupedTasks={groupedTasks} setActiveTab={setActiveTab} setSelectedGroup={setSelectedGroup} />}
-            {activeTab === 'kegiatan' && <DaftarKegiatan groupedTasks={groupedTasks} selectedGroup={selectedGroup} setSelectedGroup={setSelectedGroup} />}
+            {activeTab === 'dashboard' && <Dashboard groupedTasks={groupedTasks} setActiveTab={setActiveTab} setSelectedTaskName={setSelectedTaskName} />}
+            {activeTab === 'kegiatan' && <DaftarKegiatan groupedTasks={groupedTasks} selectedTaskName={selectedTaskName} setSelectedTaskName={setSelectedTaskName} />}
             {activeTab === 'peringkat' && <Leaderboard tasks={tasks} employees={employees} />}
             {activeTab === 'input' && <ProgressForm tasks={tasks} employees={employees} user={user} db={db} />}
             {activeTab === 'admin' && <AdminPanel db={db} tasks={tasks} groupedTasks={groupedTasks} user={user} isAdminLogged={isAdminLogged} setIsAdminLogged={setIsAdminLogged} />}
@@ -838,8 +814,8 @@
               { id: 'input', icon: 'fa-pen-to-square', label: 'Lapor' },
               { id: 'admin', icon: 'fa-shield', label: 'Admin' }
             ].map(item => (
-              <button key={item.id} onClick={() => { setActiveTab(item.id); setSelectedGroup(null); }} 
-                className={`flex flex-col items-center justify-center w-16 gap-1.5 transition-all duration-300 ${activeTab === item.id ? 'text-midnight scale-110' : 'text-slate-400 hover:text-slate-600'}`}>
+              <button key={item.id} onClick={() => { setActiveTab(item.id); setSelectedTaskName(null); }} 
+                className={`flex flex-col items-center justify-center w-16 gap-1.5 transition-all duration-300 outline-none ${activeTab === item.id ? 'text-midnight scale-110' : 'text-slate-400 hover:text-slate-600'}`}>
                 <i className={`fa-solid ${item.icon} text-xl transition-transform ${activeTab === item.id ? 'drop-shadow-md' : ''}`}></i>
                 <span className="text-[9px] font-black uppercase tracking-wider">{item.label}</span>
               </button>
@@ -850,11 +826,16 @@
     }
 
     const initApp = () => {
-      if (!window.FirebaseAPI) { setTimeout(initApp, 50); return; }
       const root = ReactDOM.createRoot(document.getElementById('root'));
       root.render(<App />);
     };
-    initApp();
+    
+    // Pastikan DOM dan library dimuat
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
   </script>
 </body>
 </html>
