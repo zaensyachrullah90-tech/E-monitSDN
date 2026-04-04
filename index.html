@@ -3,15 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>MonitorPro - Premium Firebase</title>
+  <title>MonitorPro - Premium Midnight Glossy</title>
 
-  <!-- PENGAMAN ALARM PALSU -->
+  <!-- Mencegah blank screen akibat ekstensi browser -->
   <script>
     window.onerror = function() { return true; };
   </script>
 
-  <!-- Bootstrap 5 CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            midnight: {
+              DEFAULT: '#0B132B',
+              light: '#1C2541',
+              accent: '#3A506B',
+              glow: '#4A607B'
+            },
+            status: {
+              proses: '#10b981', /* Hijau Emerald */
+              selesai: '#3b82f6' /* Biru */
+            }
+          },
+          boxShadow: {
+            'glossy': '0 10px 25px -5px rgba(11, 19, 43, 0.4), 0 8px 10px -6px rgba(11, 19, 43, 0.1)',
+            'glass': 'inset 0 1px 1px rgba(255, 255, 255, 0.2)',
+            'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+            'nav': '0 -10px 30px rgba(0,0,0,0.08)'
+          }
+        }
+      }
+    }
+  </script>
   
   <!-- Font Awesome 6 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" />
@@ -25,60 +51,29 @@
   <!-- Mengimpor Modul Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, onSnapshot, doc, deleteDoc, updateDoc, writeBatch, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     
-    window.FirebaseAPI = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, writeBatch };
+    window.FirebaseAPI = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, writeBatch };
   </script>
 
   <style>
-    /* DESAIN PREMIUM UI/UX */
-    :root {
-      --app-bg: #f2f5f9;
-      --card-bg: #ffffff;
-      --blue-primary: #0d6efd;
-      --green-process: #198754;
-    }
-    body { 
-      background-color: var(--app-bg); 
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
-      padding-bottom: 90px; 
-      color: #334155;
-    }
+    body { background-color: #f4f6f9; font-family: 'Inter', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     
-    /* App Container untuk PC agar terlihat seperti HP */
-    .app-container { max-width: 600px; margin: 0 auto; min-height: 100vh; background-color: var(--app-bg); position: relative; box-shadow: 0 0 30px rgba(0,0,0,0.05); }
-    
-    /* Header & Navigasi */
-    .app-header { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(0,0,0,0.05); z-index: 1030; position: sticky; top: 0; }
-    .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 600px; background: white; border-top-left-radius: 20px; border-top-right-radius: 20px; z-index: 1030; display: flex; justify-content: space-around; padding: 12px 5px 15px 5px; box-shadow: 0 -5px 20px rgba(0,0,0,0.06); }
-    .nav-btn { background: none; border: none; display: flex; flex-direction: column; align-items: center; color: #94a3b8; font-size: 10px; font-weight: 700; width: 65px; gap: 4px; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.5px;}
-    .nav-btn i { font-size: 22px; transition: transform 0.2s; }
-    .nav-btn.active { color: var(--blue-primary); }
-    .nav-btn.active i { transform: translateY(-3px); }
-
-    /* Kartu & Elemen */
-    .card-premium { border: none; border-radius: 1.25rem; box-shadow: 0 4px 15px rgba(0,0,0,0.03); background: var(--card-bg); transition: transform 0.2s ease, box-shadow 0.2s ease; overflow: hidden; }
-    .card-premium:active { transform: scale(0.98); }
-    
-    /* Status Warna Mutlak */
-    .status-proses-line { border-left: 6px solid var(--green-process); }
-    .status-selesai-line { border-left: 6px solid var(--blue-primary); }
-    
-    .badge-proses { background-color: #e8f5e9; color: var(--green-process); border: 1px solid #c8e6c9; }
-    .badge-selesai { background-color: #e0f2fe; color: var(--blue-primary); border: 1px solid #b6d4fe; }
-
     /* Animasi Halus */
-    @keyframes slideUpFade { from { opacity: 0; transform: translateY(15px);} to { opacity: 1; transform: translateY(0);} }
-    .animate-slide-up { animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     
-    /* Utility */
-    .glass-pill { background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); color: white; border: 1px solid rgba(255,255,255,0.1); }
-    input, select, button { touch-action: manipulation; }
-    .progress-bar { transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
+    /* Efek Klik Kartu */
+    .card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer; }
+    .card-hover:active { transform: scale(0.98); }
+    
+    input, select, button { outline: none; }
   </style>
 </head>
-<body>
+<body class="text-slate-800 pb-24">
 
   <div id="root"></div>
 
@@ -88,21 +83,16 @@
     // =========================================================================
     // 🔥 KONFIGURASI FIREBASE MILIK ANDA
     // =========================================================================
-    let firebaseConfig;
-    if (typeof __firebase_config !== 'undefined') {
-        firebaseConfig = JSON.parse(__firebase_config);
-    } else {
-        firebaseConfig = {
-          apiKey: "AIzaSyBEc1KmTOURFvVkUsGXb1Q_sTwX0tm_z9E",
-          authDomain: "monit-kegiatan.firebaseapp.com",
-          databaseURL: "https://monit-kegiatan-default-rtdb.europe-west1.firebasedatabase.app",
-          projectId: "monit-kegiatan",
-          storageBucket: "monit-kegiatan.firebasestorage.app",
-          messagingSenderId: "778332842690",
-          appId: "1:778332842690:web:a723b5200fda1f3391e95b"
-        };
-    }
-    const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'monit-kegiatan';
+    const firebaseConfig = {
+        apiKey: "AIzaSyBEc1KmTOURFvVkUsGXb1Q_sTwX0tm_z9E",
+        authDomain: "monit-kegiatan.firebaseapp.com",
+        databaseURL: "https://monit-kegiatan-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "monit-kegiatan",
+        storageBucket: "monit-kegiatan.firebasestorage.app",
+        messagingSenderId: "778332842690",
+        appId: "1:778332842690:web:a723b5200fda1f3391e95b"
+    };
+    const APP_ID = 'monit-kegiatan';
     // =========================================================================
 
     const formatDateId = (dateString) => {
@@ -113,6 +103,7 @@
       return `${parts[2]} ${months[parseInt(parts[1])-1]} ${parts[0]}`;
     };
 
+    // --- KOMPONEN: LIVE COUNTDOWN (Kapsul Jam Digital Premium) ---
     const LiveCountdown = memo(({ deadline }) => {
       const [timeLeft, setTimeLeft] = useState('');
       const [isExpired, setIsExpired] = useState(false);
@@ -146,123 +137,131 @@
       }, [deadline]);
 
       return (
-        <div className={`glass-pill rounded-pill px-3 py-1.5 d-inline-flex align-items-center shadow-sm ${isExpired ? 'border-danger bg-danger text-white' : ''}`}>
-          <i className={`fa-solid ${isExpired ? 'fa-triangle-exclamation fa-beat' : 'fa-clock text-warning'} me-2 fs-6`}></i>
-          <div className="d-flex flex-column justify-content-center text-start">
-            <span style={{fontSize: '8px', textTransform:'uppercase', letterSpacing:'1px', opacity: 0.8, lineHeight:'1'}}>Sisa Waktu</span>
-            <span className="fw-bold lh-1 mt-1" style={{fontFamily: 'monospace', fontSize: '13px'}}>{timeLeft}</span>
+        <div className={`flex items-center gap-2.5 rounded-full px-3 py-1.5 shadow-glass shadow-sm border ${isExpired ? 'bg-red-600 border-red-500' : 'bg-gradient-to-r from-midnight to-midnight-light border-midnight-accent'}`}>
+          <i className={`fa-solid ${isExpired ? 'fa-triangle-exclamation fa-beat text-white' : 'fa-clock text-yellow-400'} text-sm`}></i>
+          <div className="flex flex-col text-left">
+            <span className="text-[8px] uppercase tracking-widest text-white/70 leading-none">Tenggat</span>
+            <span className="font-mono font-bold text-xs text-white leading-none mt-1">{timeLeft}</span>
           </div>
         </div>
       );
     });
 
+    // --- KOMPONEN: KARTU KEGIATAN UTAMA ---
     const GroupedTaskCard = memo(({ group, onClick }) => {
       const percent = Math.min(Math.round((group.progress / group.target) * 100), 100);
-      let borderClass = 'status-proses-line';
-      let progressColor = 'bg-success'; 
-      if (percent >= 100) { borderClass = 'status-selesai-line'; progressColor = 'bg-primary'; }
+      const isDone = percent >= 100;
+      
+      // Aturan Warna: Proses = Hijau, Selesai = Biru
+      const borderColor = isDone ? 'border-status-selesai' : 'border-status-proses';
+      const progressBg = isDone ? 'bg-status-selesai' : 'bg-status-proses';
+      const percentColor = isDone ? 'text-status-selesai' : 'text-status-proses';
       
       return (
-        <div className={`card-premium mb-3 ${borderClass}`} onClick={() => onClick && onClick(group)}>
-          <div className="card-body p-4">
-            <div className="d-flex justify-content-between align-items-start mb-3 gap-3">
-              <div style={{flex: 1}}>
-                <h5 className="fw-bold text-dark mb-1 lh-sm" style={{fontSize: '1.15rem'}}>{group.taskName}</h5>
-                <span className="badge bg-light text-secondary border border-secondary-subtle px-2 py-1 mt-1 fw-medium"><i className="fa-regular fa-calendar-check me-1"></i> {formatDateId(group.deadline)}</span>
+        <div className={`bg-white rounded-3xl shadow-soft border-l-[6px] ${borderColor} card-hover relative overflow-hidden`} onClick={() => onClick && onClick(group)}>
+          <div className="p-5">
+            <div className="flex justify-between items-start gap-3 mb-4">
+              <div className="flex-1">
+                <h5 className="font-black text-midnight text-lg leading-tight mb-2">{group.taskName}</h5>
+                <span className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 text-slate-500 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide">
+                  <i className="fa-regular fa-calendar-check"></i> {formatDateId(group.deadline)}
+                </span>
               </div>
               <LiveCountdown deadline={group.deadline} />
             </div>
 
-            <div className="mb-3">
-              <div className="d-flex justify-content-between small fw-bold mb-1">
-                <span className="text-secondary">Progress ({group.progress}/{group.target})</span>
-                <span className={percent >= 100 ? 'text-primary' : 'text-success'}>{percent}%</span>
+            <div className="mb-4">
+              <div className="flex justify-between text-xs font-bold mb-1.5">
+                <span className="text-slate-500">Progress ({group.progress}/{group.target})</span>
+                <span className={`font-black text-sm ${percentColor}`}>{percent}%</span>
               </div>
-              <div className="progress rounded-pill shadow-sm" style={{height: '10px', backgroundColor: '#e2e8f0'}}>
-                <div className={`progress-bar ${progressColor} rounded-pill`} style={{ width: `${percent}%` }}></div>
+              <div className="w-full bg-slate-100 rounded-full h-2.5 shadow-inner">
+                <div className={`${progressBg} h-2.5 rounded-full transition-all duration-1000 ease-out`} style={{ width: `${percent}%` }}></div>
               </div>
             </div>
             
-            <div className="d-flex justify-content-between align-items-center pt-3 border-top border-light-subtle small mt-1">
-              <div className="text-secondary fw-bold"><i className="fa-solid fa-users text-secondary me-1"></i> {group.assignees.length} Pelaksana</div>
-              <div className="text-primary fw-bold bg-primary bg-opacity-10 px-2 py-1 rounded"><i className="fa-solid fa-check-double me-1"></i> Selesai: {group.assignees.filter(a => a.progress >= a.target).length}</div>
+            <div className="flex justify-between items-center pt-4 border-t border-slate-100/80">
+              <div className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
+                <i className="fa-solid fa-users"></i> {group.assignees.length} Pelaksana
+              </div>
+              <div className="text-xs font-black text-white bg-gradient-to-r from-midnight to-midnight-light px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5">
+                <i className="fa-solid fa-check-double text-blue-300"></i> Selesai: {group.assignees.filter(a => a.progress >= a.target).length}
+              </div>
             </div>
           </div>
         </div>
       );
     });
 
-    // --- KOMPONEN MENU (DIPISAH DARI APP AGAR TIDAK RE-RENDER SAAT UPDATE) ---
-    const Dashboard = ({ groupedTasks, isOffline, setActiveTab, setSelectedGroup }) => {
+    // --- MENU 1: DASHBOARD ---
+    const Dashboard = ({ groupedTasks, setActiveTab, setSelectedGroup }) => {
       const totalTasks = groupedTasks.length;
       const completedTasks = groupedTasks.filter(g => g.status === 'Selesai').length;
       const activeGroups = groupedTasks.filter(g => g.status === 'On Progress');
       
       return (
-        <div className="animate-slide-up">
-          <div className="d-flex justify-content-between align-items-center mb-4">
+        <div className="animate-slide-up space-y-6">
+          <div className="flex justify-between items-center">
             <div>
-              <h3 className="fw-black text-dark mb-0">Beranda</h3>
-              <p className="text-muted small mb-0 fw-medium">Ringkasan Evaluasi Kinerja</p>
+              <h3 className="text-2xl font-black text-midnight tracking-tight">Beranda</h3>
+              <p className="text-slate-500 text-sm font-bold mt-0.5">Ringkasan Evaluasi Kinerja</p>
             </div>
-            <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 fw-bold px-3 py-2 rounded-pill shadow-sm">
-              <i className="fa-solid fa-wifi fa-fade me-1"></i> Live
+            <span className="bg-white border border-slate-200 text-midnight font-bold px-3 py-1.5 rounded-full shadow-sm text-xs flex items-center gap-1.5">
+              <i className="fa-solid fa-wifi fa-fade text-emerald-500"></i> Online
             </span>
           </div>
           
-          <div className="row g-3 mb-4">
-            <div className="col-12 col-md-4">
-              <div className="card-premium bg-primary text-white h-100">
-                <div className="card-body p-4 d-flex align-items-center justify-content-between">
-                  <div>
-                    <h6 className="mb-1 text-white-50 small text-uppercase fw-bold tracking-wider">Semua Kegiatan</h6>
-                    <h2 className="mb-0 fw-black fs-1">{totalTasks}</h2>
-                  </div>
-                  <i className="fa-solid fa-layer-group fa-fw fs-1 opacity-50"></i>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gradient-to-br from-midnight to-midnight-light rounded-3xl shadow-glossy shadow-glass p-5 text-white relative overflow-hidden flex items-center justify-between">
+              <i className="fa-solid fa-layer-group absolute -right-4 -bottom-4 text-7xl opacity-20 text-white"></i>
+              <div className="relative z-10">
+                <h6 className="text-[10px] text-white/70 uppercase tracking-widest font-bold mb-1">Semua Kegiatan</h6>
+                <h2 className="text-4xl font-black">{totalTasks}</h2>
+              </div>
+              <div className="bg-white/10 p-3 rounded-2xl backdrop-blur-md relative z-10 border border-white/10">
+                <i className="fa-solid fa-chart-pie text-xl"></i>
               </div>
             </div>
-            <div className="col-6 col-md-4">
-              <div className="card-premium bg-primary h-100" style={{backgroundColor: '#0a58ca'}}>
-                <div className="card-body p-4 text-center text-white">
-                  <i className="fa-solid fa-check-circle fs-2 mb-2 text-info"></i>
-                  <h2 className="mb-0 fw-black">{completedTasks}</h2>
-                  <h6 className="mb-0 text-white-50 small fw-bold mt-1">Selesai</h6>
-                </div>
+            
+            <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 flex flex-col justify-center items-center text-center">
+              <div className="bg-status-selesai/10 text-status-selesai w-12 h-12 rounded-full flex items-center justify-center mb-3">
+                <i className="fa-solid fa-check-circle text-2xl"></i>
               </div>
+              <h2 className="text-3xl font-black text-midnight mb-1">{completedTasks}</h2>
+              <h6 className="text-xs text-slate-500 font-bold uppercase tracking-wider">Telah Selesai</h6>
             </div>
-            <div className="col-6 col-md-4">
-              <div className="card-premium bg-success h-100">
-                <div className="card-body p-4 text-center text-white">
-                  <i className="fa-solid fa-person-digging fs-2 mb-2 text-warning"></i>
-                  <h2 className="mb-0 fw-black">{totalTasks - completedTasks}</h2>
-                  <h6 className="mb-0 text-white-50 small fw-bold mt-1">Proses</h6>
-                </div>
+            
+            <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 flex flex-col justify-center items-center text-center">
+              <div className="bg-status-proses/10 text-status-proses w-12 h-12 rounded-full flex items-center justify-center mb-3">
+                <i className="fa-solid fa-person-digging text-2xl"></i>
               </div>
+              <h2 className="text-3xl font-black text-midnight mb-1">{totalTasks - completedTasks}</h2>
+              <h6 className="text-xs text-slate-500 font-bold uppercase tracking-wider">Sedang Proses</h6>
             </div>
           </div>
 
-          <h5 className="fw-bold mb-3 mt-4 text-dark"><i className="fa-solid fa-fire-flame-curved text-danger me-2"></i>Mendesak (Deadline Terdekat)</h5>
-          <div className="row g-3">
-            {activeGroups.sort((a, b) => new Date(a.deadline) - new Date(b.deadline)).slice(0, 4).map(group => (
-              <div className="col-12 col-md-6" key={group.taskName}>
-                <GroupedTaskCard group={group} onClick={() => { setSelectedGroup(group); setActiveTab('kegiatan'); }} />
-              </div>
-            ))}
-            {activeGroups.length === 0 && (
-              <div className="col-12">
-                <div className="card-premium bg-white text-center py-5 border border-light-subtle">
-                  <i className="fa-solid fa-mug-hot d-block fs-1 mb-3 text-primary opacity-50"></i> 
-                  <h5 className="fw-bold text-dark mb-0">Semua Pekerjaan Tuntas!</h5>
-                  <p className="text-muted small">Tidak ada kegiatan yang berjalan saat ini.</p>
+          <div>
+            <h5 className="font-bold text-midnight mb-4 flex items-center gap-2">
+              <i className="fa-solid fa-fire-flame-curved text-red-500 text-lg"></i> Mendesak (Tenggat Terdekat)
+            </h5>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {activeGroups.sort((a, b) => new Date(a.deadline) - new Date(b.deadline)).slice(0, 4).map(group => (
+                <GroupedTaskCard key={group.taskName} group={group} onClick={() => { setSelectedGroup(group); setActiveTab('kegiatan'); }} />
+              ))}
+              {activeGroups.length === 0 && (
+                <div className="col-span-full bg-white rounded-3xl shadow-soft border border-slate-100 text-center py-10">
+                  <i className="fa-solid fa-mug-hot d-block text-5xl mb-4 text-slate-300"></i> 
+                  <h5 className="font-black text-midnight text-lg mb-1">Semua Pekerjaan Tuntas!</h5>
+                  <p className="text-slate-500 text-sm font-medium">Tidak ada kegiatan yang berjalan saat ini.</p>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       );
     };
 
+    // --- MENU 2: KEGIATAN & EVALUASI DETAIL ---
     const DaftarKegiatan = ({ groupedTasks, selectedGroup, setSelectedGroup }) => {
       if (selectedGroup) {
         const totalPelaksana = selectedGroup.assignees.length;
@@ -270,61 +269,65 @@
         const belumCount = totalPelaksana - selesaiCount;
 
         return (
-          <div className="animate-slide-up pb-4">
-            <button onClick={() => setSelectedGroup(null)} className="btn btn-white shadow-sm border rounded-pill fw-bold px-4 mb-4 text-dark bg-white">
-              <i className="fa-solid fa-arrow-left-long me-2 text-primary"></i> Kembali
+          <div className="animate-slide-up space-y-5">
+            <button onClick={() => setSelectedGroup(null)} className="bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-5 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors">
+              <i className="fa-solid fa-arrow-left-long text-status-selesai"></i> Kembali
             </button>
             
-            <div className="card-premium mb-4">
-              <div className="card-body p-4">
-                <span className={`badge ${selectedGroup.status === 'Selesai' ? 'bg-primary' : 'bg-success'} mb-3 px-3 py-2 rounded-pill fw-bold shadow-sm`}>
-                  <i className={`fa-solid ${selectedGroup.status === 'Selesai' ? 'fa-check' : 'fa-spinner fa-spin'} me-1`}></i> STATUS: {selectedGroup.status.toUpperCase()}
+            <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
+              <div className="bg-gradient-to-r from-midnight to-midnight-light p-6 text-white relative">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                  <i className="fa-solid fa-folder-open text-8xl"></i>
+                </div>
+                <span className={`inline-flex items-center gap-1.5 ${selectedGroup.status === 'Selesai' ? 'bg-status-selesai' : 'bg-status-proses'} text-white text-xs font-black px-3 py-1.5 rounded-lg mb-4 shadow-sm uppercase tracking-wider`}>
+                  <i className={`fa-solid ${selectedGroup.status === 'Selesai' ? 'fa-check-double' : 'fa-spinner fa-spin'}`}></i> {selectedGroup.status}
                 </span>
-                <h3 className="fw-black text-dark mb-2 lh-sm">{selectedGroup.taskName}</h3>
-                <p className="text-danger fw-bold mb-0"><i className="fa-solid fa-calendar-day me-1"></i> Tenggat: {formatDateId(selectedGroup.deadline)}</p>
+                <h3 className="text-2xl font-black mb-2 relative z-10 leading-tight">{selectedGroup.taskName}</h3>
+                <p className="text-white/80 font-bold text-sm m-0 flex items-center gap-2 relative z-10">
+                  <i className="fa-solid fa-calendar-day text-blue-300"></i> Tenggat: {formatDateId(selectedGroup.deadline)}
+                </p>
               </div>
               
-              <div className="card-body px-4 pb-4 pt-0 bg-white">
-                <div className="row text-center g-3 mb-4">
-                  <div className="col-4">
-                    <div className="p-3 bg-light rounded-4 border border-light-subtle h-100 d-flex flex-column justify-content-center">
-                      <h2 className="fw-black text-dark mb-0">{totalPelaksana}</h2>
-                      <span className="small text-muted fw-bold">Pelaksana</span>
-                    </div>
+              <div className="p-6">
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                  <div className="bg-slate-50 rounded-2xl border border-slate-100 p-3 text-center flex flex-col justify-center">
+                    <h2 className="text-2xl font-black text-midnight mb-0.5">{totalPelaksana}</h2>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Pelaksana</span>
                   </div>
-                  <div className="col-4">
-                    <div className="p-3 bg-primary bg-opacity-10 rounded-4 border border-primary border-opacity-25 h-100 d-flex flex-column justify-content-center">
-                      <h2 className="fw-black text-primary mb-0">{selesaiCount}</h2>
-                      <span className="small text-primary fw-bold">Selesai</span>
-                    </div>
+                  <div className="bg-blue-50 rounded-2xl border border-blue-100 p-3 text-center flex flex-col justify-center">
+                    <h2 className="text-2xl font-black text-status-selesai mb-0.5">{selesaiCount}</h2>
+                    <span className="text-[10px] text-status-selesai font-bold uppercase tracking-wider">Selesai</span>
                   </div>
-                  <div className="col-4">
-                    <div className="p-3 bg-success bg-opacity-10 rounded-4 border border-success border-opacity-25 h-100 d-flex flex-column justify-content-center">
-                      <h2 className="fw-black text-success mb-0">{belumCount}</h2>
-                      <span className="small text-success fw-bold">Proses</span>
-                    </div>
+                  <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-3 text-center flex flex-col justify-center">
+                    <h2 className="text-2xl font-black text-status-proses mb-0.5">{belumCount}</h2>
+                    <span className="text-[10px] text-status-proses font-bold uppercase tracking-wider">Proses</span>
                   </div>
                 </div>
 
-                <h6 className="fw-bold mb-3 text-dark mt-2 border-bottom pb-2"><i className="fa-solid fa-list-check text-warning me-2"></i>Rincian Capaian Pegawai</h6>
-                <ul className="list-group list-group-flush rounded-4">
+                <h6 className="font-black text-midnight mb-4 flex items-center gap-2 text-sm uppercase tracking-wider border-b border-slate-100 pb-3">
+                  <i className="fa-solid fa-list-check text-slate-400"></i> Rincian Capaian Pegawai
+                </h6>
+                <div className="space-y-3">
                   {selectedGroup.assignees.map((a, idx) => {
                     const isDone = a.progress >= a.target;
-                    const badgeClass = isDone ? 'badge-selesai' : 'badge-proses';
-                    const iconClass = isDone ? 'fa-solid fa-circle-check text-primary' : 'fa-solid fa-spinner fa-spin text-success';
+                    // ATURAN WARNA: PROSES = HIJAU, SELESAI = BIRU
+                    const badgeBg = isDone ? 'bg-status-selesai' : 'bg-white border border-status-proses text-status-proses';
+                    const iconClass = isDone ? 'fa-solid fa-circle-check text-white' : 'fa-solid fa-spinner fa-spin text-status-proses';
+                    const textColor = isDone ? 'text-white' : 'text-status-proses';
+                    
                     return (
-                      <li key={idx} className="list-group-item d-flex justify-content-between align-items-center py-3 px-0 bg-transparent border-light-subtle">
+                      <div key={idx} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
                         <div>
-                          <div className="fw-bold text-dark fs-6">{a.picId}</div>
-                          <div className="small text-secondary fw-bold mt-1">Capaian: <span className="text-dark">{a.progress}</span> / {a.target}</div>
+                          <div className="font-bold text-midnight text-sm mb-1">{a.picId}</div>
+                          <div className="text-xs text-slate-500 font-medium">Capaian: <span className="font-bold text-midnight">{a.progress}</span> / {a.target}</div>
                         </div>
-                        <span className={`badge rounded-pill fs-6 px-3 py-2 shadow-sm ${badgeClass}`}>
-                          <i className={`${iconClass} me-1`}></i> {isDone ? 'Selesai' : 'Proses'}
+                        <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm ${badgeBg} ${textColor}`}>
+                          <i className={iconClass}></i> {isDone ? 'Selesai' : 'Proses'}
                         </span>
-                      </li>
+                      </div>
                     );
                   })}
-                </ul>
+                </div>
               </div>
             </div>
           </div>
@@ -332,19 +335,25 @@
       }
 
       return (
-        <div className="animate-slide-up">
-          <h3 className="fw-bold text-dark mb-1">Seluruh Kegiatan</h3>
-          <p className="text-muted small mb-4 fw-medium"><i className="fa-solid fa-hand-pointer text-primary me-1"></i> Klik kartu untuk evaluasi mendalam.</p>
-          <div className="row g-3">
-            {groupedTasks.length === 0 && <div className="col-12"><div className="card-premium bg-white text-center py-5"><i className="fa-solid fa-box-open d-block fs-1 mb-3 text-secondary opacity-50"></i><p className="fw-bold text-muted mb-0">Belum ada kegiatan.</p></div></div>}
-            {groupedTasks.map(group => (
-              <div className="col-12 col-md-6" key={group.taskName}><GroupedTaskCard group={group} onClick={setSelectedGroup} /></div>
-            ))}
+        <div className="animate-slide-up space-y-6">
+          <div>
+            <h3 className="text-2xl font-black text-midnight tracking-tight">Seluruh Kegiatan</h3>
+            <p className="text-slate-500 text-sm font-bold mt-0.5"><i className="fa-solid fa-hand-pointer text-status-selesai mr-1"></i> Klik kartu untuk evaluasi mendalam.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {groupedTasks.length === 0 && (
+              <div className="col-span-full bg-white rounded-3xl shadow-soft border border-slate-100 text-center py-12">
+                <i className="fa-solid fa-box-open d-block text-5xl mb-4 text-slate-300"></i>
+                <p className="font-black text-slate-500">Belum ada kegiatan terdaftar.</p>
+              </div>
+            )}
+            {groupedTasks.map(group => <GroupedTaskCard key={group.taskName} group={group} onClick={setSelectedGroup} />)}
           </div>
         </div>
       );
     };
 
+    // --- MENU 3: LEADERBOARD ---
     const Leaderboard = ({ tasks, employees }) => {
       const stats = useMemo(() => {
         return employees.map(emp => {
@@ -357,34 +366,43 @@
       }, [tasks, employees]);
 
       return (
-        <div className="animate-slide-up">
-          <h3 className="fw-bold text-dark mb-1">Leaderboard</h3>
-          <p className="text-muted small mb-4 fw-medium">Peringkat kinerja pegawai secara global.</p>
+        <div className="animate-slide-up space-y-6">
+          <div>
+            <h3 className="text-2xl font-black text-midnight tracking-tight">Leaderboard</h3>
+            <p className="text-slate-500 text-sm font-bold mt-0.5">Peringkat kinerja pegawai secara global.</p>
+          </div>
           
-          <div className="card-premium overflow-hidden">
-            <div className="table-responsive">
-              <table className="table table-borderless align-middle mb-0">
-                <thead className="bg-light text-muted small text-uppercase">
-                  <tr><th className="text-center py-3 rounded-top-start">#</th><th className="py-3">Pegawai</th><th className="text-center py-3">Beban</th><th className="py-3 rounded-top-end">Kinerja</th></tr>
+          <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider font-bold border-b border-slate-200">
+                    <th className="p-4 text-center">#</th>
+                    <th className="p-4">Pegawai</th>
+                    <th className="p-4 text-center">Beban</th>
+                    <th className="p-4">Kinerja</th>
+                  </tr>
                 </thead>
-                <tbody>
-                  {stats.length === 0 && <tr><td colSpan="4" className="text-center py-5 text-muted fw-bold">Belum ada data pegawai</td></tr>}
+                <tbody className="divide-y divide-slate-100">
+                  {stats.length === 0 && <tr><td colSpan="4" className="text-center py-10 text-slate-400 font-bold">Belum ada data pegawai</td></tr>}
                   {stats.map((stat, index) => (
-                    <tr key={stat.id} className="border-bottom border-light-subtle">
-                      <td className="text-center py-3 fw-bold">
-                        {index === 0 ? <span className="badge bg-warning text-dark px-2 py-2 fs-6 shadow-sm rounded-circle"><i className="fa-solid fa-crown"></i></span> : 
-                         index === 1 ? <span className="badge bg-secondary text-white px-2 py-2 fs-6 shadow-sm rounded-circle">2</span> : 
-                         index === 2 ? <span className="badge" style={{backgroundColor:'#cd7f32', color:'white', padding:'8px', fontSize:'1rem', borderRadius:'50%'}}>3</span> : 
-                         <span className="text-muted">{index + 1}</span>}
+                    <tr key={stat.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-4 text-center">
+                        {index === 0 ? <span className="bg-gradient-to-br from-yellow-300 to-yellow-500 text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto shadow-sm text-sm"><i className="fa-solid fa-crown"></i></span> : 
+                         index === 1 ? <span className="bg-gradient-to-br from-slate-300 to-slate-400 text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto shadow-sm text-sm font-bold">2</span> : 
+                         index === 2 ? <span className="bg-gradient-to-br from-orange-300 to-orange-400 text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto shadow-sm text-sm font-bold">3</span> : 
+                         <span className="text-slate-400 font-bold text-sm">{index + 1}</span>}
                       </td>
-                      <td className="fw-bold text-dark py-3">{stat.name}</td>
-                      <td className="text-center py-3"><span className="badge bg-light text-secondary border px-2 py-1">{stat.taskCount}</span></td>
-                      <td className="py-3">
-                        <div className="d-flex align-items-center gap-2">
-                          <div className="progress flex-grow-1 bg-light border" style={{height: '8px'}}>
-                            <div className={`progress-bar rounded-pill ${stat.percent >= 100 ? 'bg-primary' : 'bg-success'}`} style={{ width: `${stat.percent}%` }}></div>
+                      <td className="p-4 font-black text-midnight text-sm">{stat.name}</td>
+                      <td className="p-4 text-center">
+                        <span className="bg-slate-100 text-slate-600 border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold">{stat.taskCount}</span>
+                      </td>
+                      <td className="p-4 min-w-[120px]">
+                        <div className="flex items-center gap-3">
+                          <div className="w-full bg-slate-100 rounded-full h-2 shadow-inner">
+                            <div className={`${stat.percent >= 100 ? 'bg-status-selesai' : 'bg-status-proses'} h-2 rounded-full`} style={{ width: `${stat.percent}%` }}></div>
                           </div>
-                          <span className="small fw-bold text-dark">{stat.percent}%</span>
+                          <span className="text-xs font-black text-midnight">{stat.percent}%</span>
                         </div>
                       </td>
                     </tr>
@@ -397,6 +415,7 @@
       );
     };
 
+    // --- MENU 4: INPUT PROGRES ---
     const ProgressForm = ({ tasks, employees, user, db }) => {
       const [selectedEmp, setSelectedEmp] = useState('');
       const [selectedTask, setSelectedTask] = useState('');
@@ -419,59 +438,65 @@
           await window.FirebaseAPI.updateDoc(docRef, { progress: newProgress, status: isDone ? 'Selesai' : 'On Progress' });
 
           setAmount('');
-          setMessage(`Capaian tersimpan. ${isDone ? '🎉 Target Selesai!' : ''}`);
+          setMessage(`Laporan berhasil dikirim. ${isDone ? 'Kegiatan Selesai!' : ''}`);
           setTimeout(() => setMessage(''), 4000);
-        } catch (err) { alert("Gagal menyimpan. Pastikan internet Anda lancar."); }
+        } catch (err) { alert("Gagal mengirim laporan. Pastikan internet Anda lancar."); }
         setIsSyncing(false);
       };
 
       return (
-        <div className="animate-slide-up">
-          <div className="text-center mb-4 mt-2">
-            <div className="bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{width:'70px', height:'70px'}}>
-               <i className="fa-solid fa-pen-to-square fs-1"></i>
+        <div className="animate-slide-up max-w-lg mx-auto space-y-6">
+          <div className="text-center mt-4">
+            <div className="bg-gradient-to-br from-midnight to-midnight-light text-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-glossy shadow-glass">
+               <i className="fa-solid fa-pen-to-square text-3xl"></i>
             </div>
-            <h3 className="fw-black text-dark">Lapor Progres</h3>
-            <p className="text-muted small fw-medium">Laporkan hasil pekerjaan harian Anda ke sistem.</p>
+            <h3 className="text-2xl font-black text-midnight tracking-tight">Lapor Progres</h3>
+            <p className="text-slate-500 text-sm font-bold mt-1">Laporkan hasil pekerjaan harian Anda.</p>
           </div>
 
-          {message && <div className="alert alert-success border-0 shadow-sm py-3 rounded-4 fw-bold animate-fade-in text-center"><i className="fa-solid fa-circle-check me-2 fs-5 text-success"></i>{message}</div>}
+          {message && (
+            <div className="bg-midnight text-white p-4 rounded-2xl shadow-lg font-bold flex items-center gap-3 animate-slide-up text-sm">
+              <i className="fa-solid fa-circle-check text-status-selesai text-xl"></i> {message}
+            </div>
+          )}
           
-          <div className="card-premium">
-            <div className="card-body p-4 md-p-5">
-              <form onSubmit={handleSubmit}>
-                <div className="mb-4">
-                  <label className="form-label fw-bold text-dark small text-uppercase tracking-wider"><i className="fa-solid fa-user-tag text-primary me-2"></i>Pilih Identitas Anda</label>
-                  <select required className="form-select form-select-lg bg-light border border-light-subtle rounded-4 fw-bold text-dark shadow-sm" value={selectedEmp} onChange={(e) => { setSelectedEmp(e.target.value); setSelectedTask(''); }}>
-                    <option value="">-- Ketuk untuk memilih --</option>
-                    {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+          <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-6 md:p-8">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-user-tag text-slate-400 mr-2"></i>Pilih Identitas</label>
+                <select required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight focus:ring-2 focus:ring-midnight focus:border-transparent transition-all shadow-inner" value={selectedEmp} onChange={(e) => { setSelectedEmp(e.target.value); setSelectedTask(''); }}>
+                  <option value="">-- Ketuk untuk memilih --</option>
+                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                </select>
+              </div>
+              
+              {selectedEmp && (
+                <div className="animate-slide-up">
+                  <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-list-check text-slate-400 mr-2"></i>Pilih Pekerjaan Aktif</label>
+                  <select required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight focus:ring-2 focus:ring-midnight focus:border-transparent transition-all shadow-inner" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
+                    <option value="">-- Pilih Pekerjaan --</option>
+                    {availableTasks.map(t => <option key={t.id} value={t.id}>{t.taskName} (Sisa: {t.target - t.progress})</option>)}
                   </select>
                 </div>
-                {selectedEmp && (
-                  <div className="mb-4 animate-slide-up">
-                    <label className="form-label fw-bold text-dark small text-uppercase tracking-wider"><i className="fa-solid fa-list-check text-warning me-2"></i>Pilih Pekerjaan Aktif</label>
-                    <select required className="form-select form-select-lg bg-light border border-light-subtle rounded-4 fw-bold text-dark shadow-sm" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
-                      <option value="">-- Pilih Pekerjaan --</option>
-                      {availableTasks.map(t => <option key={t.id} value={t.id}>{t.taskName} (Sisa target: {t.target - t.progress})</option>)}
-                    </select>
-                  </div>
-                )}
-                {selectedTask && (
-                  <div className="mb-4 animate-slide-up">
-                    <label className="form-label fw-bold text-dark small text-uppercase tracking-wider"><i className="fa-solid fa-arrow-up-9-1 text-success me-2"></i>Jumlah yang Diselesaikan</label>
-                    <input type="number" required min="1" className="form-control form-control-lg bg-light border border-light-subtle rounded-4 fw-black text-center text-primary fs-2 shadow-sm py-3" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
-                  </div>
-                )}
-                <button type="submit" disabled={!selectedTask || isSyncing} className="btn btn-primary btn-lg w-100 py-3 fw-bold rounded-pill shadow">
-                  {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin me-2"></i>Memproses...</> : <><i className="fa-solid fa-paper-plane me-2"></i>Kirim Laporan</>}
-                </button>
-              </form>
-            </div>
+              )}
+              
+              {selectedTask && (
+                <div className="animate-slide-up">
+                  <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-arrow-up-9-1 text-slate-400 mr-2"></i>Jumlah Diselesaikan</label>
+                  <input type="number" required min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-3xl text-center font-black text-status-selesai focus:ring-2 focus:ring-status-selesai focus:border-transparent transition-all shadow-inner placeholder:text-slate-300" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
+                </div>
+              )}
+              
+              <button type="submit" disabled={!selectedTask || isSyncing} className="w-full bg-gradient-to-r from-midnight to-midnight-light text-white font-bold py-4 rounded-xl shadow-glossy shadow-glass hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 flex justify-center items-center gap-2 mt-2">
+                {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Memproses...</> : <><i className="fa-solid fa-paper-plane text-status-selesai"></i> Kirim Laporan</>}
+              </button>
+            </form>
           </div>
         </div>
       );
     };
 
+    // --- MENU 5: ADMIN PANEL ---
     const AdminPanel = ({ db, tasks, groupedTasks, user, isAdminLogged, setIsAdminLogged }) => {
       const [pwd, setPwd] = useState('');
       const [successMsg, setSuccessMsg] = useState('');
@@ -479,25 +504,31 @@
       const [isSyncing, setIsSyncing] = useState(false);
       const fileInputRef = useRef(null);
 
+      // KUNCI PASSWORD ADMIN
       if (!isAdminLogged) {
         return (
-          <div className="animate-slide-up text-center pt-5">
-            <div className="bg-danger bg-opacity-10 text-danger rounded-circle d-inline-flex align-items-center justify-content-center mb-4 shadow-sm" style={{width:'80px', height:'80px'}}>
-               <i className="fa-solid fa-shield-halved fs-1"></i>
+          <div className="animate-slide-up text-center pt-10 px-4 max-w-sm mx-auto">
+            <div className="bg-white border border-slate-200 text-midnight rounded-3xl w-24 h-24 flex items-center justify-center mx-auto mb-6 shadow-soft">
+               <i className="fa-solid fa-shield-halved text-5xl"></i>
             </div>
-            <h3 className="fw-black text-dark mb-4">Akses Administrator</h3>
-            <div className="card-premium mx-auto" style={{maxWidth: '350px'}}>
-              <div className="card-body p-4">
-                <form onSubmit={e => { e.preventDefault(); if(pwd === 'admin123') setIsAdminLogged(true); else alert('Password Salah!'); }}>
-                  <input type="password" required className="form-control form-control-lg bg-light border-light-subtle text-center mb-4 fw-bold rounded-4 py-3" placeholder="Masukkan Password" value={pwd} onChange={e=>setPwd(e.target.value)}/>
-                  <button className="btn btn-danger btn-lg w-100 fw-bold rounded-pill shadow"><i className="fa-solid fa-lock-open me-2"></i>Buka Panel</button>
-                </form>
-              </div>
+            <h3 className="text-2xl font-black text-midnight mb-6 tracking-tight">Akses Admin</h3>
+            <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-6">
+              <form onSubmit={e => { 
+                e.preventDefault(); 
+                if(pwd === 'admin123') { setIsAdminLogged(true); sessionStorage.setItem('adminAuth', 'true'); } 
+                else { alert('Password Salah!'); setPwd(''); }
+              }}>
+                <input type="password" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-center text-lg font-black text-midnight tracking-widest mb-4 focus:ring-2 focus:ring-midnight outline-none transition-all shadow-inner" placeholder="PASSWORD" value={pwd} onChange={e=>setPwd(e.target.value)}/>
+                <button className="w-full bg-midnight text-white font-bold py-3.5 rounded-xl shadow-glossy shadow-glass active:scale-95 transition-all flex justify-center items-center gap-2">
+                  <i className="fa-solid fa-lock-open text-status-selesai"></i> Buka Panel
+                </button>
+              </form>
             </div>
           </div>
         );
       }
 
+      // FUNGSI UPLOAD CERDAS CSV/EXCEL KUNCI INDEX
       const handleExcelUpload = async (e) => {
         const file = e.target?.files?.[0];
         if (!file) return;
@@ -555,19 +586,24 @@
           }
 
           if (addedCount > 0) {
-            await batch.commit();
-            setSuccessMsg(`BERHASIL! ${addedCount} data masuk ke Firebase.`); 
-            setTimeout(() => setSuccessMsg(''), 6000);
-          } else { throw new Error("Data Kosong. File harus berisi isian di bawah baris judul."); }
+            try {
+              await batch.commit(); 
+              setSuccessMsg(`BERHASIL! ${addedCount} data masuk ke Firebase.`); 
+              setTimeout(() => setSuccessMsg(''), 6000);
+            } catch (fbError) {
+              alert("UPLOAD GAGAL!\n\nPastikan Anda telah mengubah tab 'Rules' di Firebase menjadi 'allow read, write: if true;'.");
+              throw new Error("Akses ditolak Firebase.");
+            }
+          } else { throw new Error("Data Kosong. File harus berisi isian."); }
         } catch (error) { 
-          setErrorMsg(error.message || "Gagal memproses file. Pastikan format benar."); setTimeout(() => setErrorMsg(''), 6000);
+          setErrorMsg(error.message || "Gagal memproses file."); setTimeout(() => setErrorMsg(''), 6000);
         } finally {
           setIsSyncing(false); if(fileInputRef.current) fileInputRef.current.value = '';
         }
       };
 
       const handleDeleteGroup = async (taskName) => {
-        if(!window.confirm(`HAPUS PERMANEN kegiatan "${taskName}" ?`)) return;
+        if(!window.confirm(`HAPUS PERMANEN seluruh kegiatan "${taskName}" ?`)) return;
         setIsSyncing(true);
         try {
           const batch = window.FirebaseAPI.writeBatch(db);
@@ -577,8 +613,7 @@
              batch.delete(docRef);
           });
           await batch.commit();
-          setSuccessMsg(`Kegiatan dihapus!`); setTimeout(() => setSuccessMsg(''), 3000);
-        } catch (e) { alert("Gagal menghapus dari server Firebase."); }
+        } catch (e) { alert("Gagal menghapus."); }
         setIsSyncing(false);
       };
 
@@ -612,68 +647,77 @@
           const worksheet = window.XLSX.utils.aoa_to_sheet(templateData);
           const workbook = window.XLSX.utils.book_new();
           window.XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
-          window.XLSX.writeFile(workbook, "Template_Firebase_MonitorPro.xlsx");
+          window.XLSX.writeFile(workbook, "Template_MonitorPro.xlsx");
         } catch (err) { alert("Download gagal."); }
       };
 
       return (
-        <div className="animate-slide-up pb-5">
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <h3 className="fw-black text-dark mb-0"><i className="fa-solid fa-shield text-danger me-2"></i>Panel Admin</h3>
-            <button onClick={() => setIsAdminLogged(false)} className="btn btn-outline-danger btn-sm fw-bold rounded-pill shadow-sm"><i className="fa-solid fa-power-off me-1"></i> Keluar</button>
+        <div className="animate-slide-up space-y-6">
+          <div className="flex justify-between items-center">
+            <h3 className="text-2xl font-black text-midnight tracking-tight">Panel Admin</h3>
+            <button onClick={() => { setIsAdminLogged(false); sessionStorage.removeItem('adminAuth'); }} className="bg-white border border-slate-200 text-red-500 font-bold px-4 py-1.5 rounded-full shadow-sm text-xs flex items-center gap-1.5 hover:bg-slate-50 transition-colors">
+              <i className="fa-solid fa-power-off"></i> Keluar
+            </button>
           </div>
           
-          {successMsg && <div className="alert alert-success border-0 shadow-sm rounded-4 py-3 fw-bold mb-4"><i className="fa-solid fa-circle-check me-2 fs-5"></i>{successMsg}</div>}
-          {errorMsg && <div className="alert alert-danger border-0 shadow-sm rounded-4 py-3 fw-bold mb-4"><i className="fa-solid fa-triangle-exclamation me-2 fs-5"></i>{errorMsg}</div>}
+          {successMsg && <div className="bg-midnight text-white p-4 rounded-2xl shadow-lg font-bold flex items-center gap-3 animate-slide-up text-sm"><i className="fa-solid fa-circle-check text-status-selesai text-xl"></i> {successMsg}</div>}
+          {errorMsg && <div className="bg-white border border-red-500 text-red-600 p-4 rounded-2xl shadow-lg font-bold flex items-center gap-3 animate-slide-up text-sm"><i className="fa-solid fa-triangle-exclamation text-xl"></i> {errorMsg}</div>}
           
-          <div className="card-premium bg-dark text-white mb-4">
-            <div className="card-body p-4 p-md-5 position-relative overflow-hidden">
-              <i className="fa-solid fa-cloud-arrow-up position-absolute opacity-25 text-primary" style={{fontSize: '150px', right: '-20px', bottom: '-40px'}}></i>
-              <div className="position-relative z-10">
-                <h4 className="fw-black mb-2">Upload Database Massal</h4>
-                <p className="small text-white-50 mb-4 fw-medium lh-lg">File didukung: CSV & XLSX. Sistem akan membaca kolom A, B, C, D sesuai urutan baku template.</p>
-                
-                <div className="d-flex gap-2 mb-4">
-                  <button onClick={handleDownloadTemplate} className="btn btn-outline-light btn-sm fw-bold rounded-pill px-3">
-                    <i className="fa-solid fa-download me-1"></i> Download Template
-                  </button>
-                </div>
+          {/* Card Upload Premium */}
+          <div className="bg-gradient-to-br from-midnight to-midnight-light rounded-3xl p-6 text-white relative overflow-hidden shadow-glossy shadow-glass">
+            <i className="fa-solid fa-cloud-arrow-up absolute -right-8 -bottom-8 text-9xl opacity-10 text-white"></i>
+            <div className="relative z-10">
+              <h4 className="text-xl font-black mb-1 flex items-center gap-2"><i className="fa-solid fa-database text-status-selesai"></i> Upload Database</h4>
+              <p className="text-white/60 text-xs font-bold mb-5 leading-relaxed max-w-sm">File CSV/XLSX. Kolom A=Kegiatan, B=Nama, C=Target, D=Tanggal.</p>
+              
+              <button onClick={handleDownloadTemplate} className="bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold px-4 py-2 rounded-full text-xs transition-colors mb-5 flex items-center gap-2 backdrop-blur-md">
+                <i className="fa-solid fa-download"></i> Template Excel
+              </button>
 
-                <input type="file" accept=".xlsx, .csv" ref={fileInputRef} onChange={handleExcelUpload} className="d-none" />
-                <button onClick={() => fileInputRef.current.click()} disabled={isSyncing || !user} className="btn btn-primary btn-lg w-100 fw-bold rounded-pill shadow py-3">
-                   {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin me-2"></i>Mengekstrak...</> : <><i className="fa-solid fa-file-excel me-2"></i>Pilih File Data</>}
-                </button>
-              </div>
+              <input type="file" accept=".xlsx, .csv" ref={fileInputRef} onChange={handleExcelUpload} className="hidden" />
+              <button onClick={() => fileInputRef.current.click()} disabled={isSyncing || !user} className="w-full bg-white text-midnight font-black py-3.5 rounded-xl shadow-soft hover:bg-slate-50 transition-colors flex justify-center items-center gap-2">
+                 {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin text-status-selesai"></i> Mengekstrak...</> : <><i className="fa-solid fa-file-excel text-emerald-500"></i> Pilih File Data</>}
+              </button>
             </div>
           </div>
 
-          <div className="card-premium border border-danger border-opacity-25 mb-4">
-            <div className="card-header bg-danger bg-opacity-10 text-danger border-0 fw-bold pt-4 pb-2 px-4 fs-5"><i className="fa-solid fa-trash-can me-2"></i>Manajemen Penghapusan</div>
-            <div className="card-body p-4">
-               <button onClick={handleResetAll} disabled={isSyncing || !user} className="btn btn-danger w-100 fw-black rounded-pill mb-4 shadow py-3">
-                 <i className="fa-solid fa-skull-crossbones me-2"></i> FORMAT KOSONG DATABASE
+          <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
+            <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
+              <i className="fa-solid fa-trash-can text-red-500"></i> <span className="font-black text-midnight text-sm uppercase tracking-wider">Manajemen Hapus</span>
+            </div>
+            <div className="p-5 space-y-4">
+               <button onClick={handleResetAll} disabled={isSyncing || !user} className="w-full bg-red-50 text-red-600 border border-red-200 font-black py-3.5 rounded-xl shadow-sm hover:bg-red-100 transition-colors flex justify-center items-center gap-2 mb-2">
+                 <i className="fa-solid fa-skull-crossbones"></i> FORMAT KOSONG DATABASE
                </button>
 
-               <h6 className="fw-bold text-dark mt-4 mb-3 border-bottom pb-2">Hapus Item Spesifik:</h6>
-               {groupedTasks.length === 0 && <p className="text-muted small text-center py-4 bg-light rounded-4">Database masih kosong.</p>}
-               {groupedTasks.map(g => (
-                 <details key={g.taskName} className="bg-light p-3 rounded-4 mb-3 border border-light-subtle shadow-sm">
-                   <summary className="fw-bold d-flex justify-content-between align-items-center text-dark" style={{cursor:'pointer', listStyle:'none'}}>
-                     <span><i className="fa-solid fa-folder text-warning me-2 fs-5"></i>{g.taskName} <span className="badge bg-secondary ms-1">{g.assignees.length} Org</span></span>
-                     <button onClick={(e) => { e.preventDefault(); handleDeleteGroup(g.taskName); }} className="btn btn-sm btn-outline-danger fw-bold rounded-pill px-3"><i className="fa-solid fa-trash"></i></button>
-                   </summary>
-                   <ul className="list-group list-group-flush mt-3">
-                     {g.assignees.map(a => (
-                       <li key={a.id} className="list-group-item d-flex justify-content-between align-items-center bg-transparent border-light-subtle px-0 py-3">
-                         <div className="small fw-bold text-secondary"><i className="fa-solid fa-user-tag me-2 text-primary"></i>{a.picId}</div>
-                         <button onClick={() => handleDeletePerson(a.id, a.picId)} className="btn btn-sm btn-danger rounded-circle shadow-sm" style={{width:'30px', height:'30px'}}><i className="fa-solid fa-xmark"></i></button>
-                       </li>
-                     ))}
-                   </ul>
-                 </details>
-               ))}
+               <h6 className="font-bold text-midnight text-xs uppercase tracking-wider border-b border-slate-100 pb-2 mb-3 mt-5">Hapus Spesifik:</h6>
+               {groupedTasks.length === 0 && <p className="text-center py-6 text-slate-400 font-bold text-sm bg-slate-50 rounded-xl">Database masih kosong.</p>}
+               
+               <div className="space-y-3">
+                 {groupedTasks.map(g => (
+                   <details key={g.taskName} className="group bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden [&_summary::-webkit-details-marker]:hidden">
+                     <summary className="p-4 font-bold text-midnight flex justify-between items-center cursor-pointer select-none">
+                       <span className="flex items-center gap-3">
+                         <i className="fa-solid fa-folder text-status-selesai group-open:text-status-proses transition-colors"></i> 
+                         <span className="truncate max-w-[150px] sm:max-w-xs">{g.taskName}</span>
+                         <span className="bg-midnight text-white text-[10px] px-2 py-0.5 rounded-md">{g.assignees.length} Org</span>
+                       </span>
+                       <button onClick={(e) => { e.preventDefault(); handleDeleteGroup(g.taskName); }} className="bg-white border border-red-200 text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg text-xs transition-colors shadow-sm"><i className="fa-solid fa-trash"></i></button>
+                     </summary>
+                     <div className="px-4 pb-4 pt-1 space-y-2">
+                       {g.assignees.map(a => (
+                         <div key={a.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-xl">
+                           <div className="text-xs font-bold text-midnight flex items-center gap-2"><i className="fa-solid fa-user-tag text-slate-300"></i> {a.picId}</div>
+                           <button onClick={() => handleDeletePerson(a.id, a.picId)} className="bg-red-50 text-red-500 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-100 transition-colors"><i className="fa-solid fa-xmark"></i></button>
+                         </div>
+                       ))}
+                     </div>
+                   </details>
+                 ))}
+               </div>
             </div>
           </div>
+
         </div>
       );
     };
@@ -686,37 +730,32 @@
       const [isLoading, setIsLoading] = useState(true);
       const [selectedGroup, setSelectedGroup] = useState(null);
       const [user, setUser] = useState(null);
-      const [isAdminLogged, setIsAdminLogged] = useState(false); // Memindahkan State Login ke Root
       
-      const [firebaseApp, setFirebaseApp] = useState(null);
+      const [isAdminLogged, setIsAdminLogged] = useState(() => sessionStorage.getItem('adminAuth') === 'true'); 
       const [db, setDb] = useState(null);
 
-      // INISIALISASI FIREBASE
+      // INIT FIREBASE
       useEffect(() => {
         const init = async () => {
           try {
             const app = window.FirebaseAPI.initializeApp(firebaseConfig);
-            setFirebaseApp(app);
             const database = window.FirebaseAPI.getFirestore(app);
             setDb(database);
             
             const auth = window.FirebaseAPI.getAuth(app);
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-              await window.FirebaseAPI.signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-              await window.FirebaseAPI.signInAnonymously(auth);
-            }
+            await window.FirebaseAPI.signInAnonymously(auth);
+            
             const unsubscribe = window.FirebaseAPI.onAuthStateChanged(auth, setUser);
             return () => unsubscribe();
           } catch (e) {
-            console.error("Firebase init failed:", e);
+            console.error("Init failed:", e);
             setIsLoading(false);
           }
         };
         init();
       }, []);
 
-      // LISTENER REALTIME FIREBASE
+      // LISTENER REALTIME
       useEffect(() => {
         if (!user || !db) return;
         const tasksRef = window.FirebaseAPI.collection(db, 'artifacts', APP_ID, 'public', 'data', 'tasks');
@@ -724,31 +763,37 @@
             const loadedTasks = [];
             snapshot.forEach(doc => loadedTasks.push({ id: doc.id, ...doc.data() }));
             setTasks(loadedTasks);
+            
             const uniquePics = [...new Set(loadedTasks.map(t => t.picId))];
             setEmployees(uniquePics.map(pic => ({ id: pic, name: pic })));
             
-            if(selectedGroup) {
-               const updatedGroup = loadedTasks.filter(t => t.taskName === selectedGroup.taskName);
-               if(updatedGroup.length > 0) {
-                 const newGroupObj = { taskName: selectedGroup.taskName, deadline: updatedGroup[0].deadline, target: 0, progress: 0, assignees: [], status: 'Selesai' };
-                 updatedGroup.forEach(t => {
-                    newGroupObj.target += t.target;
-                    newGroupObj.progress += t.progress;
-                    newGroupObj.assignees.push(t);
-                    if (newGroupObj.progress < newGroupObj.target) newGroupObj.status = 'On Progress';
-                 });
-                 setSelectedGroup(newGroupObj);
-               } else { setSelectedGroup(null); }
-            }
             setIsLoading(false);
         }, (error) => {
             console.error("Error realtime:", error);
             setIsLoading(false);
         });
         return () => unsubscribe();
-      }, [user, db, selectedGroup]);
+      }, [user, db]);
 
-      // GROUPING LOGIC (Otak Utama)
+      // SYNC DETAIL VIEW
+      useEffect(() => {
+        if (selectedGroup) {
+           const updatedGroup = tasks.filter(t => t.taskName === selectedGroup.taskName);
+           if(updatedGroup.length > 0) {
+             const newGroupObj = { taskName: selectedGroup.taskName, deadline: updatedGroup[0].deadline, target: 0, progress: 0, assignees: [], status: 'Selesai' };
+             updatedGroup.forEach(t => {
+                newGroupObj.target += t.target;
+                newGroupObj.progress += t.progress;
+                newGroupObj.assignees.push(t);
+                if (newGroupObj.progress < newGroupObj.target) newGroupObj.status = 'On Progress';
+             });
+             if(JSON.stringify(newGroupObj) !== JSON.stringify(selectedGroup)) {
+                setSelectedGroup(newGroupObj);
+             }
+           } else { setSelectedGroup(null); }
+        }
+      }, [tasks]); 
+
       const groupedTasks = useMemo(() => {
         const groups = {};
         tasks.forEach(t => {
@@ -761,31 +806,31 @@
         return Object.values(groups);
       }, [tasks]);
 
-      if (isLoading) return <div className="min-h-screen d-flex align-items-center justify-content-center bg-white"><div className="text-center"><i className="fa-solid fa-circle-notch fa-spin text-primary mb-3" style={{fontSize: '3.5rem'}}></i><h5 className="fw-bold text-dark">Memuat Data...</h5></div></div>;
-
-      const isOffline = !firebaseConfig.apiKey || firebaseConfig.apiKey === "API_KEY_ANDA_DISINI";
+      if (isLoading) return <div className="min-h-screen d-flex flex-col gap-4 items-center justify-center bg-slate-50"><i className="fa-solid fa-circle-notch fa-spin text-midnight text-5xl"></i><h5 className="font-black text-midnight text-sm uppercase tracking-widest">Menghubungkan...</h5></div>;
 
       return (
         <div className="app-container">
-          <header className="app-header">
-            <div className="px-3 py-3 d-flex align-items-center justify-content-between">
-              <a className="text-decoration-none fw-black text-dark d-flex align-items-center fs-4" href="#">
-                <div className="bg-primary text-white rounded-3 p-1 me-2 d-flex align-items-center justify-content-center shadow-sm" style={{width: '36px', height: '36px'}}><i className="fa-solid fa-bolt text-warning fs-5"></i></div>
-                Monitor<span className="text-primary">Pro</span>
+          <header className="bg-gradient-to-r from-midnight to-midnight-light text-white shadow-nav sticky top-0 z-50">
+            <div className="px-5 py-4 d-flex align-items-center justify-content-between flex flex-row items-center justify-between">
+              <a className="text-decoration-none font-black text-white flex items-center text-xl tracking-tight" href="#">
+                <div className="bg-white/10 border border-white/20 text-white rounded-xl p-1 mr-3 flex items-center justify-center shadow-inner backdrop-blur-sm" style={{width: '38px', height: '38px'}}>
+                  <i className="fa-solid fa-bolt text-yellow-400 text-lg"></i>
+                </div>
+                MonitorPro
               </a>
-              {user && <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-2 py-1"><i className="fa-solid fa-cloud-arrow-up fa-fade"></i> Sync</span>}
+              {user && <span className="bg-white/10 border border-white/20 text-white rounded-full px-3 py-1.5 shadow-sm text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm"><i className="fa-solid fa-cloud-arrow-up fa-fade mr-1.5 text-blue-300"></i> Sync</span>}
             </div>
           </header>
 
-          <main className="px-3 py-4">
-            {activeTab === 'dashboard' && <Dashboard groupedTasks={groupedTasks} isOffline={isOffline} setActiveTab={setActiveTab} setSelectedGroup={setSelectedGroup} />}
+          <main className="p-5">
+            {activeTab === 'dashboard' && <Dashboard groupedTasks={groupedTasks} setActiveTab={setActiveTab} setSelectedGroup={setSelectedGroup} />}
             {activeTab === 'kegiatan' && <DaftarKegiatan groupedTasks={groupedTasks} selectedGroup={selectedGroup} setSelectedGroup={setSelectedGroup} />}
             {activeTab === 'peringkat' && <Leaderboard tasks={tasks} employees={employees} />}
             {activeTab === 'input' && <ProgressForm tasks={tasks} employees={employees} user={user} db={db} />}
             {activeTab === 'admin' && <AdminPanel db={db} tasks={tasks} groupedTasks={groupedTasks} user={user} isAdminLogged={isAdminLogged} setIsAdminLogged={setIsAdminLogged} />}
           </main>
 
-          <nav className="bottom-nav">
+          <nav className="fixed bottom-0 w-full max-w-[600px] left-1/2 -translate-x-1/2 bg-white rounded-t-[30px] shadow-[0_-10px_40px_rgba(11,19,43,0.08)] z-50 flex justify-around items-center px-2 py-3 border-t border-slate-100">
             {[
               { id: 'dashboard', icon: 'fa-house', label: 'Beranda' },
               { id: 'kegiatan', icon: 'fa-list-check', label: 'Kegiatan' },
@@ -793,9 +838,10 @@
               { id: 'input', icon: 'fa-pen-to-square', label: 'Lapor' },
               { id: 'admin', icon: 'fa-shield', label: 'Admin' }
             ].map(item => (
-              <button key={item.id} onClick={() => { setActiveTab(item.id); setSelectedGroup(null); }} className={`nav-btn ${activeTab === item.id ? 'active' : ''}`}>
-                <i className={`fa-solid ${item.icon}`}></i>
-                <span>{item.label}</span>
+              <button key={item.id} onClick={() => { setActiveTab(item.id); setSelectedGroup(null); }} 
+                className={`flex flex-col items-center justify-center w-16 gap-1.5 transition-all duration-300 ${activeTab === item.id ? 'text-midnight scale-110' : 'text-slate-400 hover:text-slate-600'}`}>
+                <i className={`fa-solid ${item.icon} text-xl transition-transform ${activeTab === item.id ? 'drop-shadow-md' : ''}`}></i>
+                <span className="text-[9px] font-black uppercase tracking-wider">{item.label}</span>
               </button>
             ))}
           </nav>
