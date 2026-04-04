@@ -3,9 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>MonitorPro - Bootstrap Edition</title>
+  <title>MonitorPro - Firebase Edition</title>
 
-  <!-- Bootstrap 5.3 CSS -->
+  <!-- PENGAMAN ALARM PALSU -->
+  <script>
+    window.onerror = function() { return true; };
+  </script>
+
+  <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
   
   <!-- Font Awesome 6 -->
@@ -15,9 +20,17 @@
   <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  
-  <!-- SheetJS untuk Excel/CSV -->
   <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <!-- Mengimpor Modul Firebase (Realtime Database Firestore) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    
+    // Menyimpan modul ke window agar bisa diakses oleh React Babel
+    window.FirebaseAPI = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc, writeBatch };
+  </script>
 
   <style>
     body { background-color: #f8f9fa; font-family: system-ui, -apple-system, sans-serif; padding-bottom: 80px; }
@@ -26,9 +39,8 @@
     .nav-btn { background: none; border: none; display: flex; flex-direction: column; align-items: center; color: #6c757d; font-size: 11px; font-weight: bold; width: 60px; }
     .nav-btn i { font-size: 20px; margin-bottom: 4px; transition: color 0.2s; }
     .nav-btn.active { color: #0d6efd; }
-    .border-left-indicator { border-left: 5px solid #0d6efd; }
-    .border-left-success { border-left: 5px solid #198754; }
-    .border-left-warning { border-left: 5px solid #fd7e14; }
+    .border-left-success { border-left: 5px solid #198754; } 
+    .border-left-primary { border-left: 5px solid #0d6efd; } 
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px);} to { opacity: 1; transform: translateY(0);} }
     .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
     input, select, button { touch-action: manipulation; }
@@ -42,14 +54,33 @@
     const { useState, useMemo, useRef, useEffect, memo } = React;
 
     // =========================================================================
-    // ⚠️ MASUKKAN URL GOOGLE APPS SCRIPT ANDA DI BAWAH INI:
-    // Pastikan tidak ada kutip yang terhapus!
+    // 🔥 KONFIGURASI FIREBASE MILIK ANDA SUDAH DIPASANG DI SINI
     // =========================================================================
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyqX6A8oPlmy9VmYbdKQU7Kov32J2Qf7todZfkSLYz5TCWEUrTfO9cq8zlmUEby9HXC/exec"; 
+    let firebaseConfig;
+    if (typeof __firebase_config !== 'undefined') {
+        firebaseConfig = JSON.parse(__firebase_config);
+    } else {
+        firebaseConfig = {
+          apiKey: "AIzaSyBEc1KmTOURFvVkUsGXb1Q_sTwX0tm_z9E",
+          authDomain: "monit-kegiatan.firebaseapp.com",
+          databaseURL: "https://monit-kegiatan-default-rtdb.europe-west1.firebasedatabase.app",
+          projectId: "monit-kegiatan",
+          storageBucket: "monit-kegiatan.firebasestorage.app",
+          messagingSenderId: "778332842690",
+          appId: "1:778332842690:web:a723b5200fda1f3391e95b"
+        };
+    }
+    const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'monit-kegiatan';
     // =========================================================================
 
+    const formatDateId = (dateString) => {
+      if (!dateString) return "-";
+      const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+      const parts = dateString.split("-");
+      if(parts.length !== 3) return dateString;
+      return `${parts[2]} ${months[parseInt(parts[1])-1]} ${parts[0]}`;
+    };
 
-    // --- KOMPONEN: LIVE COUNTDOWN ---
     const LiveCountdown = memo(({ deadline }) => {
       const [timeLeft, setTimeLeft] = useState('');
       const [isExpired, setIsExpired] = useState(false);
@@ -60,19 +91,15 @@
           const now = new Date().getTime();
           const distance = targetDate - now;
 
-          if (isNaN(distance)) {
-            setTimeLeft("Tenggat Invalid"); setIsExpired(true); return;
-          }
-          if (distance < 0) {
-            setTimeLeft("Waktu Habis!"); setIsExpired(true); return;
-          }
+          if (isNaN(distance)) { setTimeLeft("--:--:--"); setIsExpired(true); return; }
+          if (distance < 0) { setTimeLeft("WAKTU HABIS"); setIsExpired(true); return; }
 
           const days = Math.floor(distance / (1000 * 60 * 60 * 24));
           const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
           const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
           const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-          let timeString = days > 0 ? `${days}h ` : '';
+          let timeString = days > 0 ? `${days} Hari ` : '';
           const h = hours < 10 ? `0${hours}` : hours;
           const m = minutes < 10 ? `0${minutes}` : minutes;
           const s = seconds < 10 ? `0${seconds}` : seconds;
@@ -87,23 +114,628 @@
       }, [deadline]);
 
       return (
-        <span className={`badge border ${isExpired ? 'bg-danger-subtle text-danger border-danger' : 'bg-primary-subtle text-primary border-primary'} px-2 py-1`}>
-          <i className={`fa-solid ${isExpired ? 'fa-triangle-exclamation fa-beat' : 'fa-stopwatch'} me-1`}></i>{timeLeft}
-        </span>
+        <div className={`bg-dark text-white rounded-pill px-3 py-2 d-inline-flex align-items-center shadow-sm border ${isExpired ? 'border-danger' : 'border-secondary'}`}>
+          <i className={`fa-solid ${isExpired ? 'fa-triangle-exclamation text-danger fa-beat' : 'fa-clock text-warning'} me-2 fs-5`}></i>
+          <div className="d-flex flex-column justify-content-center">
+            <span style={{fontSize: '9px', textTransform:'uppercase', letterSpacing:'1px', color:'#bbb', lineHeight:'1'}}>Tenggat Waktu</span>
+            <span className="fw-bold fs-6 lh-1 mt-1" style={{fontFamily: 'monospace'}}>{timeLeft}</span>
+          </div>
+        </div>
       );
     });
 
-    // --- KOMPONEN: CARD TUGAS ---
-    const TaskCard = memo(({ task, picName, onClick }) => {
-      const percent = Math.min(Math.round((task.progress / task.target) * 100), 100);
-      let borderClass = 'border-left-warning';
-      let progressColor = 'bg-warning';
-      if (percent > 40) { borderClass = 'border-left-indicator'; progressColor = 'bg-primary'; }
-      if (percent > 80) { borderClass = 'border-left-success'; progressColor = 'bg-success'; }
+    const GroupedTaskCard = memo(({ group, onClick }) => {
+      const percent = Math.min(Math.round((group.progress / group.target) * 100), 100);
+      let borderClass = 'border-success';
+      let progressColor = 'bg-success';
+      if (percent >= 100) { borderClass = 'border-primary'; progressColor = 'bg-primary'; }
       
       return (
-        <div className={`card border-0 shadow-sm rounded-4 mb-3 card-hover ${borderClass}`} onClick={() => onClick && onClick(task)}>
+        <div className={`card shadow-sm rounded-4 mb-3 card-hover border-0 border-start border-5 ${borderClass}`} onClick={() => onClick && onClick(group)}>
           <div className="card-body p-4">
+            <div className="d-flex justify-content-between align-items-start mb-3 gap-2">
+              <div>
+                <h5 className="card-title fw-bold text-dark mb-1" style={{fontSize: '1.1rem'}}>{group.taskName}</h5>
+                <span className="badge bg-light text-secondary border border-secondary-subtle px-2 py-1"><i className="fa-regular fa-calendar-check me-1"></i> {formatDateId(group.deadline)}</span>
+              </div>
+              <LiveCountdown deadline={group.deadline} />
+            </div>
+
+            <div className="mb-3">
+              <div className="d-flex justify-content-between small fw-bold mb-1">
+                <span className="text-secondary">Progress: {group.progress} / {group.target} Dokumen</span>
+                <span className={`text-${progressColor.replace('bg-','')}`}>{percent}%</span>
+              </div>
+              <div className="progress" style={{height: '8px', backgroundColor: '#e9ecef'}}>
+                <div className={`progress-bar ${progressColor}`} style={{ width: `${percent}%`, transition: 'width 1s ease' }}></div>
+              </div>
+            </div>
+            
+            <div className="d-flex justify-content-between pt-3 border-top small">
+              <div className="text-secondary fw-bold"><i className="fa-solid fa-users me-1"></i> {group.assignees.length} Pegawai Terlibat</div>
+              <div className="text-primary fw-bold"><i className="fa-solid fa-square-check me-1"></i> Selesai: {group.assignees.filter(a => a.progress >= a.target).length}</div>
+            </div>
+          </div>
+        </div>
+      );
+    });
+
+    function App() {
+      const [activeTab, setActiveTab] = useState('dashboard');
+      const [employees, setEmployees] = useState([]);
+      const [tasks, setTasks] = useState([]);
+      const [isLoading, setIsLoading] = useState(true);
+      const [isSyncing, setIsSyncing] = useState(false);
+      const [selectedGroup, setSelectedGroup] = useState(null);
+      const [user, setUser] = useState(null);
+      
+      // Setup Firebase
+      const [firebaseApp, setFirebaseApp] = useState(null);
+      const [db, setDb] = useState(null);
+
+      useEffect(() => {
+        const init = async () => {
+          try {
+            const app = window.FirebaseAPI.initializeApp(firebaseConfig);
+            setFirebaseApp(app);
+            const database = window.FirebaseAPI.getFirestore(app);
+            setDb(database);
+            
+            const auth = window.FirebaseAPI.getAuth(app);
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+              await window.FirebaseAPI.signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+              await window.FirebaseAPI.signInAnonymously(auth);
+            }
+            
+            const unsubscribe = window.FirebaseAPI.onAuthStateChanged(auth, setUser);
+            return () => unsubscribe();
+          } catch (e) {
+            console.error("Firebase init failed:", e);
+            setIsLoading(false);
+          }
+        };
+        init();
+      }, []);
+
+      useEffect(() => {
+        if (!user || !db) return;
+        
+        // Listener Real-Time dari Firebase (Langsung Update saat ada perubahan di HP lain)
+        const tasksRef = window.FirebaseAPI.collection(db, 'artifacts', APP_ID, 'public', 'data', 'tasks');
+        const unsubscribe = window.FirebaseAPI.onSnapshot(tasksRef, (snapshot) => {
+            const loadedTasks = [];
+            snapshot.forEach(doc => loadedTasks.push({ id: doc.id, ...doc.data() }));
+            
+            setTasks(loadedTasks);
+            const uniquePics = [...new Set(loadedTasks.map(t => t.picId))];
+            setEmployees(uniquePics.map(pic => ({ id: pic, name: pic })));
+            setIsLoading(false);
+        }, (error) => {
+            console.error("Error fetching realtime data", error);
+            setIsLoading(false);
+        });
+
+        return () => unsubscribe();
+      }, [user, db]);
+
+      const groupedTasks = useMemo(() => {
+        const groups = {};
+        tasks.forEach(t => {
+          if (!groups[t.taskName]) groups[t.taskName] = { taskName: t.taskName, deadline: t.deadline, target: 0, progress: 0, assignees: [], status: 'Selesai' };
+          groups[t.taskName].target += t.target;
+          groups[t.taskName].progress += t.progress;
+          groups[t.taskName].assignees.push(t);
+          if (groups[t.taskName].progress < groups[t.taskName].target) groups[t.taskName].status = 'On Progress';
+        });
+        return Object.values(groups);
+      }, [tasks]);
+
+      const isOffline = !firebaseConfig.apiKey || firebaseConfig.apiKey === "API_KEY_ANDA_DISINI";
+
+      const Dashboard = () => {
+        const totalTasks = groupedTasks.length;
+        const completedTasks = groupedTasks.filter(g => g.status === 'Selesai').length;
+        const activeGroups = groupedTasks.filter(g => g.status === 'On Progress');
+        
+        return (
+          <div className="container-fluid px-0 animate-fade-in">
+            {isOffline && (
+              <div className="alert alert-danger shadow-sm py-3 rounded-4 mb-4 border-0">
+                <h6 className="fw-bold mb-1"><i className="fa-solid fa-plug-circle-xmark me-2"></i>SISTEM OFFLINE</h6>
+                <p className="mb-0 small">Konfigurasi Firebase belum terdeteksi.</p>
+              </div>
+            )}
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <h3 className="fw-bold text-dark mb-0">Dashboard</h3>
+              <span className="badge bg-success-subtle text-success border border-success fw-bold px-3 py-2 rounded-pill shadow-sm"><i className="fa-solid fa-wifi fa-fade me-1"></i> Terhubung Live</span>
+            </div>
+            
+            <div className="row g-3 mb-4">
+              <div className="col-12 col-md-4">
+                <div className="card bg-primary text-white border-0 shadow-sm rounded-4 h-100">
+                  <div className="card-body d-flex align-items-center p-4">
+                    <div className="bg-white bg-opacity-25 rounded-3 p-3 me-3"><i className="fa-solid fa-layer-group fa-fw fs-2"></i></div>
+                    <div><h6 className="mb-0 text-white-50 small text-uppercase fw-bold">Total Kegiatan</h6><h2 className="mb-0 fw-black">{totalTasks}</h2></div>
+                  </div>
+                </div>
+              </div>
+              <div className="col-12 col-md-4">
+                <div className="card bg-success text-white border-0 shadow-sm rounded-4 h-100">
+                  <div className="card-body d-flex align-items-center p-4">
+                    <div className="bg-white bg-opacity-25 rounded-3 p-3 me-3"><i className="fa-solid fa-calendar-check fa-fw fs-2"></i></div>
+                    <div><h6 className="mb-0 text-white-50 small text-uppercase fw-bold">Telah Selesai</h6><h2 className="mb-0 fw-black">{completedTasks}</h2></div>
+                  </div>
+                </div>
+              </div>
+              <div className="col-12 col-md-4">
+                <div className="card bg-warning text-dark border-0 shadow-sm rounded-4 h-100">
+                  <div className="card-body d-flex align-items-center p-4">
+                    <div className="bg-white bg-opacity-50 rounded-3 p-3 me-3"><i className="fa-solid fa-person-digging fa-fw fs-2"></i></div>
+                    <div><h6 className="mb-0 text-dark-50 small text-uppercase fw-bold">Sedang Berjalan</h6><h2 className="mb-0 fw-black">{totalTasks - completedTasks}</h2></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <h5 className="fw-bold mb-3"><i className="fa-solid fa-fire-flame-curved text-danger me-2"></i>Mendesak (Deadline Terdekat)</h5>
+            <div className="row g-3">
+              {activeGroups.sort((a, b) => new Date(a.deadline) - new Date(b.deadline)).slice(0, 4).map(group => (
+                <div className="col-12 col-md-6" key={group.taskName}>
+                  <GroupedTaskCard group={group} onClick={() => { setSelectedGroup(group); setActiveTab('kegiatan'); }} />
+                </div>
+              ))}
+              {activeGroups.length === 0 && (
+                <div className="col-12"><div className="alert alert-light border text-center py-4 text-muted rounded-4 fw-bold shadow-sm"><i className="fa-solid fa-mug-hot d-block fs-1 mb-2 text-primary"></i> Semua pekerjaan tuntas!</div></div>
+              )}
+            </div>
+          </div>
+        );
+      };
+
+      const DaftarKegiatan = () => {
+        if (selectedGroup) {
+          const totalPelaksana = selectedGroup.assignees.length;
+          const selesaiCount = selectedGroup.assignees.filter(a => a.progress >= a.target).length;
+          const belumCount = totalPelaksana - selesaiCount;
+
+          return (
+            <div className="animate-fade-in pb-5">
+              <button onClick={() => setSelectedGroup(null)} className="btn btn-dark mb-4 shadow-sm rounded-pill fw-bold px-4">
+                <i className="fa-solid fa-arrow-left-long me-2"></i> Kembali
+              </button>
+              <div className="card border-0 shadow rounded-4 mb-4 overflow-hidden">
+                <div className="card-header bg-white border-bottom-0 pt-4 pb-2 px-4">
+                  <h3 className="fw-black text-dark mb-1">{selectedGroup.taskName}</h3>
+                  <p className="text-danger fw-bold mb-0"><i className="fa-solid fa-calendar-day me-1"></i> Tenggat: {formatDateId(selectedGroup.deadline)}</p>
+                </div>
+                <div className="card-body px-4 pb-4 bg-light">
+                  <div className="row text-center g-2 mb-4">
+                    <div className="col-4">
+                      <div className="p-2 bg-white rounded-4 shadow-sm border border-light-subtle h-100 d-flex flex-column justify-content-center">
+                        <h2 className="fw-black text-dark mb-0">{totalPelaksana}</h2><span className="small text-muted fw-bold">Pelaksana</span>
+                      </div>
+                    </div>
+                    <div className="col-4">
+                      <div className="p-2 bg-white rounded-4 shadow-sm border border-primary h-100 d-flex flex-column justify-content-center">
+                        <h2 className="fw-black text-primary mb-0">{selesaiCount}</h2><span className="small text-muted fw-bold">Selesai</span>
+                      </div>
+                    </div>
+                    <div className="col-4">
+                      <div className="p-2 bg-white rounded-4 shadow-sm border border-success h-100 d-flex flex-column justify-content-center">
+                        <h2 className="fw-black text-success mb-0">{belumCount}</h2><span className="small text-muted fw-bold">Proses</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <h6 className="fw-bold mb-3 text-dark"><i className="fa-solid fa-list-ul me-2"></i>Rincian Progress Pegawai</h6>
+                  <ul className="list-group shadow-sm rounded-4">
+                    {selectedGroup.assignees.map((a, idx) => {
+                      const isDone = a.progress >= a.target;
+                      const badgeClass = isDone ? 'bg-primary text-white border-primary' : 'bg-success text-white border-success';
+                      const iconClass = isDone ? 'fa-solid fa-circle-check' : 'fa-solid fa-spinner fa-spin';
+                      return (
+                        <li key={idx} className="list-group-item d-flex justify-content-between align-items-center p-3">
+                          <div>
+                            <div className="fw-bold text-dark fs-6">{a.picId}</div>
+                            <div className="small text-secondary fw-bold mt-1">Capaian: <span className="text-dark">{a.progress}</span> dari {a.target}</div>
+                          </div>
+                          <span className={`badge border px-3 py-2 rounded-pill fs-6 shadow-sm ${badgeClass}`}>
+                            <i className={`${iconClass} me-1`}></i> {isDone ? 'Selesai' : 'Proses'}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="animate-fade-in">
+            <h3 className="fw-bold text-dark mb-2">Seluruh Kegiatan</h3>
+            <p className="text-muted small mb-4 fw-medium"><i className="fa-solid fa-hand-pointer text-primary me-1"></i> Klik kartu untuk melihat rincian evaluasi.</p>
+            <div className="row g-3">
+              {groupedTasks.length === 0 && <div className="col-12"><div className="alert alert-light border text-center py-5 text-muted rounded-4 fw-bold shadow-sm">Belum ada kegiatan terdaftar.</div></div>}
+              {groupedTasks.map(group => (
+                <div className="col-12 col-md-6" key={group.taskName}><GroupedTaskCard group={group} onClick={setSelectedGroup} /></div>
+              ))}
+            </div>
+          </div>
+        );
+      };
+
+      const Leaderboard = () => {
+        const stats = useMemo(() => {
+          return employees.map(emp => {
+            const empTasks = tasks.filter(t => String(t.picId) === String(emp.id));
+            const totalTarget = empTasks.reduce((sum, t) => sum + t.target, 0);
+            const totalProgress = empTasks.reduce((sum, t) => sum + t.progress, 0);
+            const percent = totalTarget === 0 ? 0 : Math.min(Math.round((totalProgress / totalTarget) * 100), 100);
+            return { ...emp, totalTarget, totalProgress, percent, taskCount: empTasks.length };
+          }).sort((a, b) => b.percent - a.percent);
+        }, [tasks, employees]);
+
+        return (
+          <div className="animate-fade-in">
+            <h3 className="fw-bold text-dark mb-4"><i className="fa-solid fa-ranking-star text-warning me-2"></i>Peringkat Kinerja Global</h3>
+            <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
+              <div className="table-responsive">
+                <table className="table table-hover align-middle mb-0">
+                  <thead className="table-light">
+                    <tr><th className="text-center py-3">#</th><th className="py-3">Nama Pegawai</th><th className="text-center py-3">Tugas</th><th className="py-3">Kinerja (%)</th></tr>
+                  </thead>
+                  <tbody>
+                    {stats.length === 0 && <tr><td colSpan="4" className="text-center py-4 text-muted fw-bold">Belum ada data</td></tr>}
+                    {stats.map((stat, index) => (
+                      <tr key={stat.id}>
+                        <td className="text-center fw-bold">{index === 0 ? <span className="badge bg-warning text-dark px-2 py-1 fs-6 shadow-sm"><i className="fa-solid fa-crown"></i> 1</span> : index + 1}</td>
+                        <td className="fw-bold text-dark">{stat.name}</td>
+                        <td className="text-center"><span className="badge bg-light text-dark border">{stat.taskCount}</span></td>
+                        <td>
+                          <div className="d-flex align-items-center gap-2">
+                            <div className="progress flex-grow-1 bg-light border" style={{height: '10px'}}><div className={`progress-bar progress-bar-striped ${stat.percent >= 80 ? 'bg-primary' : 'bg-success'}`} style={{ width: `${stat.percent}%` }}></div></div>
+                            <span className="small fw-bold">{stat.percent}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      const ProgressForm = () => {
+        const [selectedEmp, setSelectedEmp] = useState('');
+        const [selectedTask, setSelectedTask] = useState('');
+        const [amount, setAmount] = useState('');
+        const [message, setMessage] = useState('');
+
+        const availableTasks = tasks.filter(t => String(t.picId) === String(selectedEmp) && t.status === 'On Progress');
+
+        const handleSubmit = async (e) => {
+          e.preventDefault();
+          if (!user) { alert("Konfigurasi Firebase belum diset / Koneksi gagal."); return; }
+          setIsSyncing(true);
+          try {
+            const task = tasks.find(t => String(t.id) === String(selectedTask));
+            const newProgress = Math.min(task.progress + parseInt(amount), task.target);
+            const isDone = newProgress >= task.target;
+            
+            // FIREBASE: Update Document Real-Time
+            const docRef = window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(task.id));
+            await window.FirebaseAPI.updateDoc(docRef, { progress: newProgress, status: isDone ? 'Selesai' : 'On Progress' });
+
+            setAmount('');
+            setMessage(`Capaian harian tersimpan. ${isDone ? '🎉 Target Selesai!' : ''}`);
+            setTimeout(() => setMessage(''), 4000);
+          } catch (err) { alert("Gagal menyimpan, periksa koneksi internet Anda."); }
+          setIsSyncing(false);
+        };
+
+        return (
+          <div className="animate-fade-in mx-auto" style={{maxWidth: '500px'}}>
+            <div className="text-center mb-4">
+              <div className="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm mb-2" style={{width:'60px', height:'60px'}}>
+                 <i className="fa-solid fa-pen-clip fs-2"></i>
+              </div>
+              <h3 className="fw-bold text-dark">Lapor Progres</h3>
+            </div>
+            {message && <div className="alert alert-success border-0 shadow-sm py-3 rounded-4 fw-bold"><i className="fa-solid fa-circle-check me-2 fs-5"></i>{message}</div>}
+            
+            <div className="card border-0 shadow rounded-4">
+              <div className="card-body p-4">
+                <form onSubmit={handleSubmit}>
+                  <div className="mb-4">
+                    <label className="form-label fw-bold text-dark"><i className="fa-solid fa-user-tag text-primary me-2"></i>Nama Anda</label>
+                    <select required className="form-select form-select-lg bg-light border-0 shadow-sm fw-bold text-secondary" value={selectedEmp} onChange={(e) => { setSelectedEmp(e.target.value); setSelectedTask(''); }}>
+                      <option value="">-- Ketuk untuk memilih --</option>
+                      {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                    </select>
+                  </div>
+                  {selectedEmp && (
+                    <div className="mb-4 animate-fade-in border-top pt-3">
+                      <label className="form-label fw-bold text-dark"><i className="fa-solid fa-list-check text-warning me-2"></i>Tugas yang Dikerjakan</label>
+                      <select required className="form-select form-select-lg bg-light border-0 shadow-sm fw-bold text-secondary" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
+                        <option value="">-- Pilih Tugas Aktif --</option>
+                        {availableTasks.map(t => <option key={t.id} value={t.id}>{t.taskName} (Sisa target: {t.target - t.progress})</option>)}
+                      </select>
+                    </div>
+                  )}
+                  {selectedTask && (
+                    <div className="mb-4 animate-fade-in border-top pt-3">
+                      <label className="form-label fw-bold text-dark"><i className="fa-solid fa-arrow-up-9-1 text-success me-2"></i>Jumlah yang Diselesaikan</label>
+                      <input type="number" required min="1" className="form-control form-control-lg bg-light border-0 shadow-sm fw-black text-center text-primary fs-3" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
+                    </div>
+                  )}
+                  <button type="submit" disabled={!selectedTask || isSyncing} className="btn btn-primary btn-lg w-100 py-3 fw-bold rounded-4 shadow-sm">
+                    {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin me-2"></i>Mengirim Data...</> : <><i className="fa-solid fa-paper-plane me-2"></i>Kirim Laporan</>}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      const AdminPanel = () => {
+        const [isAdminLogged, setIsAdminLogged] = useState(false);
+        const [pwd, setPwd] = useState('');
+        const [successMsg, setSuccessMsg] = useState('');
+        const [errorMsg, setErrorMsg] = useState('');
+        const fileInputRef = useRef(null);
+
+        if (!isAdminLogged) {
+          return (
+            <div className="animate-fade-in mx-auto" style={{maxWidth: '400px', marginTop: '50px'}}>
+              <div className="card border-0 shadow-lg rounded-4 p-4 text-center">
+                <i className="fa-solid fa-user-shield text-danger mb-3" style={{fontSize: '60px'}}></i>
+                <h4 className="fw-bold mb-4 text-dark">Akses Admin</h4>
+                <form onSubmit={e => { e.preventDefault(); if(pwd === 'admin123') setIsAdminLogged(true); else alert('Password Salah!'); }}>
+                  <input type="password" required className="form-control form-control-lg bg-light text-center mb-3 fw-bold" placeholder="Masukkan Password" value={pwd} onChange={e=>setPwd(e.target.value)}/>
+                  <button className="btn btn-danger btn-lg w-100 fw-bold rounded-pill shadow-sm"><i className="fa-solid fa-lock-open me-2"></i>Buka Kunci</button>
+                </form>
+              </div>
+            </div>
+          );
+        }
+
+        const handleExcelUpload = async (e) => {
+          const file = e.target?.files?.[0];
+          if (!file) return;
+
+          setIsSyncing(true); setErrorMsg(''); setSuccessMsg('');
+          
+          try {
+            let excelData = [];
+            if(file.name.toLowerCase().endsWith('.csv')) {
+                const text = await file.text();
+                const workbook = window.XLSX.read(text, {type: 'string'});
+                excelData = window.XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
+            } else {
+                const data = await file.arrayBuffer();
+                const workbook = window.XLSX.read(data);
+                excelData = window.XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
+            }
+
+            const batch = window.FirebaseAPI.writeBatch(db);
+            let addedCount = 0;
+
+            for(let i = 1; i < excelData.length; i++) {
+              const row = excelData[i];
+              if (!row || row.length === 0) continue; 
+
+              const taskName = String(row[0] || "").trim();
+              const picIndicator = String(row[1] || "").trim(); 
+              const target = parseInt(row[2]);
+              
+              if (!taskName || !picIndicator || isNaN(target)) continue;
+
+              let finalDeadline = new Date().toISOString().split('T')[0];
+              const rawDeadline = row[3];
+              
+              if (rawDeadline) {
+                if (typeof rawDeadline === 'number') {
+                  const dateObj = new Date((rawDeadline - (25567 + 2)) * 86400 * 1000);
+                  if(!isNaN(dateObj.getTime())) finalDeadline = dateObj.toISOString().split('T')[0];
+                } else {
+                  const strDate = String(rawDeadline).trim();
+                  const parts = strDate.split(/[-/]/);
+                  if (parts.length === 3) {
+                     if (parts[0].length <= 2 && parts[2].length === 4) finalDeadline = `${parts[2]}-${parts[1]}-${parts[0]}`; 
+                     else { const d = new Date(strDate); if(!isNaN(d.getTime())) finalDeadline = d.toISOString().split('T')[0]; }
+                  }
+                }
+              }
+
+              const newId = Date.now() + Math.floor(Math.random() * 10000) + i;
+              const docRef = window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(newId));
+              batch.set(docRef, {
+                id: newId, taskName: taskName, picId: picIndicator.toUpperCase(), 
+                target: target, progress: 0, deadline: finalDeadline, status: 'On Progress'
+              });
+              addedCount++;
+            }
+
+            if (addedCount > 0) {
+              await batch.commit();
+              setSuccessMsg(`BERHASIL! ${addedCount} data kegiatan dimasukkan ke Database Firebase.`); 
+              setTimeout(() => setSuccessMsg(''), 8000);
+            } else { throw new Error("Data Kosong. Pastikan file berisi isian di bawah baris judul."); }
+          } catch (error) { 
+            setErrorMsg(error.message || "Gagal memproses file. Pastikan format benar."); setTimeout(() => setErrorMsg(''), 6000);
+          } finally {
+            setIsSyncing(false); if(fileInputRef.current) fileInputRef.current.value = '';
+          }
+        };
+
+        const handleDeleteGroup = async (taskName) => {
+          if(!window.confirm(`HAPUS PERMANEN seluruh data kegiatan "${taskName}" ?`)) return;
+          setIsSyncing(true);
+          try {
+            const batch = window.FirebaseAPI.writeBatch(db);
+            const groupTasks = tasks.filter(t => t.taskName === taskName);
+            groupTasks.forEach(t => {
+               const docRef = window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(t.id));
+               batch.delete(docRef);
+            });
+            await batch.commit();
+            setSuccessMsg(`Kegiatan ${taskName} dihapus!`); setTimeout(() => setSuccessMsg(''), 3000);
+          } catch (e) { alert("Gagal menghapus dari server Firebase."); }
+          setIsSyncing(false);
+        };
+
+        const handleDeletePerson = async (id, name) => {
+          if(!window.confirm(`Hapus pegawai "${name}" dari kegiatan ini?`)) return;
+          setIsSyncing(true);
+          try {
+            await window.FirebaseAPI.deleteDoc(window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(id)));
+          } catch (e) { alert("Gagal menghapus."); }
+          setIsSyncing(false);
+        };
+
+        const handleResetAll = async () => {
+          if(!window.confirm("BAHAYA! Anda yakin ingin menghapus SELURUH DATABASE? Aksi ini tidak bisa dibatalkan!")) return;
+          setIsSyncing(true);
+          try {
+            const batch = window.FirebaseAPI.writeBatch(db);
+            tasks.forEach(t => {
+               const docRef = window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(t.id));
+               batch.delete(docRef);
+            });
+            await batch.commit();
+            setSuccessMsg('Seluruh database berhasil diformat kosong!'); setTimeout(() => setSuccessMsg(''), 5000);
+          } catch (e) { alert("Gagal mereset server Firebase."); }
+          setIsSyncing(false);
+        };
+
+        const handleDownloadTemplate = () => {
+          try {
+            const templateData = [ ["Nama Kegiatan", "ID PIC / NAMA", "Target", "Deadline"], ["Review Laporan", "Budi Santoso", 10, "2026-12-31"] ];
+            const worksheet = window.XLSX.utils.aoa_to_sheet(templateData);
+            const workbook = window.XLSX.utils.book_new();
+            window.XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+            window.XLSX.writeFile(workbook, "Template_Firebase_MonitorPro.xlsx");
+          } catch (err) { alert("Download gagal."); }
+        };
+
+        return (
+          <div className="animate-fade-in pb-5">
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <h3 className="fw-bold text-dark mb-0"><i className="fa-solid fa-server text-danger me-2"></i>Database Admin</h3>
+              <button onClick={() => setIsAdminLogged(false)} className="btn btn-outline-danger btn-sm fw-bold rounded-pill"><i className="fa-solid fa-right-from-bracket"></i> Keluar</button>
+            </div>
+            
+            {successMsg && <div className="alert alert-success border-0 shadow rounded-4 py-3 fw-bold"><i className="fa-solid fa-circle-check me-2 fs-5"></i>{successMsg}</div>}
+            {errorMsg && <div className="alert alert-danger border-0 shadow rounded-4 py-3 fw-bold"><i className="fa-solid fa-triangle-exclamation me-2 fs-5"></i>{errorMsg}</div>}
+            
+            <div className="card bg-dark text-white border-0 shadow rounded-4 overflow-hidden mb-4">
+              <div className="card-body p-4 position-relative">
+                <i className="fa-solid fa-database position-absolute opacity-25" style={{fontSize: '150px', right: '-20px', bottom: '-40px'}}></i>
+                <div className="position-relative z-10">
+                  <h5 className="fw-bold mb-1"><i className="fa-solid fa-bolt me-2 text-warning"></i>Firebase Database</h5>
+                  <p className="small text-white-50 mb-3 fw-medium">Upload file CSV/XLSX. Kolom A=Kegiatan, B=Nama, C=Target, D=Tanggal.</p>
+                  
+                  <button onClick={handleDownloadTemplate} className="btn btn-outline-light btn-sm mb-4 fw-bold rounded-pill shadow-sm">
+                    <i className="fa-solid fa-download me-1"></i> Download Template
+                  </button>
+
+                  <input type="file" accept=".xlsx, .csv" ref={fileInputRef} onChange={handleExcelUpload} className="d-none" />
+                  <button onClick={() => fileInputRef.current.click()} disabled={isSyncing || isOffline} className="btn btn-success btn-lg w-100 fw-bold rounded-pill shadow">
+                     {isSyncing ? <><i className="fa-solid fa-spinner fa-spin me-2"></i>Membaca Data...</> : <><i className="fa-solid fa-upload me-2"></i>Pilih File CSV / Excel</>}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="card border-0 shadow-sm rounded-4 border border-danger mb-4">
+              <div className="card-header bg-danger text-white fw-bold pt-3 pb-2"><i className="fa-solid fa-trash-can me-2"></i>Manajemen Hapus Data</div>
+              <div className="card-body">
+                 <button onClick={handleResetAll} disabled={isSyncing || isOffline} className="btn btn-danger w-100 fw-bold rounded-pill mb-4 shadow-sm">
+                   <i className="fa-solid fa-skull-crossbones me-2"></i> FORMAT SEMUA DATABASE
+                 </button>
+
+                 <h6 className="fw-bold border-bottom pb-2">Hapus Per Kegiatan / Orang:</h6>
+                 {groupedTasks.length === 0 && <p className="text-muted small">Database kosong.</p>}
+                 {groupedTasks.map(g => (
+                   <details key={g.taskName} className="bg-light p-3 rounded-3 mb-2 border border-light-subtle">
+                     <summary className="fw-bold d-flex justify-content-between align-items-center text-dark" style={{cursor:'pointer', listStyle:'none'}}>
+                       <span><i className="fa-solid fa-folder-open text-warning me-2"></i>{g.taskName} ({g.assignees.length} org)</span>
+                       <button onClick={(e) => { e.preventDefault(); handleDeleteGroup(g.taskName); }} className="btn btn-sm btn-outline-danger fw-bold rounded-pill"><i className="fa-solid fa-trash"></i> Hapus Group</button>
+                     </summary>
+                     <ul className="list-group mt-3 shadow-sm">
+                       {g.assignees.map(a => (
+                         <li key={a.id} className="list-group-item d-flex justify-content-between align-items-center bg-white border-light-subtle">
+                           <div className="small fw-bold text-secondary"><i className="fa-solid fa-user me-2 text-primary"></i>{a.picId}</div>
+                           <button onClick={() => handleDeletePerson(a.id, a.picId)} className="btn btn-sm text-danger"><i className="fa-solid fa-times fs-5"></i></button>
+                         </li>
+                       ))}
+                     </ul>
+                   </details>
+                 ))}
+              </div>
+            </div>
+
+          </div>
+        );
+      };
+
+      if (isLoading) return <div className="min-h-screen d-flex align-items-center justify-content-center bg-light"><i className="fa-solid fa-circle-notch fa-spin text-primary" style={{fontSize: '3rem'}}></i></div>;
+
+      return (
+        <div>
+          <nav className="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
+            <div className="container-fluid px-3 py-2">
+              <a className="navbar-brand fw-black text-primary d-flex align-items-center" href="#">
+                <div className="bg-primary text-white rounded p-1 me-2 d-flex align-items-center justify-content-center" style={{width: '32px', height: '32px'}}><i className="fa-solid fa-bolt text-warning fs-5"></i></div>
+                MonitorPro
+              </a>
+            </div>
+          </nav>
+
+          <main className="container-fluid px-3 py-4">
+            {activeTab === 'dashboard' && <Dashboard />}
+            {activeTab === 'kegiatan' && <DaftarKegiatan />}
+            {activeTab === 'peringkat' && <Leaderboard />}
+            {activeTab === 'input' && <ProgressForm />}
+            {activeTab === 'admin' && <AdminPanel />}
+          </main>
+
+          <div className="bottom-nav">
+            {[
+              { id: 'dashboard', icon: 'fa-house', label: 'Home' },
+              { id: 'kegiatan', icon: 'fa-list-check', label: 'Kegiatan' },
+              { id: 'peringkat', icon: 'fa-ranking-star', label: 'Rank' },
+              { id: 'input', icon: 'fa-pen-to-square', label: 'Lapor' },
+              { id: 'admin', icon: 'fa-lock', label: 'Admin' }
+            ].map(item => (
+              <button key={item.id} onClick={() => { setActiveTab(item.id); setSelectedGroup(null); }} className={`nav-btn ${activeTab === item.id ? 'active' : ''}`}>
+                <i className={`fa-solid ${item.icon}`}></i>
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Tunggu sampai Modul Firebase berhasil terload sebelum merender React
+    const initApp = () => {
+      if (!window.FirebaseAPI) { setTimeout(initApp, 50); return; }
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<App />);
+    };
+    initApp();
+  </script>
+</body>
+</html>
+
+
             <div className="d-flex justify-content-between align-items-start mb-3">
               <h5 className="card-title fw-bold text-dark mb-0 me-2" style={{fontSize: '1.1rem'}}>{task.taskName}</h5>
               <LiveCountdown deadline={task.deadline} />
