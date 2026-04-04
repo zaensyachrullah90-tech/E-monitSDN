@@ -105,7 +105,6 @@
     const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'monit-kegiatan';
     // =========================================================================
 
-    // Fungsi Format Tanggal -> 30 April 2026
     const formatDateId = (dateString) => {
       if (!dateString) return "-";
       const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
@@ -114,7 +113,6 @@
       return `${parts[2]} ${months[parseInt(parts[1])-1]} ${parts[0]}`;
     };
 
-    // --- KOMPONEN: LIVE COUNTDOWN (Kapsul Jam Digital) ---
     const LiveCountdown = memo(({ deadline }) => {
       const [timeLeft, setTimeLeft] = useState('');
       const [isExpired, setIsExpired] = useState(false);
@@ -158,17 +156,11 @@
       );
     });
 
-    // --- KOMPONEN: KARTU KEGIATAN UTAMA ---
     const GroupedTaskCard = memo(({ group, onClick }) => {
       const percent = Math.min(Math.round((group.progress / group.target) * 100), 100);
-      
-      // ATURAN WARNA KARTU
       let borderClass = 'status-proses-line';
-      let progressColor = 'bg-success'; // Proses = Hijau
-      if (percent >= 100) { 
-        borderClass = 'status-selesai-line'; 
-        progressColor = 'bg-primary'; // Selesai = Biru
-      }
+      let progressColor = 'bg-success'; 
+      if (percent >= 100) { borderClass = 'status-selesai-line'; progressColor = 'bg-primary'; }
       
       return (
         <div className={`card-premium mb-3 ${borderClass}`} onClick={() => onClick && onClick(group)}>
@@ -200,14 +192,501 @@
       );
     });
 
+    // --- KOMPONEN MENU (DIPISAH DARI APP AGAR TIDAK RE-RENDER SAAT UPDATE) ---
+    const Dashboard = ({ groupedTasks, isOffline, setActiveTab, setSelectedGroup }) => {
+      const totalTasks = groupedTasks.length;
+      const completedTasks = groupedTasks.filter(g => g.status === 'Selesai').length;
+      const activeGroups = groupedTasks.filter(g => g.status === 'On Progress');
+      
+      return (
+        <div className="animate-slide-up">
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h3 className="fw-black text-dark mb-0">Beranda</h3>
+              <p className="text-muted small mb-0 fw-medium">Ringkasan Evaluasi Kinerja</p>
+            </div>
+            <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 fw-bold px-3 py-2 rounded-pill shadow-sm">
+              <i className="fa-solid fa-wifi fa-fade me-1"></i> Live
+            </span>
+          </div>
+          
+          <div className="row g-3 mb-4">
+            <div className="col-12 col-md-4">
+              <div className="card-premium bg-primary text-white h-100">
+                <div className="card-body p-4 d-flex align-items-center justify-content-between">
+                  <div>
+                    <h6 className="mb-1 text-white-50 small text-uppercase fw-bold tracking-wider">Semua Kegiatan</h6>
+                    <h2 className="mb-0 fw-black fs-1">{totalTasks}</h2>
+                  </div>
+                  <i className="fa-solid fa-layer-group fa-fw fs-1 opacity-50"></i>
+                </div>
+              </div>
+            </div>
+            <div className="col-6 col-md-4">
+              <div className="card-premium bg-primary h-100" style={{backgroundColor: '#0a58ca'}}>
+                <div className="card-body p-4 text-center text-white">
+                  <i className="fa-solid fa-check-circle fs-2 mb-2 text-info"></i>
+                  <h2 className="mb-0 fw-black">{completedTasks}</h2>
+                  <h6 className="mb-0 text-white-50 small fw-bold mt-1">Selesai</h6>
+                </div>
+              </div>
+            </div>
+            <div className="col-6 col-md-4">
+              <div className="card-premium bg-success h-100">
+                <div className="card-body p-4 text-center text-white">
+                  <i className="fa-solid fa-person-digging fs-2 mb-2 text-warning"></i>
+                  <h2 className="mb-0 fw-black">{totalTasks - completedTasks}</h2>
+                  <h6 className="mb-0 text-white-50 small fw-bold mt-1">Proses</h6>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <h5 className="fw-bold mb-3 mt-4 text-dark"><i className="fa-solid fa-fire-flame-curved text-danger me-2"></i>Mendesak (Deadline Terdekat)</h5>
+          <div className="row g-3">
+            {activeGroups.sort((a, b) => new Date(a.deadline) - new Date(b.deadline)).slice(0, 4).map(group => (
+              <div className="col-12 col-md-6" key={group.taskName}>
+                <GroupedTaskCard group={group} onClick={() => { setSelectedGroup(group); setActiveTab('kegiatan'); }} />
+              </div>
+            ))}
+            {activeGroups.length === 0 && (
+              <div className="col-12">
+                <div className="card-premium bg-white text-center py-5 border border-light-subtle">
+                  <i className="fa-solid fa-mug-hot d-block fs-1 mb-3 text-primary opacity-50"></i> 
+                  <h5 className="fw-bold text-dark mb-0">Semua Pekerjaan Tuntas!</h5>
+                  <p className="text-muted small">Tidak ada kegiatan yang berjalan saat ini.</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const DaftarKegiatan = ({ groupedTasks, selectedGroup, setSelectedGroup }) => {
+      if (selectedGroup) {
+        const totalPelaksana = selectedGroup.assignees.length;
+        const selesaiCount = selectedGroup.assignees.filter(a => a.progress >= a.target).length;
+        const belumCount = totalPelaksana - selesaiCount;
+
+        return (
+          <div className="animate-slide-up pb-4">
+            <button onClick={() => setSelectedGroup(null)} className="btn btn-white shadow-sm border rounded-pill fw-bold px-4 mb-4 text-dark bg-white">
+              <i className="fa-solid fa-arrow-left-long me-2 text-primary"></i> Kembali
+            </button>
+            
+            <div className="card-premium mb-4">
+              <div className="card-body p-4">
+                <span className={`badge ${selectedGroup.status === 'Selesai' ? 'bg-primary' : 'bg-success'} mb-3 px-3 py-2 rounded-pill fw-bold shadow-sm`}>
+                  <i className={`fa-solid ${selectedGroup.status === 'Selesai' ? 'fa-check' : 'fa-spinner fa-spin'} me-1`}></i> STATUS: {selectedGroup.status.toUpperCase()}
+                </span>
+                <h3 className="fw-black text-dark mb-2 lh-sm">{selectedGroup.taskName}</h3>
+                <p className="text-danger fw-bold mb-0"><i className="fa-solid fa-calendar-day me-1"></i> Tenggat: {formatDateId(selectedGroup.deadline)}</p>
+              </div>
+              
+              <div className="card-body px-4 pb-4 pt-0 bg-white">
+                <div className="row text-center g-3 mb-4">
+                  <div className="col-4">
+                    <div className="p-3 bg-light rounded-4 border border-light-subtle h-100 d-flex flex-column justify-content-center">
+                      <h2 className="fw-black text-dark mb-0">{totalPelaksana}</h2>
+                      <span className="small text-muted fw-bold">Pelaksana</span>
+                    </div>
+                  </div>
+                  <div className="col-4">
+                    <div className="p-3 bg-primary bg-opacity-10 rounded-4 border border-primary border-opacity-25 h-100 d-flex flex-column justify-content-center">
+                      <h2 className="fw-black text-primary mb-0">{selesaiCount}</h2>
+                      <span className="small text-primary fw-bold">Selesai</span>
+                    </div>
+                  </div>
+                  <div className="col-4">
+                    <div className="p-3 bg-success bg-opacity-10 rounded-4 border border-success border-opacity-25 h-100 d-flex flex-column justify-content-center">
+                      <h2 className="fw-black text-success mb-0">{belumCount}</h2>
+                      <span className="small text-success fw-bold">Proses</span>
+                    </div>
+                  </div>
+                </div>
+
+                <h6 className="fw-bold mb-3 text-dark mt-2 border-bottom pb-2"><i className="fa-solid fa-list-check text-warning me-2"></i>Rincian Capaian Pegawai</h6>
+                <ul className="list-group list-group-flush rounded-4">
+                  {selectedGroup.assignees.map((a, idx) => {
+                    const isDone = a.progress >= a.target;
+                    const badgeClass = isDone ? 'badge-selesai' : 'badge-proses';
+                    const iconClass = isDone ? 'fa-solid fa-circle-check text-primary' : 'fa-solid fa-spinner fa-spin text-success';
+                    return (
+                      <li key={idx} className="list-group-item d-flex justify-content-between align-items-center py-3 px-0 bg-transparent border-light-subtle">
+                        <div>
+                          <div className="fw-bold text-dark fs-6">{a.picId}</div>
+                          <div className="small text-secondary fw-bold mt-1">Capaian: <span className="text-dark">{a.progress}</span> / {a.target}</div>
+                        </div>
+                        <span className={`badge rounded-pill fs-6 px-3 py-2 shadow-sm ${badgeClass}`}>
+                          <i className={`${iconClass} me-1`}></i> {isDone ? 'Selesai' : 'Proses'}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="animate-slide-up">
+          <h3 className="fw-bold text-dark mb-1">Seluruh Kegiatan</h3>
+          <p className="text-muted small mb-4 fw-medium"><i className="fa-solid fa-hand-pointer text-primary me-1"></i> Klik kartu untuk evaluasi mendalam.</p>
+          <div className="row g-3">
+            {groupedTasks.length === 0 && <div className="col-12"><div className="card-premium bg-white text-center py-5"><i className="fa-solid fa-box-open d-block fs-1 mb-3 text-secondary opacity-50"></i><p className="fw-bold text-muted mb-0">Belum ada kegiatan.</p></div></div>}
+            {groupedTasks.map(group => (
+              <div className="col-12 col-md-6" key={group.taskName}><GroupedTaskCard group={group} onClick={setSelectedGroup} /></div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    const Leaderboard = ({ tasks, employees }) => {
+      const stats = useMemo(() => {
+        return employees.map(emp => {
+          const empTasks = tasks.filter(t => String(t.picId) === String(emp.id));
+          const totalTarget = empTasks.reduce((sum, t) => sum + t.target, 0);
+          const totalProgress = empTasks.reduce((sum, t) => sum + t.progress, 0);
+          const percent = totalTarget === 0 ? 0 : Math.min(Math.round((totalProgress / totalTarget) * 100), 100);
+          return { ...emp, totalTarget, totalProgress, percent, taskCount: empTasks.length };
+        }).sort((a, b) => b.percent - a.percent);
+      }, [tasks, employees]);
+
+      return (
+        <div className="animate-slide-up">
+          <h3 className="fw-bold text-dark mb-1">Leaderboard</h3>
+          <p className="text-muted small mb-4 fw-medium">Peringkat kinerja pegawai secara global.</p>
+          
+          <div className="card-premium overflow-hidden">
+            <div className="table-responsive">
+              <table className="table table-borderless align-middle mb-0">
+                <thead className="bg-light text-muted small text-uppercase">
+                  <tr><th className="text-center py-3 rounded-top-start">#</th><th className="py-3">Pegawai</th><th className="text-center py-3">Beban</th><th className="py-3 rounded-top-end">Kinerja</th></tr>
+                </thead>
+                <tbody>
+                  {stats.length === 0 && <tr><td colSpan="4" className="text-center py-5 text-muted fw-bold">Belum ada data pegawai</td></tr>}
+                  {stats.map((stat, index) => (
+                    <tr key={stat.id} className="border-bottom border-light-subtle">
+                      <td className="text-center py-3 fw-bold">
+                        {index === 0 ? <span className="badge bg-warning text-dark px-2 py-2 fs-6 shadow-sm rounded-circle"><i className="fa-solid fa-crown"></i></span> : 
+                         index === 1 ? <span className="badge bg-secondary text-white px-2 py-2 fs-6 shadow-sm rounded-circle">2</span> : 
+                         index === 2 ? <span className="badge" style={{backgroundColor:'#cd7f32', color:'white', padding:'8px', fontSize:'1rem', borderRadius:'50%'}}>3</span> : 
+                         <span className="text-muted">{index + 1}</span>}
+                      </td>
+                      <td className="fw-bold text-dark py-3">{stat.name}</td>
+                      <td className="text-center py-3"><span className="badge bg-light text-secondary border px-2 py-1">{stat.taskCount}</span></td>
+                      <td className="py-3">
+                        <div className="d-flex align-items-center gap-2">
+                          <div className="progress flex-grow-1 bg-light border" style={{height: '8px'}}>
+                            <div className={`progress-bar rounded-pill ${stat.percent >= 100 ? 'bg-primary' : 'bg-success'}`} style={{ width: `${stat.percent}%` }}></div>
+                          </div>
+                          <span className="small fw-bold text-dark">{stat.percent}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const ProgressForm = ({ tasks, employees, user, db }) => {
+      const [selectedEmp, setSelectedEmp] = useState('');
+      const [selectedTask, setSelectedTask] = useState('');
+      const [amount, setAmount] = useState('');
+      const [message, setMessage] = useState('');
+      const [isSyncing, setIsSyncing] = useState(false);
+
+      const availableTasks = tasks.filter(t => String(t.picId) === String(selectedEmp) && t.status === 'On Progress');
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!user) { alert("Sistem sedang menghubungkan ke Firebase, tunggu sebentar."); return; }
+        setIsSyncing(true);
+        try {
+          const task = tasks.find(t => String(t.id) === String(selectedTask));
+          const newProgress = Math.min(task.progress + parseInt(amount), task.target);
+          const isDone = newProgress >= task.target;
+          
+          const docRef = window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(task.id));
+          await window.FirebaseAPI.updateDoc(docRef, { progress: newProgress, status: isDone ? 'Selesai' : 'On Progress' });
+
+          setAmount('');
+          setMessage(`Capaian tersimpan. ${isDone ? '🎉 Target Selesai!' : ''}`);
+          setTimeout(() => setMessage(''), 4000);
+        } catch (err) { alert("Gagal menyimpan. Pastikan internet Anda lancar."); }
+        setIsSyncing(false);
+      };
+
+      return (
+        <div className="animate-slide-up">
+          <div className="text-center mb-4 mt-2">
+            <div className="bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{width:'70px', height:'70px'}}>
+               <i className="fa-solid fa-pen-to-square fs-1"></i>
+            </div>
+            <h3 className="fw-black text-dark">Lapor Progres</h3>
+            <p className="text-muted small fw-medium">Laporkan hasil pekerjaan harian Anda ke sistem.</p>
+          </div>
+
+          {message && <div className="alert alert-success border-0 shadow-sm py-3 rounded-4 fw-bold animate-fade-in text-center"><i className="fa-solid fa-circle-check me-2 fs-5 text-success"></i>{message}</div>}
+          
+          <div className="card-premium">
+            <div className="card-body p-4 md-p-5">
+              <form onSubmit={handleSubmit}>
+                <div className="mb-4">
+                  <label className="form-label fw-bold text-dark small text-uppercase tracking-wider"><i className="fa-solid fa-user-tag text-primary me-2"></i>Pilih Identitas Anda</label>
+                  <select required className="form-select form-select-lg bg-light border border-light-subtle rounded-4 fw-bold text-dark shadow-sm" value={selectedEmp} onChange={(e) => { setSelectedEmp(e.target.value); setSelectedTask(''); }}>
+                    <option value="">-- Ketuk untuk memilih --</option>
+                    {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                  </select>
+                </div>
+                {selectedEmp && (
+                  <div className="mb-4 animate-slide-up">
+                    <label className="form-label fw-bold text-dark small text-uppercase tracking-wider"><i className="fa-solid fa-list-check text-warning me-2"></i>Pilih Pekerjaan Aktif</label>
+                    <select required className="form-select form-select-lg bg-light border border-light-subtle rounded-4 fw-bold text-dark shadow-sm" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
+                      <option value="">-- Pilih Pekerjaan --</option>
+                      {availableTasks.map(t => <option key={t.id} value={t.id}>{t.taskName} (Sisa target: {t.target - t.progress})</option>)}
+                    </select>
+                  </div>
+                )}
+                {selectedTask && (
+                  <div className="mb-4 animate-slide-up">
+                    <label className="form-label fw-bold text-dark small text-uppercase tracking-wider"><i className="fa-solid fa-arrow-up-9-1 text-success me-2"></i>Jumlah yang Diselesaikan</label>
+                    <input type="number" required min="1" className="form-control form-control-lg bg-light border border-light-subtle rounded-4 fw-black text-center text-primary fs-2 shadow-sm py-3" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
+                  </div>
+                )}
+                <button type="submit" disabled={!selectedTask || isSyncing} className="btn btn-primary btn-lg w-100 py-3 fw-bold rounded-pill shadow">
+                  {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin me-2"></i>Memproses...</> : <><i className="fa-solid fa-paper-plane me-2"></i>Kirim Laporan</>}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const AdminPanel = ({ db, tasks, groupedTasks, user, isAdminLogged, setIsAdminLogged }) => {
+      const [pwd, setPwd] = useState('');
+      const [successMsg, setSuccessMsg] = useState('');
+      const [errorMsg, setErrorMsg] = useState('');
+      const [isSyncing, setIsSyncing] = useState(false);
+      const fileInputRef = useRef(null);
+
+      if (!isAdminLogged) {
+        return (
+          <div className="animate-slide-up text-center pt-5">
+            <div className="bg-danger bg-opacity-10 text-danger rounded-circle d-inline-flex align-items-center justify-content-center mb-4 shadow-sm" style={{width:'80px', height:'80px'}}>
+               <i className="fa-solid fa-shield-halved fs-1"></i>
+            </div>
+            <h3 className="fw-black text-dark mb-4">Akses Administrator</h3>
+            <div className="card-premium mx-auto" style={{maxWidth: '350px'}}>
+              <div className="card-body p-4">
+                <form onSubmit={e => { e.preventDefault(); if(pwd === 'admin123') setIsAdminLogged(true); else alert('Password Salah!'); }}>
+                  <input type="password" required className="form-control form-control-lg bg-light border-light-subtle text-center mb-4 fw-bold rounded-4 py-3" placeholder="Masukkan Password" value={pwd} onChange={e=>setPwd(e.target.value)}/>
+                  <button className="btn btn-danger btn-lg w-100 fw-bold rounded-pill shadow"><i className="fa-solid fa-lock-open me-2"></i>Buka Panel</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      const handleExcelUpload = async (e) => {
+        const file = e.target?.files?.[0];
+        if (!file) return;
+
+        setIsSyncing(true); setErrorMsg(''); setSuccessMsg('');
+        
+        try {
+          let excelData = [];
+          if(file.name.toLowerCase().endsWith('.csv')) {
+              const text = await file.text();
+              const workbook = window.XLSX.read(text, {type: 'string'});
+              excelData = window.XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
+          } else {
+              const data = await file.arrayBuffer();
+              const workbook = window.XLSX.read(data);
+              excelData = window.XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
+          }
+
+          const batch = window.FirebaseAPI.writeBatch(db);
+          let addedCount = 0;
+
+          for(let i = 1; i < excelData.length; i++) {
+            const row = excelData[i];
+            if (!row || row.length === 0) continue; 
+
+            const taskName = String(row[0] || "").trim();
+            const picIndicator = String(row[1] || "").trim(); 
+            const target = parseInt(row[2]);
+            
+            if (!taskName || !picIndicator || isNaN(target)) continue;
+
+            let finalDeadline = new Date().toISOString().split('T')[0];
+            const rawDeadline = row[3];
+            if (rawDeadline) {
+              if (typeof rawDeadline === 'number') {
+                const dateObj = new Date((rawDeadline - (25567 + 2)) * 86400 * 1000);
+                if(!isNaN(dateObj.getTime())) finalDeadline = dateObj.toISOString().split('T')[0];
+              } else {
+                const strDate = String(rawDeadline).trim();
+                const parts = strDate.split(/[-/]/);
+                if (parts.length === 3) {
+                   if (parts[0].length <= 2 && parts[2].length === 4) finalDeadline = `${parts[2]}-${parts[1]}-${parts[0]}`; 
+                   else { const d = new Date(strDate); if(!isNaN(d.getTime())) finalDeadline = d.toISOString().split('T')[0]; }
+                }
+              }
+            }
+
+            const newId = Date.now() + Math.floor(Math.random() * 10000) + i;
+            const docRef = window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(newId));
+            batch.set(docRef, {
+              id: newId, taskName: taskName, picId: picIndicator.toUpperCase(), 
+              target: target, progress: 0, deadline: finalDeadline, status: 'On Progress'
+            });
+            addedCount++;
+          }
+
+          if (addedCount > 0) {
+            await batch.commit();
+            setSuccessMsg(`BERHASIL! ${addedCount} data masuk ke Firebase.`); 
+            setTimeout(() => setSuccessMsg(''), 6000);
+          } else { throw new Error("Data Kosong. File harus berisi isian di bawah baris judul."); }
+        } catch (error) { 
+          setErrorMsg(error.message || "Gagal memproses file. Pastikan format benar."); setTimeout(() => setErrorMsg(''), 6000);
+        } finally {
+          setIsSyncing(false); if(fileInputRef.current) fileInputRef.current.value = '';
+        }
+      };
+
+      const handleDeleteGroup = async (taskName) => {
+        if(!window.confirm(`HAPUS PERMANEN kegiatan "${taskName}" ?`)) return;
+        setIsSyncing(true);
+        try {
+          const batch = window.FirebaseAPI.writeBatch(db);
+          const groupTasks = tasks.filter(t => t.taskName === taskName);
+          groupTasks.forEach(t => {
+             const docRef = window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(t.id));
+             batch.delete(docRef);
+          });
+          await batch.commit();
+          setSuccessMsg(`Kegiatan dihapus!`); setTimeout(() => setSuccessMsg(''), 3000);
+        } catch (e) { alert("Gagal menghapus dari server Firebase."); }
+        setIsSyncing(false);
+      };
+
+      const handleDeletePerson = async (id, name) => {
+        if(!window.confirm(`Hapus pegawai "${name}" dari kegiatan ini?`)) return;
+        setIsSyncing(true);
+        try {
+          await window.FirebaseAPI.deleteDoc(window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(id)));
+        } catch (e) { alert("Gagal menghapus."); }
+        setIsSyncing(false);
+      };
+
+      const handleResetAll = async () => {
+        if(!window.confirm("BAHAYA! Yakin hapus SELURUH DATABASE? Aksi ini tidak bisa dibatalkan!")) return;
+        setIsSyncing(true);
+        try {
+          const batch = window.FirebaseAPI.writeBatch(db);
+          tasks.forEach(t => {
+             const docRef = window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(t.id));
+             batch.delete(docRef);
+          });
+          await batch.commit();
+          setSuccessMsg('Seluruh database berhasil dikosongkan!'); setTimeout(() => setSuccessMsg(''), 5000);
+        } catch (e) { alert("Gagal mereset."); }
+        setIsSyncing(false);
+      };
+
+      const handleDownloadTemplate = () => {
+        try {
+          const templateData = [ ["Nama Kegiatan", "ID PIC / NAMA", "Target", "Deadline"], ["Review Laporan", "BUDI SANTOSO", 10, "2026-12-31"] ];
+          const worksheet = window.XLSX.utils.aoa_to_sheet(templateData);
+          const workbook = window.XLSX.utils.book_new();
+          window.XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+          window.XLSX.writeFile(workbook, "Template_Firebase_MonitorPro.xlsx");
+        } catch (err) { alert("Download gagal."); }
+      };
+
+      return (
+        <div className="animate-slide-up pb-5">
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h3 className="fw-black text-dark mb-0"><i className="fa-solid fa-shield text-danger me-2"></i>Panel Admin</h3>
+            <button onClick={() => setIsAdminLogged(false)} className="btn btn-outline-danger btn-sm fw-bold rounded-pill shadow-sm"><i className="fa-solid fa-power-off me-1"></i> Keluar</button>
+          </div>
+          
+          {successMsg && <div className="alert alert-success border-0 shadow-sm rounded-4 py-3 fw-bold mb-4"><i className="fa-solid fa-circle-check me-2 fs-5"></i>{successMsg}</div>}
+          {errorMsg && <div className="alert alert-danger border-0 shadow-sm rounded-4 py-3 fw-bold mb-4"><i className="fa-solid fa-triangle-exclamation me-2 fs-5"></i>{errorMsg}</div>}
+          
+          <div className="card-premium bg-dark text-white mb-4">
+            <div className="card-body p-4 p-md-5 position-relative overflow-hidden">
+              <i className="fa-solid fa-cloud-arrow-up position-absolute opacity-25 text-primary" style={{fontSize: '150px', right: '-20px', bottom: '-40px'}}></i>
+              <div className="position-relative z-10">
+                <h4 className="fw-black mb-2">Upload Database Massal</h4>
+                <p className="small text-white-50 mb-4 fw-medium lh-lg">File didukung: CSV & XLSX. Sistem akan membaca kolom A, B, C, D sesuai urutan baku template.</p>
+                
+                <div className="d-flex gap-2 mb-4">
+                  <button onClick={handleDownloadTemplate} className="btn btn-outline-light btn-sm fw-bold rounded-pill px-3">
+                    <i className="fa-solid fa-download me-1"></i> Download Template
+                  </button>
+                </div>
+
+                <input type="file" accept=".xlsx, .csv" ref={fileInputRef} onChange={handleExcelUpload} className="d-none" />
+                <button onClick={() => fileInputRef.current.click()} disabled={isSyncing || !user} className="btn btn-primary btn-lg w-100 fw-bold rounded-pill shadow py-3">
+                   {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin me-2"></i>Mengekstrak...</> : <><i className="fa-solid fa-file-excel me-2"></i>Pilih File Data</>}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="card-premium border border-danger border-opacity-25 mb-4">
+            <div className="card-header bg-danger bg-opacity-10 text-danger border-0 fw-bold pt-4 pb-2 px-4 fs-5"><i className="fa-solid fa-trash-can me-2"></i>Manajemen Penghapusan</div>
+            <div className="card-body p-4">
+               <button onClick={handleResetAll} disabled={isSyncing || !user} className="btn btn-danger w-100 fw-black rounded-pill mb-4 shadow py-3">
+                 <i className="fa-solid fa-skull-crossbones me-2"></i> FORMAT KOSONG DATABASE
+               </button>
+
+               <h6 className="fw-bold text-dark mt-4 mb-3 border-bottom pb-2">Hapus Item Spesifik:</h6>
+               {groupedTasks.length === 0 && <p className="text-muted small text-center py-4 bg-light rounded-4">Database masih kosong.</p>}
+               {groupedTasks.map(g => (
+                 <details key={g.taskName} className="bg-light p-3 rounded-4 mb-3 border border-light-subtle shadow-sm">
+                   <summary className="fw-bold d-flex justify-content-between align-items-center text-dark" style={{cursor:'pointer', listStyle:'none'}}>
+                     <span><i className="fa-solid fa-folder text-warning me-2 fs-5"></i>{g.taskName} <span className="badge bg-secondary ms-1">{g.assignees.length} Org</span></span>
+                     <button onClick={(e) => { e.preventDefault(); handleDeleteGroup(g.taskName); }} className="btn btn-sm btn-outline-danger fw-bold rounded-pill px-3"><i className="fa-solid fa-trash"></i></button>
+                   </summary>
+                   <ul className="list-group list-group-flush mt-3">
+                     {g.assignees.map(a => (
+                       <li key={a.id} className="list-group-item d-flex justify-content-between align-items-center bg-transparent border-light-subtle px-0 py-3">
+                         <div className="small fw-bold text-secondary"><i className="fa-solid fa-user-tag me-2 text-primary"></i>{a.picId}</div>
+                         <button onClick={() => handleDeletePerson(a.id, a.picId)} className="btn btn-sm btn-danger rounded-circle shadow-sm" style={{width:'30px', height:'30px'}}><i className="fa-solid fa-xmark"></i></button>
+                       </li>
+                     ))}
+                   </ul>
+                 </details>
+               ))}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // --- APP CORE ---
     function App() {
       const [activeTab, setActiveTab] = useState('dashboard');
       const [employees, setEmployees] = useState([]);
       const [tasks, setTasks] = useState([]);
       const [isLoading, setIsLoading] = useState(true);
-      const [isSyncing, setIsSyncing] = useState(false);
       const [selectedGroup, setSelectedGroup] = useState(null);
       const [user, setUser] = useState(null);
+      const [isAdminLogged, setIsAdminLogged] = useState(false); // Memindahkan State Login ke Root
       
       const [firebaseApp, setFirebaseApp] = useState(null);
       const [db, setDb] = useState(null);
@@ -248,7 +727,6 @@
             const uniquePics = [...new Set(loadedTasks.map(t => t.picId))];
             setEmployees(uniquePics.map(pic => ({ id: pic, name: pic })));
             
-            // Auto update detail view if open
             if(selectedGroup) {
                const updatedGroup = loadedTasks.filter(t => t.taskName === selectedGroup.taskName);
                if(updatedGroup.length > 0) {
@@ -268,7 +746,7 @@
             setIsLoading(false);
         });
         return () => unsubscribe();
-      }, [user, db]); // Hapus selectedGroup dari dependency agar tidak loop infinite
+      }, [user, db, selectedGroup]);
 
       // GROUPING LOGIC (Otak Utama)
       const groupedTasks = useMemo(() => {
@@ -283,508 +761,10 @@
         return Object.values(groups);
       }, [tasks]);
 
-      // --- MENU 1: DASHBOARD ---
-      const Dashboard = () => {
-        const totalTasks = groupedTasks.length;
-        const completedTasks = groupedTasks.filter(g => g.status === 'Selesai').length;
-        const activeGroups = groupedTasks.filter(g => g.status === 'On Progress');
-        
-        return (
-          <div className="animate-slide-up">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <div>
-                <h3 className="fw-black text-dark mb-0">Beranda</h3>
-                <p className="text-muted small mb-0 fw-medium">Ringkasan Evaluasi Kinerja</p>
-              </div>
-              <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 fw-bold px-3 py-2 rounded-pill shadow-sm">
-                <i className="fa-solid fa-wifi fa-fade me-1"></i> Live
-              </span>
-            </div>
-            
-            {/* Kartu Statistik */}
-            <div className="row g-3 mb-4">
-              <div className="col-12 col-md-4">
-                <div className="card-premium bg-primary text-white h-100">
-                  <div className="card-body p-4 d-flex align-items-center justify-content-between">
-                    <div>
-                      <h6 className="mb-1 text-white-50 small text-uppercase fw-bold tracking-wider">Semua Kegiatan</h6>
-                      <h2 className="mb-0 fw-black fs-1">{totalTasks}</h2>
-                    </div>
-                    <i className="fa-solid fa-layer-group fa-fw fs-1 opacity-50"></i>
-                  </div>
-                </div>
-              </div>
-              <div className="col-6 col-md-4">
-                <div className="card-premium bg-primary h-100" style={{backgroundColor: '#0a58ca'}}>
-                  <div className="card-body p-4 text-center text-white">
-                    <i className="fa-solid fa-check-circle fs-2 mb-2 text-info"></i>
-                    <h2 className="mb-0 fw-black">{completedTasks}</h2>
-                    <h6 className="mb-0 text-white-50 small fw-bold mt-1">Selesai</h6>
-                  </div>
-                </div>
-              </div>
-              <div className="col-6 col-md-4">
-                <div className="card-premium bg-success h-100">
-                  <div className="card-body p-4 text-center text-white">
-                    <i className="fa-solid fa-person-digging fs-2 mb-2 text-warning"></i>
-                    <h2 className="mb-0 fw-black">{totalTasks - completedTasks}</h2>
-                    <h6 className="mb-0 text-white-50 small fw-bold mt-1">Proses</h6>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <h5 className="fw-bold mb-3 mt-4 text-dark"><i className="fa-solid fa-fire-flame-curved text-danger me-2"></i>Mendesak (Deadline Terdekat)</h5>
-            <div className="row g-3">
-              {activeGroups.sort((a, b) => new Date(a.deadline) - new Date(b.deadline)).slice(0, 4).map(group => (
-                <div className="col-12 col-md-6" key={group.taskName}>
-                  <GroupedTaskCard group={group} onClick={() => { setSelectedGroup(group); setActiveTab('kegiatan'); }} />
-                </div>
-              ))}
-              {activeGroups.length === 0 && (
-                <div className="col-12">
-                  <div className="card-premium bg-white text-center py-5 border border-light-subtle">
-                    <i className="fa-solid fa-mug-hot d-block fs-1 mb-3 text-primary opacity-50"></i> 
-                    <h5 className="fw-bold text-dark mb-0">Semua Pekerjaan Tuntas!</h5>
-                    <p className="text-muted small">Tidak ada kegiatan yang berjalan saat ini.</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      };
-
-      // --- MENU 2: KEGIATAN & EVALUASI DETAIL ---
-      const DaftarKegiatan = () => {
-        // MODE DETAIL EVALUASI (Jika diklik)
-        if (selectedGroup) {
-          const totalPelaksana = selectedGroup.assignees.length;
-          const selesaiCount = selectedGroup.assignees.filter(a => a.progress >= a.target).length;
-          const belumCount = totalPelaksana - selesaiCount;
-
-          return (
-            <div className="animate-slide-up pb-4">
-              <button onClick={() => setSelectedGroup(null)} className="btn btn-white shadow-sm border rounded-pill fw-bold px-4 mb-4 text-dark">
-                <i className="fa-solid fa-arrow-left-long me-2 text-primary"></i> Kembali
-              </button>
-              
-              <div className="card-premium mb-4">
-                <div className="card-body p-4">
-                  <span className={`badge ${selectedGroup.status === 'Selesai' ? 'bg-primary' : 'bg-success'} mb-3 px-3 py-2 rounded-pill fw-bold shadow-sm`}>
-                    <i className={`fa-solid ${selectedGroup.status === 'Selesai' ? 'fa-check' : 'fa-spinner fa-spin'} me-1`}></i> STATUS: {selectedGroup.status.toUpperCase()}
-                  </span>
-                  <h3 className="fw-black text-dark mb-2 lh-sm">{selectedGroup.taskName}</h3>
-                  <p className="text-danger fw-bold mb-0"><i className="fa-solid fa-calendar-day me-1"></i> Tenggat: {formatDateId(selectedGroup.deadline)}</p>
-                </div>
-                
-                <div className="card-body px-4 pb-4 pt-0 bg-white">
-                  {/* Kotak Evaluasi Kinerja */}
-                  <div className="row text-center g-3 mb-4">
-                    <div className="col-4">
-                      <div className="p-3 bg-light rounded-4 border border-light-subtle h-100 d-flex flex-column justify-content-center">
-                        <h2 className="fw-black text-dark mb-0">{totalPelaksana}</h2>
-                        <span className="small text-muted fw-bold">Pelaksana</span>
-                      </div>
-                    </div>
-                    <div className="col-4">
-                      <div className="p-3 bg-primary bg-opacity-10 rounded-4 border border-primary border-opacity-25 h-100 d-flex flex-column justify-content-center">
-                        <h2 className="fw-black text-primary mb-0">{selesaiCount}</h2>
-                        <span className="small text-primary fw-bold">Selesai</span>
-                      </div>
-                    </div>
-                    <div className="col-4">
-                      <div className="p-3 bg-success bg-opacity-10 rounded-4 border border-success border-opacity-25 h-100 d-flex flex-column justify-content-center">
-                        <h2 className="fw-black text-success mb-0">{belumCount}</h2>
-                        <span className="small text-success fw-bold">Proses</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <h6 className="fw-bold mb-3 text-dark mt-2 border-bottom pb-2"><i className="fa-solid fa-list-check text-warning me-2"></i>Rincian Capaian Pegawai</h6>
-                  <ul className="list-group list-group-flush rounded-4">
-                    {selectedGroup.assignees.map((a, idx) => {
-                      const isDone = a.progress >= a.target;
-                      // ATURAN WARNA: PROSES = HIJAU, SELESAI = BIRU
-                      const badgeClass = isDone ? 'badge-selesai' : 'badge-proses';
-                      const iconClass = isDone ? 'fa-solid fa-circle-check text-primary' : 'fa-solid fa-spinner fa-spin text-success';
-                      
-                      return (
-                        <li key={idx} className="list-group-item d-flex justify-content-between align-items-center py-3 px-0 bg-transparent border-light-subtle">
-                          <div>
-                            <div className="fw-bold text-dark fs-6">{a.picId}</div>
-                            <div className="small text-secondary fw-bold mt-1">Capaian: <span className="text-dark">{a.progress}</span> / {a.target}</div>
-                          </div>
-                          <span className={`badge rounded-pill fs-6 px-3 py-2 shadow-sm ${badgeClass}`}>
-                            <i className={`${iconClass} me-1`}></i> {isDone ? 'Selesai' : 'Proses'}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          );
-        }
-
-        // MODE LIST SELURUH KEGIATAN
-        return (
-          <div className="animate-slide-up">
-            <h3 className="fw-bold text-dark mb-1">Seluruh Kegiatan</h3>
-            <p className="text-muted small mb-4 fw-medium"><i className="fa-solid fa-hand-pointer text-primary me-1"></i> Klik kartu untuk evaluasi mendalam.</p>
-            <div className="row g-3">
-              {groupedTasks.length === 0 && <div className="col-12"><div className="card-premium bg-white text-center py-5"><i className="fa-solid fa-box-open d-block fs-1 mb-3 text-secondary opacity-50"></i><p className="fw-bold text-muted mb-0">Belum ada kegiatan.</p></div></div>}
-              {groupedTasks.map(group => (
-                <div className="col-12 col-md-6" key={group.taskName}><GroupedTaskCard group={group} onClick={setSelectedGroup} /></div>
-              ))}
-            </div>
-          </div>
-        );
-      };
-
-      // --- MENU 3: LEADERBOARD ---
-      const Leaderboard = () => {
-        const stats = useMemo(() => {
-          return employees.map(emp => {
-            const empTasks = tasks.filter(t => String(t.picId) === String(emp.id));
-            const totalTarget = empTasks.reduce((sum, t) => sum + t.target, 0);
-            const totalProgress = empTasks.reduce((sum, t) => sum + t.progress, 0);
-            const percent = totalTarget === 0 ? 0 : Math.min(Math.round((totalProgress / totalTarget) * 100), 100);
-            return { ...emp, totalTarget, totalProgress, percent, taskCount: empTasks.length };
-          }).sort((a, b) => b.percent - a.percent);
-        }, [tasks, employees]);
-
-        return (
-          <div className="animate-slide-up">
-            <h3 className="fw-bold text-dark mb-1">Leaderboard</h3>
-            <p className="text-muted small mb-4 fw-medium">Peringkat kinerja pegawai secara global.</p>
-            
-            <div className="card-premium overflow-hidden">
-              <div className="table-responsive">
-                <table className="table table-borderless align-middle mb-0">
-                  <thead className="bg-light text-muted small text-uppercase">
-                    <tr><th className="text-center py-3 rounded-top-start">#</th><th className="py-3">Pegawai</th><th className="text-center py-3">Beban</th><th className="py-3 rounded-top-end">Kinerja</th></tr>
-                  </thead>
-                  <tbody>
-                    {stats.length === 0 && <tr><td colSpan="4" className="text-center py-5 text-muted fw-bold">Belum ada data pegawai</td></tr>}
-                    {stats.map((stat, index) => (
-                      <tr key={stat.id} className="border-bottom border-light-subtle">
-                        <td className="text-center py-3 fw-bold">
-                          {index === 0 ? <span className="badge bg-warning text-dark px-2 py-2 fs-6 shadow-sm rounded-circle"><i className="fa-solid fa-crown"></i></span> : 
-                           index === 1 ? <span className="badge bg-secondary text-white px-2 py-2 fs-6 shadow-sm rounded-circle">2</span> : 
-                           index === 2 ? <span className="badge" style={{backgroundColor:'#cd7f32', color:'white', padding:'8px', fontSize:'1rem', borderRadius:'50%'}}>3</span> : 
-                           <span className="text-muted">{index + 1}</span>}
-                        </td>
-                        <td className="fw-bold text-dark py-3">{stat.name}</td>
-                        <td className="text-center py-3"><span className="badge bg-light text-secondary border px-2 py-1">{stat.taskCount}</span></td>
-                        <td className="py-3">
-                          <div className="d-flex align-items-center gap-2">
-                            <div className="progress flex-grow-1 bg-light border" style={{height: '8px'}}>
-                              <div className={`progress-bar rounded-pill ${stat.percent >= 100 ? 'bg-primary' : 'bg-success'}`} style={{ width: `${stat.percent}%` }}></div>
-                            </div>
-                            <span className="small fw-bold text-dark">{stat.percent}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        );
-      };
-
-      // --- MENU 4: INPUT PROGRES (Harian) ---
-      const ProgressForm = () => {
-        const [selectedEmp, setSelectedEmp] = useState('');
-        const [selectedTask, setSelectedTask] = useState('');
-        const [amount, setAmount] = useState('');
-        const [message, setMessage] = useState('');
-
-        const availableTasks = tasks.filter(t => String(t.picId) === String(selectedEmp) && t.status === 'On Progress');
-
-        const handleSubmit = async (e) => {
-          e.preventDefault();
-          if (!user) { alert("Sistem sedang menghubungkan ke Firebase, tunggu sebentar."); return; }
-          setIsSyncing(true);
-          try {
-            const task = tasks.find(t => String(t.id) === String(selectedTask));
-            const newProgress = Math.min(task.progress + parseInt(amount), task.target);
-            const isDone = newProgress >= task.target;
-            
-            // FIREBASE REAL-TIME UPDATE
-            const docRef = window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(task.id));
-            await window.FirebaseAPI.updateDoc(docRef, { progress: newProgress, status: isDone ? 'Selesai' : 'On Progress' });
-
-            setAmount('');
-            setMessage(`Capaian tersimpan. ${isDone ? '🎉 Target Selesai!' : ''}`);
-            setTimeout(() => setMessage(''), 4000);
-          } catch (err) { alert("Gagal menyimpan. Pastikan internet Anda lancar."); }
-          setIsSyncing(false);
-        };
-
-        return (
-          <div className="animate-slide-up">
-            <div className="text-center mb-4 mt-2">
-              <div className="bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{width:'70px', height:'70px'}}>
-                 <i className="fa-solid fa-pen-to-square fs-1"></i>
-              </div>
-              <h3 className="fw-black text-dark">Lapor Progres</h3>
-              <p className="text-muted small fw-medium">Laporkan hasil pekerjaan harian Anda ke sistem.</p>
-            </div>
-
-            {message && <div className="alert alert-success border-0 shadow-sm py-3 rounded-4 fw-bold animate-fade-in text-center"><i className="fa-solid fa-circle-check me-2 fs-5 text-success"></i>{message}</div>}
-            
-            <div className="card-premium">
-              <div className="card-body p-4 md-p-5">
-                <form onSubmit={handleSubmit}>
-                  <div className="mb-4">
-                    <label className="form-label fw-bold text-dark small text-uppercase tracking-wider"><i className="fa-solid fa-user-tag text-primary me-2"></i>Pilih Identitas Anda</label>
-                    <select required className="form-select form-select-lg bg-light border border-light-subtle rounded-4 fw-bold text-dark shadow-sm" value={selectedEmp} onChange={(e) => { setSelectedEmp(e.target.value); setSelectedTask(''); }}>
-                      <option value="">-- Ketuk untuk memilih --</option>
-                      {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                    </select>
-                  </div>
-                  {selectedEmp && (
-                    <div className="mb-4 animate-slide-up">
-                      <label className="form-label fw-bold text-dark small text-uppercase tracking-wider"><i className="fa-solid fa-list-check text-warning me-2"></i>Pilih Pekerjaan Aktif</label>
-                      <select required className="form-select form-select-lg bg-light border border-light-subtle rounded-4 fw-bold text-dark shadow-sm" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
-                        <option value="">-- Pilih Pekerjaan --</option>
-                        {availableTasks.map(t => <option key={t.id} value={t.id}>{t.taskName} (Sisa target: {t.target - t.progress})</option>)}
-                      </select>
-                    </div>
-                  )}
-                  {selectedTask && (
-                    <div className="mb-4 animate-slide-up">
-                      <label className="form-label fw-bold text-dark small text-uppercase tracking-wider"><i className="fa-solid fa-arrow-up-9-1 text-success me-2"></i>Jumlah yang Diselesaikan</label>
-                      <input type="number" required min="1" className="form-control form-control-lg bg-light border border-light-subtle rounded-4 fw-black text-center text-primary fs-2 shadow-sm py-3" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
-                    </div>
-                  )}
-                  <button type="submit" disabled={!selectedTask || isSyncing} className="btn btn-primary btn-lg w-100 py-3 fw-bold rounded-pill shadow">
-                    {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin me-2"></i>Memproses...</> : <><i className="fa-solid fa-paper-plane me-2"></i>Kirim Laporan</>}
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
-        );
-      };
-
-      // --- MENU 5: ADMIN PANEL (TERKUNCI & KONTROL PENUH) ---
-      const AdminPanel = () => {
-        const [isAdminLogged, setIsAdminLogged] = useState(false);
-        const [pwd, setPwd] = useState('');
-        const [successMsg, setSuccessMsg] = useState('');
-        const [errorMsg, setErrorMsg] = useState('');
-        const fileInputRef = useRef(null);
-
-        // KUNCI PASSWORD ADMIN
-        if (!isAdminLogged) {
-          return (
-            <div className="animate-slide-up text-center pt-5">
-              <div className="bg-danger bg-opacity-10 text-danger rounded-circle d-inline-flex align-items-center justify-content-center mb-4 shadow-sm" style={{width:'80px', height:'80px'}}>
-                 <i className="fa-solid fa-shield-halved fs-1"></i>
-              </div>
-              <h3 className="fw-black text-dark mb-4">Akses Administrator</h3>
-              <div className="card-premium mx-auto" style={{maxWidth: '350px'}}>
-                <div className="card-body p-4">
-                  <form onSubmit={e => { e.preventDefault(); if(pwd === 'admin123') setIsAdminLogged(true); else alert('Password Salah!'); }}>
-                    <input type="password" required className="form-control form-control-lg bg-light border-light-subtle text-center mb-4 fw-bold rounded-4 py-3" placeholder="Masukkan Password" value={pwd} onChange={e=>setPwd(e.target.value)}/>
-                    <button className="btn btn-danger btn-lg w-100 fw-bold rounded-pill shadow"><i className="fa-solid fa-lock-open me-2"></i>Buka Panel</button>
-                  </form>
-                </div>
-              </div>
-            </div>
-          );
-        }
-
-        // FUNGSI MEMBACA CSV / EXCEL TANPA PEDULI NAMA HEADER (KUNCI INDEX)
-        const handleExcelUpload = async (e) => {
-          const file = e.target?.files?.[0];
-          if (!file) return;
-
-          setIsSyncing(true); setErrorMsg(''); setSuccessMsg('');
-          
-          try {
-            let excelData = [];
-            if(file.name.toLowerCase().endsWith('.csv')) {
-                const text = await file.text();
-                const workbook = window.XLSX.read(text, {type: 'string'});
-                excelData = window.XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
-            } else {
-                const data = await file.arrayBuffer();
-                const workbook = window.XLSX.read(data);
-                excelData = window.XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
-            }
-
-            const batch = window.FirebaseAPI.writeBatch(db);
-            let addedCount = 0;
-
-            for(let i = 1; i < excelData.length; i++) {
-              const row = excelData[i];
-              if (!row || row.length === 0) continue; 
-
-              const taskName = String(row[0] || "").trim();
-              const picIndicator = String(row[1] || "").trim(); 
-              const target = parseInt(row[2]);
-              
-              if (!taskName || !picIndicator || isNaN(target)) continue;
-
-              let finalDeadline = new Date().toISOString().split('T')[0];
-              const rawDeadline = row[3];
-              if (rawDeadline) {
-                if (typeof rawDeadline === 'number') {
-                  const dateObj = new Date((rawDeadline - (25567 + 2)) * 86400 * 1000);
-                  if(!isNaN(dateObj.getTime())) finalDeadline = dateObj.toISOString().split('T')[0];
-                } else {
-                  const strDate = String(rawDeadline).trim();
-                  const parts = strDate.split(/[-/]/);
-                  if (parts.length === 3) {
-                     if (parts[0].length <= 2 && parts[2].length === 4) finalDeadline = `${parts[2]}-${parts[1]}-${parts[0]}`; 
-                     else { const d = new Date(strDate); if(!isNaN(d.getTime())) finalDeadline = d.toISOString().split('T')[0]; }
-                  }
-                }
-              }
-
-              const newId = Date.now() + Math.floor(Math.random() * 10000) + i;
-              const docRef = window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(newId));
-              batch.set(docRef, {
-                id: newId, taskName: taskName, picId: picIndicator.toUpperCase(), 
-                target: target, progress: 0, deadline: finalDeadline, status: 'On Progress'
-              });
-              addedCount++;
-            }
-
-            if (addedCount > 0) {
-              await batch.commit();
-              setSuccessMsg(`BERHASIL! ${addedCount} data masuk ke Firebase.`); 
-              setTimeout(() => setSuccessMsg(''), 6000);
-            } else { throw new Error("Data Kosong. File harus berisi isian di bawah baris judul."); }
-          } catch (error) { 
-            setErrorMsg(error.message || "Gagal memproses file. Pastikan format benar."); setTimeout(() => setErrorMsg(''), 6000);
-          } finally {
-            setIsSyncing(false); if(fileInputRef.current) fileInputRef.current.value = '';
-          }
-        };
-
-        const handleDeleteGroup = async (taskName) => {
-          if(!window.confirm(`HAPUS PERMANEN kegiatan "${taskName}" ?`)) return;
-          setIsSyncing(true);
-          try {
-            const batch = window.FirebaseAPI.writeBatch(db);
-            const groupTasks = tasks.filter(t => t.taskName === taskName);
-            groupTasks.forEach(t => {
-               const docRef = window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(t.id));
-               batch.delete(docRef);
-            });
-            await batch.commit();
-            setSuccessMsg(`Kegiatan dihapus!`); setTimeout(() => setSuccessMsg(''), 3000);
-          } catch (e) { alert("Gagal menghapus."); }
-          setIsSyncing(false);
-        };
-
-        const handleDeletePerson = async (id, name) => {
-          if(!window.confirm(`Hapus pegawai "${name}" dari kegiatan ini?`)) return;
-          setIsSyncing(true);
-          try {
-            await window.FirebaseAPI.deleteDoc(window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(id)));
-          } catch (e) { alert("Gagal menghapus."); }
-          setIsSyncing(false);
-        };
-
-        const handleResetAll = async () => {
-          if(!window.confirm("BAHAYA! Yakin hapus SELURUH DATABASE? Aksi ini tidak bisa dibatalkan!")) return;
-          setIsSyncing(true);
-          try {
-            const batch = window.FirebaseAPI.writeBatch(db);
-            tasks.forEach(t => {
-               const docRef = window.FirebaseAPI.doc(db, 'artifacts', APP_ID, 'public', 'data', 'tasks', String(t.id));
-               batch.delete(docRef);
-            });
-            await batch.commit();
-            setSuccessMsg('Seluruh database berhasil dikosongkan!'); setTimeout(() => setSuccessMsg(''), 5000);
-          } catch (e) { alert("Gagal mereset."); }
-          setIsSyncing(false);
-        };
-
-        const handleDownloadTemplate = () => {
-          try {
-            const templateData = [ ["Nama Kegiatan", "ID PIC / NAMA", "Target", "Deadline"], ["Review Laporan", "BUDI SANTOSO", 10, "2026-12-31"] ];
-            const worksheet = window.XLSX.utils.aoa_to_sheet(templateData);
-            const workbook = window.XLSX.utils.book_new();
-            window.XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
-            window.XLSX.writeFile(workbook, "Template_Firebase_MonitorPro.xlsx");
-          } catch (err) { alert("Download gagal."); }
-        };
-
-        return (
-          <div className="animate-slide-up pb-5">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <h3 className="fw-black text-dark mb-0"><i className="fa-solid fa-shield text-danger me-2"></i>Panel Admin</h3>
-              <button onClick={() => setIsAdminLogged(false)} className="btn btn-outline-danger btn-sm fw-bold rounded-pill shadow-sm"><i className="fa-solid fa-power-off me-1"></i> Keluar</button>
-            </div>
-            
-            {successMsg && <div className="alert alert-success border-0 shadow-sm rounded-4 py-3 fw-bold mb-4"><i className="fa-solid fa-circle-check me-2 fs-5"></i>{successMsg}</div>}
-            {errorMsg && <div className="alert alert-danger border-0 shadow-sm rounded-4 py-3 fw-bold mb-4"><i className="fa-solid fa-triangle-exclamation me-2 fs-5"></i>{errorMsg}</div>}
-            
-            <div className="card-premium bg-dark text-white mb-4">
-              <div className="card-body p-4 p-md-5 position-relative overflow-hidden">
-                <i className="fa-solid fa-cloud-arrow-up position-absolute opacity-25 text-primary" style={{fontSize: '150px', right: '-20px', bottom: '-40px'}}></i>
-                <div className="position-relative z-10">
-                  <h4 className="fw-black mb-2">Upload Database Massal</h4>
-                  <p className="small text-white-50 mb-4 fw-medium lh-lg">File didukung: CSV & XLSX. Sistem akan membaca kolom A, B, C, D sesuai urutan baku template.</p>
-                  
-                  <div className="d-flex gap-2 mb-4">
-                    <button onClick={handleDownloadTemplate} className="btn btn-outline-light btn-sm fw-bold rounded-pill px-3">
-                      <i className="fa-solid fa-download me-1"></i> Download Template
-                    </button>
-                  </div>
-
-                  <input type="file" accept=".xlsx, .csv" ref={fileInputRef} onChange={handleExcelUpload} className="d-none" />
-                  <button onClick={() => fileInputRef.current.click()} disabled={isSyncing} className="btn btn-primary btn-lg w-100 fw-bold rounded-pill shadow py-3">
-                     {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin me-2"></i>Mengekstrak...</> : <><i className="fa-solid fa-file-excel me-2"></i>Pilih File Data</>}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="card-premium border border-danger border-opacity-25 mb-4">
-              <div className="card-header bg-danger bg-opacity-10 text-danger border-0 fw-bold pt-4 pb-2 px-4 fs-5"><i className="fa-solid fa-trash-can me-2"></i>Manajemen Penghapusan</div>
-              <div className="card-body p-4">
-                 <button onClick={handleResetAll} disabled={isSyncing} className="btn btn-danger w-100 fw-black rounded-pill mb-4 shadow py-3">
-                   <i className="fa-solid fa-skull-crossbones me-2"></i> FORMAT KOSONG DATABASE
-                 </button>
-
-                 <h6 className="fw-bold text-dark mt-4 mb-3 border-bottom pb-2">Hapus Item Spesifik:</h6>
-                 {groupedTasks.length === 0 && <p className="text-muted small text-center py-4 bg-light rounded-4">Database masih kosong.</p>}
-                 {groupedTasks.map(g => (
-                   <details key={g.taskName} className="bg-light p-3 rounded-4 mb-3 border border-light-subtle shadow-sm">
-                     <summary className="fw-bold d-flex justify-content-between align-items-center text-dark" style={{cursor:'pointer', listStyle:'none'}}>
-                       <span><i className="fa-solid fa-folder text-warning me-2 fs-5"></i>{g.taskName} <span className="badge bg-secondary ms-1">{g.assignees.length} Org</span></span>
-                       <button onClick={(e) => { e.preventDefault(); handleDeleteGroup(g.taskName); }} className="btn btn-sm btn-outline-danger fw-bold rounded-pill px-3"><i className="fa-solid fa-trash"></i></button>
-                     </summary>
-                     <ul className="list-group list-group-flush mt-3">
-                       {g.assignees.map(a => (
-                         <li key={a.id} className="list-group-item d-flex justify-content-between align-items-center bg-transparent border-light-subtle px-0 py-3">
-                           <div className="small fw-bold text-secondary"><i className="fa-solid fa-user-tag me-2 text-primary"></i>{a.picId}</div>
-                           <button onClick={() => handleDeletePerson(a.id, a.picId)} className="btn btn-sm btn-danger rounded-circle shadow-sm" style={{width:'30px', height:'30px'}}><i className="fa-solid fa-xmark"></i></button>
-                         </li>
-                       ))}
-                     </ul>
-                   </details>
-                 ))}
-              </div>
-            </div>
-
-          </div>
-        );
-      };
-
       if (isLoading) return <div className="min-h-screen d-flex align-items-center justify-content-center bg-white"><div className="text-center"><i className="fa-solid fa-circle-notch fa-spin text-primary mb-3" style={{fontSize: '3.5rem'}}></i><h5 className="fw-bold text-dark">Memuat Data...</h5></div></div>;
 
-      // --- MAIN LAYOUT (App Container Berbasis HP) ---
+      const isOffline = !firebaseConfig.apiKey || firebaseConfig.apiKey === "API_KEY_ANDA_DISINI";
+
       return (
         <div className="app-container">
           <header className="app-header">
@@ -798,11 +778,11 @@
           </header>
 
           <main className="px-3 py-4">
-            {activeTab === 'dashboard' && <Dashboard />}
-            {activeTab === 'kegiatan' && <DaftarKegiatan />}
-            {activeTab === 'peringkat' && <Leaderboard />}
-            {activeTab === 'input' && <ProgressForm />}
-            {activeTab === 'admin' && <AdminPanel />}
+            {activeTab === 'dashboard' && <Dashboard groupedTasks={groupedTasks} isOffline={isOffline} setActiveTab={setActiveTab} setSelectedGroup={setSelectedGroup} />}
+            {activeTab === 'kegiatan' && <DaftarKegiatan groupedTasks={groupedTasks} selectedGroup={selectedGroup} setSelectedGroup={setSelectedGroup} />}
+            {activeTab === 'peringkat' && <Leaderboard tasks={tasks} employees={employees} />}
+            {activeTab === 'input' && <ProgressForm tasks={tasks} employees={employees} user={user} db={db} />}
+            {activeTab === 'admin' && <AdminPanel db={db} tasks={tasks} groupedTasks={groupedTasks} user={user} isAdminLogged={isAdminLogged} setIsAdminLogged={setIsAdminLogged} />}
           </main>
 
           <nav className="bottom-nav">
