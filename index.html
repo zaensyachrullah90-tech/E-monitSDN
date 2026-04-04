@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>MonitorPro - Premium Midnight</title>
 
-  <!-- Mencegah layar blank akibat ekstensi browser Chrome/HP -->
+  <!-- PENGAMAN 1: Mencegah layar blank akibat error sistem -->
   <script>
-    window.onerror = function(msg) { 
+    window.onerror = function(msg, url, line) { 
       if(msg.includes("ResizeObserver")) return true;
+      document.getElementById('native-loader').innerHTML = `<h3 style="color:red; font-family:sans-serif; text-align:center; margin-top:20px;">Gagal memuat. Silakan Refresh (Muat Ulang) browser Anda.</h3>`;
       return false; 
     };
   </script>
@@ -35,9 +36,8 @@
   <!-- Font Awesome 6 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" />
 
-  <!-- FIREBASE REALTIME DATABASE (COMPAT VERSION) -->
+  <!-- FIREBASE REALTIME DATABASE COMPAT -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
   <!-- React & Excel Dependencies -->
@@ -47,7 +47,7 @@
   <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
   <style>
-    body { background-color: #f4f6f9; font-family: 'Inter', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: #f4f6f9; font-family: 'Inter', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
@@ -55,16 +55,27 @@
     .card-btn { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer; display: block; width: 100%; text-align: left; border: none; outline: none; }
     .card-btn:active { transform: scale(0.96); }
     input, select, button { outline: none; }
+    
+    /* Animasi Pre-Loader HTML Murni */
+    .spinner { border: 4px solid rgba(11, 19, 43, 0.1); width: 50px; height: 50px; border-radius: 50%; border-left-color: #0B132B; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
 <body class="text-slate-800 pb-24">
+
+  <!-- PENGAMAN 2: PRE-LOADER ANTI BLANK PUTIH -->
+  <div id="native-loader" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; background-color: #f4f6f9; width: 100%; position: absolute; z-index: 9999;">
+    <div class="spinner"></div>
+    <h2 style="font-family: sans-serif; font-weight: 900; color: #0B132B; margin: 0; font-size: 20px;">Memuat Sistem...</h2>
+    <p style="font-family: sans-serif; color: #6c757d; font-size: 13px; margin-top: 5px; font-weight: bold;">Merakit komponen UI & Database</p>
+  </div>
 
   <div id="root"></div>
 
   <script type="text/babel">
     const { useState, useMemo, useRef, useEffect, memo, Component } = React;
 
-    // --- ERROR BOUNDARY ---
+    // --- ERROR BOUNDARY REACT ---
     class ErrorBoundary extends Component {
       constructor(props) { super(props); this.state = { hasError: false, errorMsg: '' }; }
       static getDerivedStateFromError(error) { return { hasError: true, errorMsg: error.toString() }; }
@@ -72,10 +83,10 @@
         if (this.state.hasError) {
           return (
             <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-red-50 text-center">
-               <i className="fa-solid fa-triangle-exclamation text-red-500 text-6xl mb-4"></i>
-               <h2 className="text-xl font-black text-red-700 mb-2">Aplikasi Mengalami Kendala</h2>
+               <i className="fa-solid fa-triangle-exclamation text-red-500 text-6xl mb-4 drop-shadow-md"></i>
+               <h2 className="text-2xl font-black text-red-700 mb-2">Aplikasi Terhenti</h2>
                <p className="text-xs font-bold text-red-600 mb-6 bg-white p-3 rounded-lg border border-red-200">{this.state.errorMsg}</p>
-               <button onClick={() => window.location.reload()} className="bg-red-600 text-white font-bold py-3 px-6 rounded-full">Muat Ulang Aplikasi</button>
+               <button onClick={() => window.location.reload()} className="bg-red-600 text-white font-bold py-3 px-6 rounded-full shadow-md">Muat Ulang Aplikasi</button>
             </div>
           );
         }
@@ -84,7 +95,7 @@
     }
 
     // =========================================================================
-    // 🔥 KONFIGURASI FIREBASE ANDA 
+    // 🔥 KONFIGURASI FIREBASE ANDA
     // =========================================================================
     const firebaseConfig = {
         apiKey: "AIzaSyBEc1KmTOURFvVkUsGXb1Q_sTwX0tm_z9E",
@@ -169,8 +180,8 @@
                 <span className="text-slate-500">Progress ({group.progress}/{group.target})</span>
                 <span className={`font-black text-sm ${percentColor}`}>{percent}%</span>
               </div>
-              <div className="w-full bg-slate-100 rounded-full h-2 shadow-inner">
-                <div className={`${progressBg} h-2 rounded-full transition-all duration-1000 ease-out`} style={{ width: `${percent}%` }}></div>
+              <div className="w-full bg-slate-100 rounded-full h-2.5 shadow-inner">
+                <div className={`${progressBg} h-2.5 rounded-full transition-all duration-1000 ease-out`} style={{ width: `${percent}%` }}></div>
               </div>
             </div>
             
@@ -404,8 +415,8 @@
       );
     };
 
-    // --- MENU 4: INPUT PROGRES (REALTIME DB LOGIC) ---
-    const ProgressForm = ({ tasks, employees, user, db }) => {
+    // --- MENU 4: INPUT PROGRES ---
+    const ProgressForm = ({ tasks, employees, db }) => {
       const [selectedEmp, setSelectedEmp] = useState('');
       const [selectedTask, setSelectedTask] = useState('');
       const [amount, setAmount] = useState('');
@@ -416,14 +427,13 @@
 
       const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!user || !db) { alert("Sistem belum siap. Tunggu Sebentar."); return; }
+        if (!db) { alert("Sistem belum terhubung ke database. Cek koneksi Anda."); return; }
         setIsSyncing(true);
         try {
           const task = tasks.find(t => String(t.id) === String(selectedTask));
           const newProgress = Math.min(task.progress + parseInt(amount), task.target);
           const isDone = newProgress >= task.target;
           
-          // REALTIME DATABASE UPDATE
           await db.ref(`artifacts/${APP_ID}/public/data/tasks/${task.id}`).update({ 
               progress: newProgress, status: isDone ? 'Selesai' : 'On Progress' 
           });
@@ -487,8 +497,8 @@
       );
     };
 
-    // --- MENU 5: ADMIN PANEL (REALTIME DB LOGIC) ---
-    const AdminPanel = ({ db, tasks, groupedTasks, user, isAdminLogged, setIsAdminLogged }) => {
+    // --- MENU 5: ADMIN PANEL ---
+    const AdminPanel = ({ db, tasks, groupedTasks, isAdminLogged, setIsAdminLogged }) => {
       const [pwd, setPwd] = useState('');
       const [successMsg, setSuccessMsg] = useState('');
       const [errorMsg, setErrorMsg] = useState('');
@@ -518,7 +528,6 @@
         );
       }
 
-      // FUNGSI UPLOAD CSV/EXCEL UNTUK REALTIME DATABASE
       const handleExcelUpload = (e) => {
         const file = e.target.files[0];
         if (!file || !db) return;
@@ -573,7 +582,6 @@
 
                const newId = Date.now() + Math.floor(Math.random() * 10000) + i;
                
-               // Multi-path update untuk Realtime Database
                updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = {
                  id: newId, taskName: taskName, picId: picIndicator.toUpperCase(), 
                  target: target, progress: 0, deadline: finalDeadline, status: 'On Progress'
@@ -587,7 +595,7 @@
                  setSuccessMsg(`BERHASIL! ${addedCount} kegiatan masuk ke database.`); 
                  setTimeout(() => setSuccessMsg(''), 6000);
                } catch (fbError) {
-                 setErrorMsg("UPLOAD DITOLAK! Pastikan 'Rules' Firebase Anda sudah diganti menjadi .read: true dan .write: true");
+                 setErrorMsg("UPLOAD DITOLAK! Pastikan database Anda tersetting '.write: true'");
                }
              } else { setErrorMsg("Data Kosong. File harus berisi isian data."); }
            } catch (error) { 
@@ -675,7 +683,7 @@
               </button>
 
               <input type="file" accept=".xlsx, .csv" ref={fileInputRef} onChange={handleExcelUpload} className="hidden" />
-              <button onClick={() => fileInputRef.current.click()} disabled={isSyncing || !user} className="w-full bg-white text-midnight font-black py-3.5 rounded-xl shadow-soft hover:bg-slate-50 transition-colors flex justify-center items-center gap-2 outline-none">
+              <button onClick={() => fileInputRef.current.click()} disabled={isSyncing || !db} className="w-full bg-white text-midnight font-black py-3.5 rounded-xl shadow-soft hover:bg-slate-50 transition-colors flex justify-center items-center gap-2 outline-none">
                  {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin text-status-selesai"></i> Mengekstrak...</> : <><i className="fa-solid fa-file-excel text-emerald-500"></i> Pilih File Data</>}
               </button>
             </div>
@@ -686,7 +694,7 @@
               <i className="fa-solid fa-trash-can text-red-500"></i> <span className="font-black text-midnight text-sm uppercase tracking-wider">Manajemen Hapus</span>
             </div>
             <div className="p-5 space-y-4">
-               <button onClick={handleResetAll} disabled={isSyncing || !user} className="w-full bg-red-50 text-red-600 border border-red-200 font-black py-3.5 rounded-xl shadow-sm hover:bg-red-100 transition-colors flex justify-center items-center gap-2 mb-2 outline-none">
+               <button onClick={handleResetAll} disabled={isSyncing || !db} className="w-full bg-red-50 text-red-600 border border-red-200 font-black py-3.5 rounded-xl shadow-sm hover:bg-red-100 transition-colors flex justify-center items-center gap-2 mb-2 outline-none">
                  <i className="fa-solid fa-skull-crossbones"></i> FORMAT KOSONG DATABASE
                </button>
 
@@ -722,68 +730,45 @@
       );
     };
 
-    // --- APP CORE (REALTIME DB LISTENER) ---
+    // --- APP CORE ---
     function App() {
       const [activeTab, setActiveTab] = useState('dashboard');
       const [employees, setEmployees] = useState([]);
       const [tasks, setTasks] = useState([]);
       const [isLoading, setIsLoading] = useState(true);
-      const [globalError, setGlobalError] = useState(null);
       const [selectedTaskName, setSelectedTaskName] = useState(null);
-      const [user, setUser] = useState(null);
       const [db, setDb] = useState(null);
       
       const [isAdminLogged, setIsAdminLogged] = useState(() => sessionStorage.getItem('adminAuth') === 'true'); 
 
-      // INIT FIREBASE PINTAR
+      // INIT FIREBASE PINTAR (MENGABAIKAN KEBUTUHAN LOGIN AUTHENTICATION)
       useEffect(() => {
-        let isMounted = true;
-        const initFirebase = async () => {
-          try {
-            if (!window.firebase.apps.length) { 
-              window.firebase.initializeApp(firebaseConfig); 
-            }
-            // MENGGUNAKAN DATABASE REALTIME BUKAN FIRESTORE
-            const database = window.firebase.database();
-            if (isMounted) setDb(database);
-            
-            const auth = window.firebase.auth();
-            try {
-              await auth.signInAnonymously();
-            } catch (authErr) {
-              if (isMounted) {
-                setGlobalError("Gagal login! Aktifkan mode 'Anonymous' di menu Authentication Firebase Anda.");
-                setIsLoading(false);
-              }
-              return;
-            }
-
-            auth.onAuthStateChanged(u => {
-              if (isMounted) setUser(u);
-            });
-
-          } catch (e) {
-            if (isMounted) {
-              setGlobalError("Gagal menghubungi server database.");
-              setIsLoading(false);
-            }
+        try {
+          if (!window.firebase) { 
+             console.error("Firebase tidak termuat"); 
+             return; 
           }
-        };
-        initFirebase();
-        
-        const fallbackTimer = setTimeout(() => {
-           if (isMounted && isLoading) {
-              setGlobalError("Waktu tunggu habis (Timeout). Internet lambat atau Firebase diblokir.");
-              setIsLoading(false);
-           }
-        }, 10000);
+          if (!window.firebase.apps.length) { 
+            window.firebase.initializeApp(firebaseConfig); 
+          }
+          // Ambil Database secara Langsung
+          const database = window.firebase.database();
+          setDb(database);
 
-        return () => { isMounted = false; clearTimeout(fallbackTimer); }
+        } catch (e) {
+          console.error(e);
+          setIsLoading(false);
+        }
       }, []);
 
       // LISTENER REALTIME DATABASE
       useEffect(() => {
-        if (!user || !db) return;
+        if (!db) return;
+        
+        // Hapus elemen Native Loader setelah React sukses merender Database
+        const loader = document.getElementById('native-loader');
+        if (loader) loader.style.display = 'none';
+
         const ref = db.ref(`artifacts/${APP_ID}/public/data/tasks`);
         
         const listener = ref.on('value', (snapshot) => {
@@ -797,15 +782,13 @@
             setEmployees(uniquePics.map(pic => ({ id: pic, name: pic })));
             
             setIsLoading(false);
-            setGlobalError(null);
         }, (error) => {
-            console.error(error);
-            setGlobalError("Izin Database ditolak! Pastikan Rules Realtime Database Anda telah diubah menjadi: .read: true, .write: true");
+            console.error("Gagal terhubung ke database:", error);
             setIsLoading(false);
         });
 
         return () => ref.off('value', listener);
-      }, [user, db]);
+      }, [db]);
 
       const groupedTasks = useMemo(() => {
         const groups = {};
@@ -819,20 +802,6 @@
         return Object.values(groups);
       }, [tasks]);
 
-      // Tampilan Error Fatal
-      if (globalError) {
-        return (
-          <div className="min-h-screen flex flex-col gap-4 items-center justify-center bg-slate-50 p-6 text-center">
-            <i className="fa-solid fa-triangle-exclamation text-red-500 text-6xl drop-shadow-md"></i>
-            <h2 className="text-2xl font-black text-midnight">Koneksi Ditolak</h2>
-            <p className="text-red-600 font-bold bg-red-50 border border-red-200 p-4 rounded-xl shadow-sm text-sm">{globalError}</p>
-            <button onClick={() => window.location.reload()} className="bg-midnight text-white px-6 py-3 rounded-full font-bold shadow-md mt-4">Muat Ulang</button>
-          </div>
-        );
-      }
-
-      if (isLoading) return <div className="min-h-screen flex flex-col gap-4 items-center justify-center bg-slate-50"><i className="fa-solid fa-circle-notch fa-spin text-status-selesai text-5xl drop-shadow-sm"></i><h5 className="font-black text-midnight text-sm uppercase tracking-widest">Menghubungkan...</h5></div>;
-
       return (
         <div className="app-container">
           <header className="bg-gradient-to-r from-midnight to-midnight-light text-white shadow-nav sticky top-0 z-50">
@@ -843,7 +812,7 @@
                 </div>
                 MonitorPro
               </a>
-              {user && <span className="bg-white/10 border border-white/20 text-white rounded-full px-3 py-1.5 shadow-sm text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm"><i className="fa-solid fa-cloud-arrow-up fa-fade mr-1.5 text-status-selesai"></i> Sync</span>}
+              <span className="bg-white/10 border border-white/20 text-white rounded-full px-3 py-1.5 shadow-sm text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm"><i className="fa-solid fa-cloud-arrow-up fa-fade mr-1.5 text-status-selesai"></i> Sync</span>
             </div>
           </header>
 
@@ -851,8 +820,8 @@
             {activeTab === 'dashboard' && <Dashboard groupedTasks={groupedTasks} setActiveTab={setActiveTab} setSelectedTaskName={setSelectedTaskName} />}
             {activeTab === 'kegiatan' && <DaftarKegiatan groupedTasks={groupedTasks} selectedTaskName={selectedTaskName} setSelectedTaskName={setSelectedTaskName} />}
             {activeTab === 'peringkat' && <Leaderboard tasks={tasks} employees={employees} />}
-            {activeTab === 'input' && <ProgressForm tasks={tasks} employees={employees} user={user} db={db} />}
-            {activeTab === 'admin' && <AdminPanel db={db} tasks={tasks} groupedTasks={groupedTasks} user={user} isAdminLogged={isAdminLogged} setIsAdminLogged={setIsAdminLogged} />}
+            {activeTab === 'input' && <ProgressForm tasks={tasks} employees={employees} db={db} />}
+            {activeTab === 'admin' && <AdminPanel db={db} tasks={tasks} groupedTasks={groupedTasks} isAdminLogged={isAdminLogged} setIsAdminLogged={setIsAdminLogged} />}
           </main>
 
           <nav className="fixed bottom-0 w-full max-w-[600px] left-1/2 -translate-x-1/2 bg-white rounded-t-[30px] shadow-[0_-10px_40px_rgba(11,19,43,0.08)] z-50 flex justify-around items-center px-2 py-3 border-t border-slate-100">
@@ -874,11 +843,16 @@
       );
     }
 
+    // Eksekusi React Aman dengan Pre-loader penghapus blank putih
     const initApp = () => {
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      root.render(<ErrorBoundary><App /></ErrorBoundary>);
+      const rootElement = document.getElementById('root');
+      if (rootElement) {
+        const root = ReactDOM.createRoot(rootElement);
+        root.render(<ErrorBoundary><App /></ErrorBoundary>);
+      }
     };
     
+    // Pastikan DOM dan script termuat sempurna sebelum React dijalankan
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initApp);
     } else {
