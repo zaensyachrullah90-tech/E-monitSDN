@@ -212,7 +212,7 @@
           <div className="flex justify-between items-center">
             <div>
               <h3 className="text-2xl font-black text-midnight tracking-tight">Beranda</h3>
-              <p className="text-dslate-500 text-sm font-bold mt-0.5">Ringkasan Evaluasi Kinerja</p>
+              <p className="text-slate-500 text-sm font-bold mt-0.5">Ringkasan Evaluasi Kinerja</p>
             </div>
             <span className="bg-white border border-slate-200 text-midnight font-bold px-3 py-1.5 rounded-full shadow-sm text-xs flex items-center gap-1.5">
               <i className="fa-solid fa-wifi fa-fade text-status-selesai"></i> Online
@@ -402,7 +402,7 @@
                           </span>
                         </div>
                         <div className={`px-4 py-2 text-[10px] font-bold tracking-wider ${isDone ? 'bg-status-selesai/10 text-status-selesai' : 'bg-slate-100 text-slate-400'}`}>
-                           {isDone ? <><i className="fa-solid fa-flag-checkered mr-1"></i> Tuntas: {formatDateId(a.completedAt)}</> : <><i className="fa-solid fa-hourglass-start mr-1"></i> Mulai: {formatDateId(a.startDate)}</>}
+                           {isDone ? <><i className="fa-solid fa-flag-checkered mr-1"></i> Tuntas pada: {formatDateId(a.completedAt)}</> : <><i className="fa-solid fa-hourglass-start mr-1"></i> Mulai dikerjakan: {formatDateId(a.startDate)}</>}
                         </div>
                       </div>
                     );
@@ -428,6 +428,129 @@
               </div>
             )}
             {groupedTasks.map(group => <GroupedTaskCard key={group.taskName} group={group} onClick={setSelectedTaskName} />)}
+          </div>
+        </div>
+      );
+    };
+
+    // --- MENU KHUSUS: LIVE PREVIEW PUBLIK ---
+    const LivePreviewView = ({ taskName, groupedTasks }) => {
+      const activeGroup = groupedTasks.find(g => g.taskName === taskName);
+
+      if (!activeGroup) {
+        return (
+          <div className="min-h-screen flex flex-col gap-4 items-center justify-center bg-slate-50 p-6 text-center">
+            <i className="fa-solid fa-circle-exclamation text-slate-400 text-6xl"></i>
+            <h2 className="text-2xl font-black text-midnight">Kegiatan Tidak Ditemukan</h2>
+            <p className="text-slate-500 font-bold text-sm">Mungkin kegiatan ini sudah dihapus atau namanya salah.</p>
+          </div>
+        );
+      }
+
+      const totalPelaksana = activeGroup.assignees.length;
+      const selesaiCount = activeGroup.assignees.filter(a => a.progress >= a.target).length;
+      const belumCount = totalPelaksana - selesaiCount;
+      const totalProgressGroup = activeGroup.assignees.reduce((sum, a) => sum + a.progress, 0);
+      const totalTargetGroup = activeGroup.assignees.reduce((sum, a) => sum + a.target, 0);
+      const overallPercent = totalTargetGroup === 0 ? 0 : Math.min(Math.round((totalProgressGroup / totalTargetGroup) * 100), 100);
+
+      return (
+        <div className="min-h-screen bg-midnight text-white pb-10">
+          <div className="bg-gradient-to-r from-midnight-light to-midnight shadow-nav sticky top-0 z-50 border-b border-white/10">
+            <div className="px-5 py-4 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/10 border border-white/20 text-white rounded-xl p-2 flex items-center justify-center shadow-inner" style={{width: '45px', height: '45px'}}>
+                  <i className="fa-solid fa-chart-line text-yellow-400 text-xl"></i>
+                </div>
+                <div>
+                  <h1 className="font-black text-lg leading-tight tracking-tight">Live Preview</h1>
+                  <p className="text-[10px] text-white/50 uppercase tracking-widest font-bold">MonitorSDMPKHTapin</p>
+                </div>
+              </div>
+              <span className="bg-red-500 text-white rounded-full px-3 py-1.5 shadow-glossy text-[10px] font-black uppercase tracking-wider flex items-center shadow-red-500/50">
+                <i className="fa-solid fa-circle text-[8px] fa-fade mr-1.5"></i> Live
+              </span>
+            </div>
+          </div>
+
+          <div className="p-5 space-y-6 max-w-[800px] mx-auto animate-fade-in mt-4">
+            
+            <div className="text-center space-y-2 mb-8">
+              <span className={`inline-flex items-center gap-1.5 ${activeGroup.status === 'Selesai' ? 'bg-status-selesai text-white' : 'bg-status-proses text-white'} text-xs font-black px-4 py-2 rounded-full shadow-glossy uppercase tracking-wider`}>
+                <i className={`fa-solid ${activeGroup.status === 'Selesai' ? 'fa-check-double' : 'fa-spinner fa-spin'}`}></i> {activeGroup.status}
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-black leading-tight mt-3 mb-1">{activeGroup.taskName}</h2>
+              <p className="text-white/60 font-bold text-sm"><i className="fa-solid fa-calendar-day text-blue-400"></i> Tenggat: {formatDateId(activeGroup.deadline)}</p>
+            </div>
+
+            <div className="bg-midnight-light rounded-3xl p-6 shadow-glossy border border-white/10">
+              <div className="flex justify-between items-end mb-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-white/50 font-bold mb-1">Capaian Keseluruhan</p>
+                  <div className="text-xl font-black text-white">{totalProgressGroup} <span className="text-sm text-white/50">/ {totalTargetGroup} Dokumen</span></div>
+                </div>
+                <h1 className="text-4xl font-black text-status-selesai">{overallPercent}%</h1>
+              </div>
+              <div className="w-full bg-midnight rounded-full h-4 shadow-inner border border-white/5">
+                <div className={`${overallPercent >= 100 ? 'bg-status-selesai' : 'bg-status-proses'} h-4 rounded-full transition-all duration-1000 relative overflow-hidden`} style={{ width: `${overallPercent}%` }}>
+                  <div className="absolute inset-0 bg-white/20" style={{backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%, transparent)', backgroundSize: '1rem 1rem', animation: 'progress-stripes 1s linear infinite'}}></div>
+                </div>
+              </div>
+            </div>
+            
+            <style>{`@keyframes progress-stripes { from { background-position: 1rem 0; } to { background-position: 0 0; } }`}</style>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-midnight-light rounded-2xl p-4 text-center border border-white/5 shadow-soft">
+                <h2 className="text-2xl font-black text-white mb-1">{totalPelaksana}</h2>
+                <span className="text-[10px] text-white/50 font-bold uppercase tracking-wider">Pelaksana</span>
+              </div>
+              <div className="bg-status-selesai/20 rounded-2xl p-4 text-center border border-status-selesai/30 shadow-soft">
+                <h2 className="text-2xl font-black text-status-selesai mb-1">{selesaiCount}</h2>
+                <span className="text-[10px] text-status-selesai font-bold uppercase tracking-wider">Selesai</span>
+              </div>
+              <div className="bg-status-proses/20 rounded-2xl p-4 text-center border border-status-proses/30 shadow-soft">
+                <h2 className="text-2xl font-black text-status-proses mb-1">{belumCount}</h2>
+                <span className="text-[10px] text-status-proses font-bold uppercase tracking-wider">Proses</span>
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <h6 className="font-black text-white mb-4 flex items-center gap-2 text-sm uppercase tracking-wider border-b border-white/10 pb-3">
+                <i className="fa-solid fa-list-check text-white/50"></i> Daftar Pelaksana Secara Live
+              </h6>
+              <div className="space-y-3">
+                {activeGroup.assignees.map((a, idx) => {
+                  const isDone = a.progress >= a.target;
+                  const p = Math.min(Math.round((a.progress / a.target) * 100), 100);
+                  
+                  return (
+                    <div key={idx} className="bg-midnight-light rounded-2xl border border-white/5 shadow-soft p-4 relative overflow-hidden">
+                      <div className="flex justify-between items-center relative z-10 mb-3">
+                        <div className="font-black text-white text-sm">{a.picId}</div>
+                        <div className={`text-xs font-black ${isDone ? 'text-status-selesai' : 'text-status-proses'}`}>{p}%</div>
+                      </div>
+                      
+                      <div className="w-full bg-midnight rounded-full h-2 shadow-inner border border-white/5 relative z-10 mb-3">
+                        <div className={`${isDone ? 'bg-status-selesai' : 'bg-status-proses'} h-2 rounded-full transition-all duration-1000`} style={{ width: `${p}%` }}></div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider relative z-10">
+                        <span className="text-white/50">Capaian: <span className="text-white">{a.progress}</span> / {a.target}</span>
+                        <span className={isDone ? 'text-status-selesai' : 'text-status-proses'}>
+                          <i className={`fa-solid ${isDone ? 'fa-check-circle' : 'fa-spinner fa-spin'} mr-1`}></i> {isDone ? 'Selesai' : 'Proses'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <div className="text-center text-[10px] text-white/30 mt-10 mb-4 font-bold uppercase tracking-widest">
+              Live Preview • MonitorSDMPKHTapin
+            </div>
+
           </div>
         </div>
       );
@@ -495,7 +618,7 @@
       );
     };
 
-    // --- MENU 4: INPUT PROGRES (ANTI-MACET DI HP) ---
+    // --- MENU 4: INPUT PROGRES (Telah Dikebalkan untuk Mobile) ---
     const ProgressForm = ({ tasks, employees, db }) => {
       const [selectedEmp, setSelectedEmp] = useState('');
       const [selectedTask, setSelectedTask] = useState('');
@@ -512,11 +635,8 @@
 
       const handleSubmit = async (e) => {
         e.preventDefault();
-        
-        // Custom Manual Validation untuk Bypass Bug Safari/Android Required Field
         if (!selectedEmp || !selectedTask || !amount || parseInt(amount) <= 0) {
-          showToast('error');
-          return;
+          showToast('error'); return;
         }
         if (!db) { showToast('error'); return; }
         
@@ -533,6 +653,7 @@
           
           if (isDone && task.status !== 'Selesai') updates.completedAt = today;
           else if (!isDone) updates.completedAt = null;
+          else updates.completedAt = task.completedAt || null;
 
           await db.ref(`artifacts/${APP_ID}/public/data/tasks/${task.id}`).update(updates);
 
@@ -545,7 +666,6 @@
       return (
         <div className="animate-slide-up max-w-lg mx-auto space-y-6 relative">
           
-          {/* COMPACT TOAST NOTIFICATION */}
           {toast && (
             <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-slide-up">
               <div className={`px-5 py-2 rounded-full shadow-lg font-black text-xs flex items-center gap-2 text-white ${toast === 'success' ? 'bg-status-selesai' : 'bg-red-500'}`}>
@@ -620,7 +740,12 @@
         if(!db || !voteEmp || selectedOptions.length === 0) { showToast('error'); return; }
         setIsSyncing(true);
         try {
-           await db.ref(`artifacts/${APP_ID}/public/data/votings/${activeVote.id}/votes/${voteEmp}`).set(selectedOptions);
+           // ENKRIPSI KEY: Mencegah error jika ada titik (.) di nama pegawai
+           const safeKey = btoa(unescape(encodeURIComponent(voteEmp))).replace(/[.#$/\[\]]/g, '_');
+           await db.ref(`artifacts/${APP_ID}/public/data/votings/${activeVote.id}/votes/${safeKey}`).set({
+             name: voteEmp,
+             options: selectedOptions
+           });
            showToast('success');
            setVoteEmp(''); setSelectedOptions([]); setActiveTab('statistik');
         } catch (err) { showToast('error'); }
@@ -671,15 +796,18 @@
       }
 
       const votesObj = activeVote.votes || {};
-      const sudahVoteNames = Object.keys(votesObj);
+      const votesArray = Object.values(votesObj);
+      const sudahVoteNames = votesArray.map(v => v.name);
       const voters = activeVote.voters || [];
       const belumVoteNames = voters.filter(v => !sudahVoteNames.includes(v));
 
       const optionCounts = {};
       activeVote.options.forEach(o => optionCounts[o] = 0);
       let totalSuaraMasuk = 0;
-      Object.values(votesObj).forEach(userPicks => {
-         userPicks.forEach(p => { if(optionCounts[p] !== undefined) optionCounts[p]++; totalSuaraMasuk++; });
+      votesArray.forEach(vote => {
+         if(vote.options && Array.isArray(vote.options)) {
+           vote.options.forEach(p => { if(optionCounts[p] !== undefined) optionCounts[p]++; totalSuaraMasuk++; });
+         }
       });
 
       return (
@@ -688,7 +816,7 @@
             <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-slide-up">
               <div className={`px-5 py-2 rounded-full shadow-lg font-black text-xs flex items-center gap-2 text-white ${toast === 'success' ? 'bg-status-selesai' : 'bg-red-500'}`}>
                 <i className={`fa-solid ${toast === 'success' ? 'fa-check-circle' : 'fa-xmark-circle'} text-lg`}></i> 
-                {toast === 'success' ? 'BERHASIL' : 'GAGAL'}
+                {toast === 'success' ? 'BERHASIL' : 'DATA TIDAK VALID'}
               </div>
             </div>
           )}
@@ -731,12 +859,12 @@
 
           {activeTab === 'sudah' && (
             <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 space-y-3 animate-fade-in">
-               {sudahVoteNames.length === 0 && <p className="text-center text-xs font-bold text-slate-400 py-4">Belum ada suara masuk.</p>}
-               {sudahVoteNames.map(name => (
-                 <div key={name} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <span className="font-bold text-midnight text-xs">{name}</span>
+               {votesArray.length === 0 && <p className="text-center text-xs font-bold text-slate-400 py-4">Belum ada suara masuk.</p>}
+               {votesArray.map(voteData => (
+                 <div key={voteData.name} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <span className="font-bold text-midnight text-xs">{voteData.name}</span>
                     <div className="flex gap-1 flex-wrap justify-end max-w-[60%]">
-                      {votesObj[name].map(opt => <span key={opt} className="bg-blue-50 border border-blue-100 text-status-selesai text-[9px] font-bold px-2 py-1 rounded-md truncate">{opt}</span>)}
+                      {voteData.options && voteData.options.map(opt => <span key={opt} className="bg-blue-50 border border-blue-100 text-status-selesai text-[9px] font-bold px-2 py-1 rounded-md truncate">{opt}</span>)}
                     </div>
                  </div>
                ))}
@@ -801,6 +929,7 @@
       const [voteTitle, setVoteTitle] = useState('');
       const [voteOptions, setVoteOptions] = useState(['']);
       const [isMulti, setIsMulti] = useState(false);
+      const [editVoteModal, setEditVoteModal] = useState({ isOpen: false, id: null, title: '', options: [''], isMulti: false });
 
       const showToast = (type) => {
         setToast(type);
@@ -833,9 +962,7 @@
 
       const handleAddManual = async (e) => {
         e.preventDefault();
-        
         if(!newTask.taskName || !newTask.picId || !newTask.deadline) { showToast('error'); return; }
-        
         setIsSyncing(true);
         try {
           const updates = {};
@@ -874,7 +1001,6 @@
       const handleExcelUpload = (e) => {
         const file = e.target.files[0];
         if (!file || !db) return;
-
         setIsSyncing(true);
         const fileExt = file.name.toLowerCase().split('.').pop();
         const reader = new FileReader();
@@ -961,6 +1087,7 @@
              let completedAt = oldTask.completedAt;
              if (isDone && oldTask.status !== 'Selesai') completedAt = today;
              else if (!isDone) completedAt = null;
+             else completedAt = oldTask.completedAt || null;
 
              updates[`artifacts/${APP_ID}/public/data/tasks/${editModal.data.id}`] = {
                 ...oldTask,
@@ -1010,6 +1137,18 @@
         setIsSyncing(false);
       };
 
+      const handleResetIndividualProgress = async (id, name) => {
+        if(!window.confirm(`Reset progress pegawai "${name}" ke 0?`)) return;
+        setIsSyncing(true);
+        try {
+          await db.ref(`artifacts/${APP_ID}/public/data/tasks/${id}`).update({
+             progress: 0, status: 'On Progress', completedAt: null
+          });
+          showToast('success');
+        } catch (e) { showToast('error'); }
+        setIsSyncing(false);
+      };
+
       const handleDeletePerson = async (id) => {
         if(!window.confirm(`Hapus pegawai dari kegiatan ini?`)) return;
         setIsSyncing(true);
@@ -1040,23 +1179,36 @@
         setIsSyncing(false);
       };
 
+      const handleSaveEditVote = async (e) => {
+        e.preventDefault();
+        const cleanOptions = editVoteModal.options.map(o => o.trim()).filter(o => o !== '');
+        if(cleanOptions.length < 2) { showToast('error'); return; }
+        setIsSyncing(true);
+        try {
+          await db.ref(`artifacts/${APP_ID}/public/data/votings/${editVoteModal.id}`).update({
+             title: editVoteModal.title,
+             options: cleanOptions,
+             isMulti: editVoteModal.isMulti
+          });
+          showToast('success');
+          setEditVoteModal({ isOpen: false, id: null, title: '', options: [''], isMulti: false });
+        } catch (err) { showToast('error'); }
+        setIsSyncing(false);
+      };
+
       const handleDeleteVoting = async (voteId) => {
         if(!window.confirm(`Hapus acara voting ini?`)) return;
         setIsSyncing(true);
-        try {
-          await db.ref(`artifacts/${APP_ID}/public/data/votings/${voteId}`).remove();
-          showToast('success');
-        } catch (e) { showToast('error'); }
+        try { await db.ref(`artifacts/${APP_ID}/public/data/votings/${voteId}`).remove(); showToast('success'); } 
+        catch (e) { showToast('error'); }
         setIsSyncing(false);
       };
 
       const handleResetVoting = async (voteId) => {
         if(!window.confirm(`Hapus semua suara di voting ini?`)) return;
         setIsSyncing(true);
-        try {
-          await db.ref(`artifacts/${APP_ID}/public/data/votings/${voteId}/votes`).remove();
-          showToast('success');
-        } catch (e) { showToast('error'); }
+        try { await db.ref(`artifacts/${APP_ID}/public/data/votings/${voteId}/votes`).remove(); showToast('success'); } 
+        catch (e) { showToast('error'); }
         setIsSyncing(false);
       };
 
@@ -1084,7 +1236,6 @@
       return (
         <div className="animate-slide-up space-y-6 pb-10 relative">
           
-          {/* COMPACT TOAST NOTIFICATION */}
           {toast && (
             <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-slide-up">
               <div className={`px-5 py-2 rounded-full shadow-lg font-black text-xs flex items-center gap-2 text-white ${toast === 'success' ? 'bg-status-selesai' : 'bg-red-500'}`}>
@@ -1109,13 +1260,13 @@
               <form onSubmit={handleCreateVoting} className="space-y-4">
                  <div>
                     <label className="block text-[10px] font-bold text-white/70 mb-1 uppercase">Topik / Nama Voting</label>
-                    <input type="text" className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 text-sm font-bold text-white outline-none placeholder:text-white/30" value={voteTitle} onChange={e => setVoteTitle(e.target.value)} placeholder="Contoh: Menu Makan Siang" />
+                    <input type="text" required className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 text-sm font-bold text-white outline-none placeholder:text-white/30" value={voteTitle} onChange={e => setVoteTitle(e.target.value)} placeholder="Contoh: Menu Makan Siang" />
                  </div>
                  <div>
                     <label className="block text-[10px] font-bold text-white/70 mb-1 uppercase">Opsi Pilihan</label>
                     {voteOptions.map((opt, idx) => (
                       <div key={idx} className="flex gap-2 mb-2">
-                        <input type="text" className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-sm font-bold text-white outline-none placeholder:text-white/30" value={opt} onChange={e => { const newArr = [...voteOptions]; newArr[idx] = e.target.value; setVoteOptions(newArr); }} placeholder={`Opsi ${idx+1}`} />
+                        <input type="text" required className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-sm font-bold text-white outline-none placeholder:text-white/30" value={opt} onChange={e => { const newArr = [...voteOptions]; newArr[idx] = e.target.value; setVoteOptions(newArr); }} placeholder={`Opsi ${idx+1}`} />
                         {voteOptions.length > 1 && <button type="button" onClick={() => setVoteOptions(voteOptions.filter((_, i) => i !== idx))} className="bg-red-500/20 text-red-200 border border-red-500/30 w-10 rounded-xl flex items-center justify-center outline-none cursor-pointer"><i className="fa-solid fa-trash text-xs"></i></button>}
                       </div>
                     ))}
@@ -1142,11 +1293,11 @@
                   <h6 className="font-bold text-midnight text-xs uppercase tracking-wider border-b border-slate-100 pb-2">Input Manual & Multi-Target</h6>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Kegiatan</label>
-                    <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:border-midnight focus:ring-1 focus:ring-midnight shadow-inner" value={newTask.taskName} onChange={e => setNewTask({...newTask, taskName: e.target.value})} placeholder="Contoh: Entry Data PKH" />
+                    <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:border-midnight focus:ring-1 focus:ring-midnight shadow-inner" value={newTask.taskName} onChange={e => setNewTask({...newTask, taskName: e.target.value})} placeholder="Contoh: Entry Data PKH" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Tugaskan Ke</label>
-                    <input list="emp-list" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:border-midnight focus:ring-1 focus:ring-midnight shadow-inner cursor-pointer" value={newTask.picId} onChange={e => setNewTask({...newTask, picId: e.target.value})} placeholder="Ketik nama atau pilih opsi..." />
+                    <input list="emp-list" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:border-midnight focus:ring-1 focus:ring-midnight shadow-inner cursor-pointer" value={newTask.picId} onChange={e => setNewTask({...newTask, picId: e.target.value})} placeholder="Ketik nama atau pilih opsi..." />
                     <datalist id="emp-list">
                       <option value="all">🚀 SEMUA PEGAWAI SEKALIGUS</option>
                       {employees.map(emp => <option key={emp.id} value={emp.name} />)}
@@ -1164,18 +1315,18 @@
                       ))}
                       <div className="pt-2">
                         <label className="block text-[10px] font-bold text-blue-800 uppercase mb-1">Tenggat Waktu Bersama</label>
-                        <input type="date" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none cursor-pointer" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
+                        <input type="date" required className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none cursor-pointer" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
                       </div>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Target Angka</label>
-                        <input type="number" min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none text-center shadow-inner" value={newTask.target} onChange={e => setNewTask({...newTask, target: e.target.value})} placeholder="0" />
+                        <input type="number" required min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none text-center shadow-inner" value={newTask.target} onChange={e => setNewTask({...newTask, target: e.target.value})} placeholder="0" />
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Tenggat</label>
-                        <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none shadow-inner cursor-pointer" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
+                        <input type="date" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none shadow-inner cursor-pointer" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
                       </div>
                     </div>
                   )}
@@ -1235,8 +1386,9 @@
                              <div className="text-[10px] text-slate-400 font-bold mt-1">Trg: <span className="text-midnight">{a.target}</span> | Capaian: <span className="text-status-selesai">{a.progress}</span></div>
                            </div>
                            <div className="flex gap-1.5">
+                             <button onClick={(e) => { e.preventDefault(); handleResetIndividualProgress(a.id, a.picId); }} className="bg-orange-50 text-orange-500 border border-orange-200 w-8 h-8 rounded-full flex items-center justify-center hover:bg-orange-100 transition-colors outline-none cursor-pointer" title="Reset 0"><i className="fa-solid fa-rotate-left text-[10px]"></i></button>
                              <button onClick={() => setEditModal({ isOpen: true, type: 'individual', data: { id: a.id, taskName: a.taskName, picId: a.picId, target: a.target, progress: a.progress, deadline: a.deadline } })} className="bg-slate-50 text-status-selesai border border-slate-200 w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-50 transition-colors outline-none cursor-pointer" title="Edit Bebas"><i className="fa-solid fa-pen text-[10px]"></i></button>
-                             <button onClick={() => handleDeletePerson(a.id, a.picId)} className="bg-red-50 text-red-500 border border-red-100 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-100 transition-colors outline-none cursor-pointer" title="Hapus Pegawai"><i className="fa-solid fa-xmark text-sm"></i></button>
+                             <button onClick={() => handleDeletePerson(a.id)} className="bg-red-50 text-red-500 border border-red-100 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-100 transition-colors outline-none cursor-pointer" title="Hapus Pegawai"><i className="fa-solid fa-xmark text-sm"></i></button>
                            </div>
                          </div>
                        ))}
@@ -1247,7 +1399,7 @@
             </div>
           </div>
 
-          {/* SECTION: KELOLA VOTING */}
+          {/* SECTION: KELOLA VOTING (CRUD FULL ADMIN) */}
           <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
             <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
               <i className="fa-solid fa-check-to-slot text-status-proses"></i> <span className="font-black text-midnight text-sm uppercase tracking-wider">Kelola Kotak Suara</span>
@@ -1266,6 +1418,7 @@
                      </div>
                      <div className="flex gap-1.5">
                        <button onClick={(e) => { e.preventDefault(); handleResetVoting(v.id, v.title); }} className="bg-white border border-slate-200 text-orange-500 hover:bg-orange-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Reset Semua Suara ke 0"><i className="fa-solid fa-rotate-left"></i></button>
+                       <button onClick={(e) => { e.preventDefault(); setEditVoteModal({ isOpen: true, id: v.id, title: v.title, options: v.options, isMulti: v.isMulti }); }} className="bg-white border border-slate-200 text-status-selesai hover:bg-blue-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Edit Voting"><i className="fa-solid fa-pen"></i></button>
                        <button onClick={(e) => { e.preventDefault(); handleDeleteVoting(v.id, v.title); }} className="bg-white border border-red-200 text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Hapus Voting"><i className="fa-solid fa-trash"></i></button>
                      </div>
                    </div>
@@ -1284,7 +1437,7 @@
             </div>
           </div>
           
-          {/* MODAL EDIT SUPER ADMIN */}
+          {/* MODAL EDIT TUGAS */}
           {editModal.isOpen && (
             <div className="fixed inset-0 z-[9999] bg-midnight/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
               <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-slide-up">
@@ -1296,26 +1449,26 @@
                     <form onSubmit={handleSaveEdit} className="space-y-4">
                        <div>
                           <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Kegiatan</label>
-                          <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none" value={editModal.data.taskName} onChange={e => setEditModal({...editModal, data: {...editModal.data, taskName: e.target.value}})} />
+                          <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none" value={editModal.data.taskName} onChange={e => setEditModal({...editModal, data: {...editModal.data, taskName: e.target.value}})} />
                        </div>
                        
                        {editModal.type === 'individual' && (
                          <>
                            <div>
                               <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Pegawai / PIC</label>
-                              <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none" value={editModal.data.picId} onChange={e => setEditModal({...editModal, data: {...editModal.data, picId: e.target.value}})} />
+                              <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none" value={editModal.data.picId} onChange={e => setEditModal({...editModal, data: {...editModal.data, picId: e.target.value}})} />
                            </div>
                            <div className="grid grid-cols-2 gap-3">
                              <div>
                                 <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Target Angka</label>
-                                <input type="number" min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none text-center" value={editModal.data.target} onChange={e => setEditModal({...editModal, data: {...editModal.data, target: e.target.value}})} />
+                                <input type="number" required min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none text-center" value={editModal.data.target} onChange={e => setEditModal({...editModal, data: {...editModal.data, target: e.target.value}})} />
                              </div>
                              <div>
                                 <label className="flex justify-between items-center text-[10px] font-bold text-slate-500 mb-1 uppercase">
                                   <span>Capaian</span>
                                   <button type="button" onClick={() => setEditModal({...editModal, data: {...editModal.data, progress: 0}})} className="text-orange-500 hover:text-orange-600 outline-none cursor-pointer">Reset 0</button>
                                 </label>
-                                <input type="number" min="0" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-black text-status-selesai outline-none text-center shadow-inner" value={editModal.data.progress} onChange={e => setEditModal({...editModal, data: {...editModal.data, progress: e.target.value}})} />
+                                <input type="number" required min="0" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-black text-status-selesai outline-none text-center shadow-inner" value={editModal.data.progress} onChange={e => setEditModal({...editModal, data: {...editModal.data, progress: e.target.value}})} />
                              </div>
                            </div>
                          </>
@@ -1323,9 +1476,48 @@
                        
                        <div>
                           <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Tenggat Waktu</label>
-                          <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none cursor-pointer" value={editModal.data.deadline} onChange={e => setEditModal({...editModal, data: {...editModal.data, deadline: e.target.value}})} />
+                          <input type="date" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none cursor-pointer" value={editModal.data.deadline} onChange={e => setEditModal({...editModal, data: {...editModal.data, deadline: e.target.value}})} />
                        </div>
                        
+                       <div className="pt-2">
+                         <button type="submit" disabled={isSyncing} className="w-full bg-status-selesai text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none flex justify-center items-center gap-2 cursor-pointer">
+                           {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...</> : <><i className="fa-solid fa-floppy-disk"></i> Simpan Perubahan</>}
+                         </button>
+                       </div>
+                    </form>
+                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL EDIT VOTING (BARU) */}
+          {editVoteModal.isOpen && (
+            <div className="fixed inset-0 z-[9999] bg-midnight/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+              <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-slide-up">
+                 <div className="bg-gradient-to-r from-midnight to-midnight-light p-4 px-5 flex justify-between items-center text-white">
+                    <h3 className="font-black text-sm uppercase tracking-wider"><i className="fa-solid fa-pen-to-square mr-2 text-status-selesai"></i> Edit Kotak Suara</h3>
+                    <button type="button" onClick={() => setEditVoteModal({isOpen: false, id:null, title:'', options:[''], isMulti:false})} className="opacity-70 hover:opacity-100 outline-none cursor-pointer"><i className="fa-solid fa-xmark text-xl"></i></button>
+                 </div>
+                 <div className="p-6">
+                    <form onSubmit={handleSaveEditVote} className="space-y-4">
+                       <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Topik / Nama Voting</label>
+                          <input required type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none" value={editVoteModal.title} onChange={e => setEditVoteModal({...editVoteModal, title: e.target.value})} />
+                       </div>
+                       <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Opsi Pilihan</label>
+                          {editVoteModal.options.map((opt, idx) => (
+                            <div key={idx} className="flex gap-2 mb-2">
+                              <input required type="text" className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-midnight outline-none" value={opt} onChange={e => { const newArr = [...editVoteModal.options]; newArr[idx] = e.target.value; setEditVoteModal({...editVoteModal, options: newArr}); }} />
+                              {editVoteModal.options.length > 1 && <button type="button" onClick={() => setEditVoteModal({...editVoteModal, options: editVoteModal.options.filter((_, i) => i !== idx)})} className="bg-red-50 text-red-500 border border-red-200 w-10 rounded-xl flex items-center justify-center outline-none cursor-pointer"><i className="fa-solid fa-trash text-xs"></i></button>}
+                            </div>
+                          ))}
+                          <button type="button" onClick={() => setEditVoteModal({...editVoteModal, options: [...editVoteModal.options, '']})} className="text-xs font-bold text-status-selesai mt-1 outline-none cursor-pointer"><i className="fa-solid fa-plus mr-1"></i> Tambah Opsi</button>
+                       </div>
+                       <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2">
+                          <input type="checkbox" id="editMultiVote" checked={editVoteModal.isMulti} onChange={e => setEditVoteModal({...editVoteModal, isMulti: e.target.checked})} className="w-4 h-4 accent-blue-500 rounded outline-none cursor-pointer" />
+                          <label htmlFor="editMultiVote" className="text-xs font-bold text-midnight cursor-pointer select-none">Multi Vote (Bisa Pilih > 1)</label>
+                       </div>
                        <div className="pt-2">
                          <button type="submit" disabled={isSyncing} className="w-full bg-status-selesai text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none flex justify-center items-center gap-2 cursor-pointer">
                            {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...</> : <><i className="fa-solid fa-floppy-disk"></i> Simpan Perubahan</>}
@@ -1343,7 +1535,6 @@
 
     // --- APP CORE (FIREBASE DIRECT CONNECT) ---
     function App() {
-      // Mendeteksi URL Live Preview Mode
       const urlParams = new URLSearchParams(window.location.search);
       const previewParam = urlParams.get('preview');
 
@@ -1370,7 +1561,6 @@
         }
       }, []);
 
-      // LISTENER REALTIME FIREBASE (Tasks & Votings)
       useEffect(() => {
         if (!db) return;
         const loader = document.getElementById('native-loader');
@@ -1427,7 +1617,6 @@
 
       if (isLoading) return <div className="min-h-screen flex flex-col gap-5 items-center justify-center bg-slate-50"><i className="fa-solid fa-circle-notch fa-spin text-status-selesai text-5xl drop-shadow-sm"></i><h5 className="font-black text-midnight text-sm uppercase tracking-widest">Menghubungkan ke Server...</h5></div>;
 
-      // === ROUTING UNTUK LIVE PREVIEW EKSKLUSIF ===
       if (previewParam) {
         return <LivePreviewView taskName={previewParam} groupedTasks={groupedTasks} />;
       }
