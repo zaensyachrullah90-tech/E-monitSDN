@@ -202,7 +202,7 @@
     });
 
     // --- MENU 1: DASHBOARD ---
-    const Dashboard = ({ groupedTasks, setActiveTab, setSelectedTaskName }) => {
+    const Dashboard = ({ groupedTasks, votings, setActiveTab, setSelectedTaskName, setSelectedVoteId }) => {
       const totalTasks = groupedTasks.length;
       const completedTasks = groupedTasks.filter(g => g.status === 'Selesai').length;
       const activeGroups = groupedTasks.filter(g => g.status === 'On Progress');
@@ -248,7 +248,33 @@
             </div>
           </div>
 
-          <div>
+          {/* VOTING AKTIF DI DASHBOARD */}
+          {votings && votings.length > 0 && (
+            <div className="mt-8 animate-slide-up">
+              <h5 className="font-bold text-midnight mb-4 flex items-center gap-2">
+                <i className="fa-solid fa-check-to-slot text-blue-500 text-lg"></i> Acara Voting
+              </h5>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {votings.map(v => {
+                  const totalVoters = v.voters ? v.voters.length : 0;
+                  const totalVotes = v.votes ? Object.keys(v.votes).length : 0;
+                  return (
+                    <button key={v.id} onClick={() => { setSelectedVoteId(v.id); setActiveTab('voting'); }} className="card-btn bg-white rounded-3xl shadow-soft border border-slate-100 p-5 relative overflow-hidden">
+                      <div className="flex items-start justify-between mb-3">
+                        <h5 className="font-black text-midnight text-lg w-3/4 leading-tight">{v.title}</h5>
+                        <span className="bg-blue-50 text-status-selesai text-[10px] font-black px-2 py-1 rounded-md border border-blue-100 uppercase">{v.isMulti ? 'Multi' : 'Single'}</span>
+                      </div>
+                      <div className="text-[10px] font-bold text-slate-500 mb-3 bg-slate-50 border border-slate-100 px-2 py-1 rounded-md w-max"><i className="fa-solid fa-calendar-day mr-1"></i> {formatDateId(v.createdAt)}</div>
+                      <div className="w-full bg-slate-100 rounded-full h-1.5 mb-2"><div className="bg-status-selesai h-1.5 rounded-full" style={{width: `${totalVoters===0?0:(totalVotes/totalVoters)*100}%`}}></div></div>
+                      <div className="text-[10px] font-black text-slate-400 flex justify-between"><span>SUARA MASUK</span> <span className="text-midnight">{totalVotes} / {totalVoters} Org</span></div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-8">
             <h5 className="font-bold text-midnight mb-4 flex items-center gap-2">
               <i className="fa-solid fa-fire-flame-curved text-red-500 text-lg"></i> Mendesak (Tenggat Terdekat)
             </h5>
@@ -326,7 +352,6 @@
         return (
           <div className="animate-slide-up space-y-5">
             
-            {/* COMPACT TOAST NOTIFICATION */}
             {toast && (
               <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-slide-up">
                 <div className={`px-5 py-2 rounded-full shadow-lg font-black text-xs flex items-center gap-2 text-white ${toast === 'success' ? 'bg-status-selesai' : 'bg-red-500'}`}>
@@ -433,192 +458,100 @@
       );
     };
 
-    // --- MENU KHUSUS: LIVE PREVIEW PUBLIK ---
-    const LivePreviewView = ({ taskName, groupedTasks }) => {
-      const activeGroup = groupedTasks.find(g => g.taskName === taskName);
+    // --- MENU 3: LEADERBOARD (RANK PER KEGIATAN SPESIFIK) ---
+    const Leaderboard = ({ groupedTasks }) => {
+      const [selectedRankTask, setSelectedRankTask] = useState(null);
 
-      if (!activeGroup) {
+      // JIKA KEGIATAN SUDAH DIKLIK -> TAMPILKAN RANKING KHUSUS KEGIATAN TERSEBUT
+      if (selectedRankTask) {
+        const activeGroup = groupedTasks.find(g => g.taskName === selectedRankTask);
+        if (!activeGroup) {
+          setSelectedRankTask(null);
+          return null;
+        }
+
+        // Kalkulasi persentase kinerja KHUSUS untuk kegiatan ini
+        const stats = activeGroup.assignees.map(a => {
+           const percent = a.target === 0 ? 0 : Math.min(Math.round((a.progress / a.target) * 100), 100);
+           return { ...a, percent };
+        }).sort((a, b) => b.percent - a.percent);
+
         return (
-          <div className="min-h-screen flex flex-col gap-4 items-center justify-center bg-slate-50 p-6 text-center">
-            <i className="fa-solid fa-circle-exclamation text-slate-400 text-6xl"></i>
-            <h2 className="text-2xl font-black text-midnight">Kegiatan Tidak Ditemukan</h2>
-            <p className="text-slate-500 font-bold text-sm">Mungkin kegiatan ini sudah dihapus atau namanya salah.</p>
+          <div className="animate-slide-up space-y-6 pb-10">
+            <div className="flex flex-col gap-2">
+              <button onClick={() => setSelectedRankTask(null)} className="w-max bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-4 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 outline-none cursor-pointer">
+                <i className="fa-solid fa-arrow-left-long text-status-selesai"></i> Kembali
+              </button>
+              <div>
+                <h3 className="text-2xl font-black text-midnight tracking-tight">Leaderboard Spesifik</h3>
+                <p className="text-slate-500 text-sm font-bold mt-0.5">Ranking kinerja untuk kegiatan <span className="text-status-selesai">"{selectedRankTask}"</span></p>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider font-bold border-b border-slate-200">
+                      <th className="p-4 text-center">#</th>
+                      <th className="p-4">Pegawai</th>
+                      <th className="p-4 text-center">Capaian / Target</th>
+                      <th className="p-4">Kinerja (%)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {stats.length === 0 && <tr><td colSpan="4" className="text-center py-10 text-slate-400 font-bold">Belum ada data pegawai</td></tr>}
+                    {stats.map((stat, index) => (
+                      <tr key={stat.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-4 text-center">
+                          {index === 0 ? <span className="bg-gradient-to-br from-yellow-300 to-yellow-500 text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto shadow-sm text-sm"><i className="fa-solid fa-crown"></i></span> : 
+                           index === 1 ? <span className="bg-slate-800 text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto shadow-sm text-sm font-bold">2</span> : 
+                           index === 2 ? <span className="bg-slate-600 text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto shadow-sm text-sm font-bold">3</span> : 
+                           <span className="text-slate-400 font-bold text-sm">{index + 1}</span>}
+                        </td>
+                        <td className="p-4 font-black text-midnight text-sm">{stat.picId}</td>
+                        <td className="p-4 text-center">
+                          <span className="bg-slate-100 text-slate-600 border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold">{stat.progress} / {stat.target}</span>
+                        </td>
+                        <td className="p-4 min-w-[120px]">
+                          <div className="flex items-center gap-3">
+                            <div className="w-full bg-slate-100 rounded-full h-2.5 shadow-inner">
+                              <div className={`${stat.percent >= 100 ? 'bg-status-selesai' : 'bg-status-proses'} h-2.5 rounded-full`} style={{ width: `${stat.percent}%` }}></div>
+                            </div>
+                            <span className="text-xs font-black text-midnight">{stat.percent}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         );
       }
 
-      const totalPelaksana = activeGroup.assignees.length;
-      const selesaiCount = activeGroup.assignees.filter(a => a.progress >= a.target).length;
-      const belumCount = totalPelaksana - selesaiCount;
-      const totalProgressGroup = activeGroup.assignees.reduce((sum, a) => sum + a.progress, 0);
-      const totalTargetGroup = activeGroup.assignees.reduce((sum, a) => sum + a.target, 0);
-      const overallPercent = totalTargetGroup === 0 ? 0 : Math.min(Math.round((totalProgressGroup / totalTargetGroup) * 100), 100);
-
-      return (
-        <div className="min-h-screen bg-midnight text-white pb-10">
-          <div className="bg-gradient-to-r from-midnight-light to-midnight shadow-nav sticky top-0 z-50 border-b border-white/10">
-            <div className="px-5 py-4 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="bg-white/10 border border-white/20 text-white rounded-xl p-2 flex items-center justify-center shadow-inner" style={{width: '45px', height: '45px'}}>
-                  <i className="fa-solid fa-chart-line text-yellow-400 text-xl"></i>
-                </div>
-                <div>
-                  <h1 className="font-black text-lg leading-tight tracking-tight">Live Preview</h1>
-                  <p className="text-[10px] text-white/50 uppercase tracking-widest font-bold">MonitorSDMPKHTapin</p>
-                </div>
-              </div>
-              <span className="bg-red-500 text-white rounded-full px-3 py-1.5 shadow-glossy text-[10px] font-black uppercase tracking-wider flex items-center shadow-red-500/50">
-                <i className="fa-solid fa-circle text-[8px] fa-fade mr-1.5"></i> Live
-              </span>
-            </div>
-          </div>
-
-          <div className="p-5 space-y-6 max-w-[800px] mx-auto animate-fade-in mt-4">
-            
-            <div className="text-center space-y-2 mb-8">
-              <span className={`inline-flex items-center gap-1.5 ${activeGroup.status === 'Selesai' ? 'bg-status-selesai text-white' : 'bg-status-proses text-white'} text-xs font-black px-4 py-2 rounded-full shadow-glossy uppercase tracking-wider`}>
-                <i className={`fa-solid ${activeGroup.status === 'Selesai' ? 'fa-check-double' : 'fa-spinner fa-spin'}`}></i> {activeGroup.status}
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-black leading-tight mt-3 mb-1">{activeGroup.taskName}</h2>
-              <p className="text-white/60 font-bold text-sm"><i className="fa-solid fa-calendar-day text-blue-400"></i> Tenggat: {formatDateId(activeGroup.deadline)}</p>
-            </div>
-
-            <div className="bg-midnight-light rounded-3xl p-6 shadow-glossy border border-white/10">
-              <div className="flex justify-between items-end mb-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-white/50 font-bold mb-1">Capaian Keseluruhan</p>
-                  <div className="text-xl font-black text-white">{totalProgressGroup} <span className="text-sm text-white/50">/ {totalTargetGroup} Dokumen</span></div>
-                </div>
-                <h1 className="text-4xl font-black text-status-selesai">{overallPercent}%</h1>
-              </div>
-              <div className="w-full bg-midnight rounded-full h-4 shadow-inner border border-white/5">
-                <div className={`${overallPercent >= 100 ? 'bg-status-selesai' : 'bg-status-proses'} h-4 rounded-full transition-all duration-1000 relative overflow-hidden`} style={{ width: `${overallPercent}%` }}>
-                  <div className="absolute inset-0 bg-white/20" style={{backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%, transparent)', backgroundSize: '1rem 1rem', animation: 'progress-stripes 1s linear infinite'}}></div>
-                </div>
-              </div>
-            </div>
-            
-            <style>{`@keyframes progress-stripes { from { background-position: 1rem 0; } to { background-position: 0 0; } }`}</style>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-midnight-light rounded-2xl p-4 text-center border border-white/5 shadow-soft">
-                <h2 className="text-2xl font-black text-white mb-1">{totalPelaksana}</h2>
-                <span className="text-[10px] text-white/50 font-bold uppercase tracking-wider">Pelaksana</span>
-              </div>
-              <div className="bg-status-selesai/20 rounded-2xl p-4 text-center border border-status-selesai/30 shadow-soft">
-                <h2 className="text-2xl font-black text-status-selesai mb-1">{selesaiCount}</h2>
-                <span className="text-[10px] text-status-selesai font-bold uppercase tracking-wider">Selesai</span>
-              </div>
-              <div className="bg-status-proses/20 rounded-2xl p-4 text-center border border-status-proses/30 shadow-soft">
-                <h2 className="text-2xl font-black text-status-proses mb-1">{belumCount}</h2>
-                <span className="text-[10px] text-status-proses font-bold uppercase tracking-wider">Proses</span>
-              </div>
-            </div>
-
-            <div className="pt-4">
-              <h6 className="font-black text-white mb-4 flex items-center gap-2 text-sm uppercase tracking-wider border-b border-white/10 pb-3">
-                <i className="fa-solid fa-list-check text-white/50"></i> Daftar Pelaksana Secara Live
-              </h6>
-              <div className="space-y-3">
-                {activeGroup.assignees.map((a, idx) => {
-                  const isDone = a.progress >= a.target;
-                  const p = Math.min(Math.round((a.progress / a.target) * 100), 100);
-                  
-                  return (
-                    <div key={idx} className="bg-midnight-light rounded-2xl border border-white/5 shadow-soft p-4 relative overflow-hidden">
-                      <div className="flex justify-between items-center relative z-10 mb-3">
-                        <div className="font-black text-white text-sm">{a.picId}</div>
-                        <div className={`text-xs font-black ${isDone ? 'text-status-selesai' : 'text-status-proses'}`}>{p}%</div>
-                      </div>
-                      
-                      <div className="w-full bg-midnight rounded-full h-2 shadow-inner border border-white/5 relative z-10 mb-3">
-                        <div className={`${isDone ? 'bg-status-selesai' : 'bg-status-proses'} h-2 rounded-full transition-all duration-1000`} style={{ width: `${p}%` }}></div>
-                      </div>
-
-                      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider relative z-10">
-                        <span className="text-white/50">Capaian: <span className="text-white">{a.progress}</span> / {a.target}</span>
-                        <span className={isDone ? 'text-status-selesai' : 'text-status-proses'}>
-                          <i className={`fa-solid ${isDone ? 'fa-check-circle' : 'fa-spinner fa-spin'} mr-1`}></i> {isDone ? 'Selesai' : 'Proses'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            
-            <div className="text-center text-[10px] text-white/30 mt-10 mb-4 font-bold uppercase tracking-widest">
-              Live Preview • MonitorSDMPKHTapin
-            </div>
-
-          </div>
-        </div>
-      );
-    };
-
-    // --- MENU 3: LEADERBOARD ---
-    const Leaderboard = ({ tasks, employees }) => {
-      const stats = useMemo(() => {
-        return employees.map(emp => {
-          const empTasks = tasks.filter(t => String(t.picId) === String(emp.id));
-          const totalTarget = empTasks.reduce((sum, t) => sum + t.target, 0);
-          const totalProgress = empTasks.reduce((sum, t) => sum + t.progress, 0);
-          const percent = totalTarget === 0 ? 0 : Math.min(Math.round((totalProgress / totalTarget) * 100), 100);
-          return { ...emp, totalTarget, totalProgress, percent, taskCount: empTasks.length };
-        }).sort((a, b) => b.percent - a.percent);
-      }, [tasks, employees]);
-
+      // TAMPILAN AWAL (PILIH KEGIATAN UNTUK MELIHAT RANK)
       return (
         <div className="animate-slide-up space-y-6">
           <div>
             <h3 className="text-2xl font-black text-midnight tracking-tight">Leaderboard</h3>
-            <p className="text-slate-500 text-sm font-bold mt-0.5">Peringkat kinerja pegawai secara global.</p>
+            <p className="text-slate-500 text-sm font-bold mt-0.5"><i className="fa-solid fa-hand-pointer text-status-selesai mr-1"></i> Klik kegiatan untuk melihat ranking pegawai.</p>
           </div>
-          
-          <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider font-bold border-b border-slate-200">
-                    <th className="p-4 text-center">#</th>
-                    <th className="p-4">Pegawai</th>
-                    <th className="p-4 text-center">Beban</th>
-                    <th className="p-4">Kinerja</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {stats.length === 0 && <tr><td colSpan="4" className="text-center py-10 text-slate-400 font-bold">Belum ada data pegawai</td></tr>}
-                  {stats.map((stat, index) => (
-                    <tr key={stat.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="p-4 text-center">
-                        {index === 0 ? <span className="bg-gradient-to-br from-yellow-300 to-yellow-500 text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto shadow-sm text-sm"><i className="fa-solid fa-crown"></i></span> : 
-                         index === 1 ? <span className="bg-slate-800 text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto shadow-sm text-sm font-bold">2</span> : 
-                         index === 2 ? <span className="bg-slate-600 text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto shadow-sm text-sm font-bold">3</span> : 
-                         <span className="text-slate-400 font-bold text-sm">{index + 1}</span>}
-                      </td>
-                      <td className="p-4 font-black text-midnight text-sm">{stat.name}</td>
-                      <td className="p-4 text-center">
-                        <span className="bg-slate-100 text-slate-600 border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold">{stat.taskCount}</span>
-                      </td>
-                      <td className="p-4 min-w-[120px]">
-                        <div className="flex items-center gap-3">
-                          <div className="w-full bg-slate-100 rounded-full h-2.5 shadow-inner">
-                            <div className={`${stat.percent >= 100 ? 'bg-status-selesai' : 'bg-status-proses'} h-2.5 rounded-full`} style={{ width: `${stat.percent}%` }}></div>
-                          </div>
-                          <span className="text-xs font-black text-midnight">{stat.percent}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {groupedTasks.length === 0 && (
+              <div className="col-span-full bg-white rounded-3xl shadow-soft border border-slate-100 text-center py-12">
+                <i className="fa-solid fa-box-open d-block text-5xl mb-4 text-slate-300"></i>
+                <p className="font-black text-slate-500">Belum ada kegiatan terdaftar.</p>
+              </div>
+            )}
+            {groupedTasks.map(group => <GroupedTaskCard key={group.taskName} group={group} onClick={setSelectedRankTask} />)}
           </div>
         </div>
       );
     };
 
-    // --- MENU 4: INPUT PROGRES (Telah Dikebalkan untuk Mobile) ---
+    // --- MENU 4: INPUT PROGRES (Hanya Icon Notifikasi) ---
     const ProgressForm = ({ tasks, employees, db }) => {
       const [selectedEmp, setSelectedEmp] = useState('');
       const [selectedTask, setSelectedTask] = useState('');
@@ -670,7 +603,7 @@
             <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-slide-up">
               <div className={`px-5 py-2 rounded-full shadow-lg font-black text-xs flex items-center gap-2 text-white ${toast === 'success' ? 'bg-status-selesai' : 'bg-red-500'}`}>
                 <i className={`fa-solid ${toast === 'success' ? 'fa-check-circle' : 'fa-xmark-circle'} text-lg`}></i> 
-                {toast === 'success' ? 'BERHASIL' : 'DATA TIDAK VALID'}
+                {toast === 'success' ? 'BERHASIL' : 'GAGAL'}
               </div>
             </div>
           )}
@@ -720,8 +653,7 @@
     };
 
     // --- MENU 5: VOTING PEMILIHAN ---
-    const MenuVoting = ({ votings, db, employees, isAdminLogged }) => {
-      const [selectedVoteId, setSelectedVoteId] = useState(null);
+    const MenuVoting = ({ votings, db, employees, isAdminLogged, selectedVoteId, setSelectedVoteId }) => {
       const [activeTab, setActiveTab] = useState('statistik'); 
       const [voteEmp, setVoteEmp] = useState('');
       const [selectedOptions, setSelectedOptions] = useState([]);
@@ -784,7 +716,7 @@
                       <h5 className="font-black text-midnight text-lg w-3/4">{v.title}</h5>
                       <span className="bg-blue-50 text-status-selesai text-[10px] font-black px-2 py-1 rounded-md border border-blue-100 uppercase">{v.isMulti ? 'Multi' : 'Single'}</span>
                     </div>
-                    <div className="text-xs font-bold text-slate-500 mb-3"><i className="fa-solid fa-calendar-day mr-1"></i> Dibuat: {formatDateId(v.createdAt)}</div>
+                    <div className="text-[10px] font-bold text-slate-500 mb-3 bg-slate-50 border border-slate-100 px-2 py-1 w-max rounded-md"><i className="fa-solid fa-calendar-day mr-1"></i> {formatDateId(v.createdAt)}</div>
                     <div className="w-full bg-slate-100 rounded-full h-1.5 mb-1.5"><div className="bg-status-selesai h-1.5 rounded-full" style={{width: `${totalVoters===0?0:(totalVotes/totalVoters)*100}%`}}></div></div>
                     <div className="text-[10px] font-black text-slate-400 flex justify-between"><span>SUARA MASUK</span> <span className="text-midnight">{totalVotes} / {totalVoters} Org</span></div>
                   </button>
@@ -797,9 +729,11 @@
 
       const votesObj = activeVote.votes || {};
       const votesArray = Object.values(votesObj);
-      const sudahVoteNames = votesArray.map(v => v.name);
+      // Susun secara abjad untuk nama yang sudah vote
+      const sudahVoteNames = votesArray.map(v => v.name).sort((a,b) => a.localeCompare(b));
       const voters = activeVote.voters || [];
-      const belumVoteNames = voters.filter(v => !sudahVoteNames.includes(v));
+      // Susun secara abjad untuk nama yang belum vote
+      const belumVoteNames = voters.filter(v => !sudahVoteNames.includes(v)).sort((a,b) => a.localeCompare(b));
 
       const optionCounts = {};
       activeVote.options.forEach(o => optionCounts[o] = 0);
@@ -811,12 +745,12 @@
       });
 
       return (
-        <div className="animate-slide-up space-y-4 relative">
+        <div className="animate-slide-up space-y-4 relative pb-10">
           {toast && (
             <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-slide-up">
               <div className={`px-5 py-2 rounded-full shadow-lg font-black text-xs flex items-center gap-2 text-white ${toast === 'success' ? 'bg-status-selesai' : 'bg-red-500'}`}>
                 <i className={`fa-solid ${toast === 'success' ? 'fa-check-circle' : 'fa-xmark-circle'} text-lg`}></i> 
-                {toast === 'success' ? 'BERHASIL' : 'DATA TIDAK VALID'}
+                {toast === 'success' ? 'BERHASIL' : 'GAGAL'}
               </div>
             </div>
           )}
@@ -859,15 +793,18 @@
 
           {activeTab === 'sudah' && (
             <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 space-y-3 animate-fade-in">
-               {votesArray.length === 0 && <p className="text-center text-xs font-bold text-slate-400 py-4">Belum ada suara masuk.</p>}
-               {votesArray.map(voteData => (
-                 <div key={voteData.name} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <span className="font-bold text-midnight text-xs">{voteData.name}</span>
+               {sudahVoteNames.length === 0 && <p className="text-center text-xs font-bold text-slate-400 py-4">Belum ada suara masuk.</p>}
+               {sudahVoteNames.map(name => {
+                 const voteData = votesArray.find(v => v.name === name);
+                 return (
+                 <div key={name} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <span className="font-bold text-midnight text-xs">{name}</span>
                     <div className="flex gap-1 flex-wrap justify-end max-w-[60%]">
-                      {voteData.options && voteData.options.map(opt => <span key={opt} className="bg-blue-50 border border-blue-100 text-status-selesai text-[9px] font-bold px-2 py-1 rounded-md truncate">{opt}</span>)}
+                      {voteData && voteData.options && voteData.options.map(opt => <span key={opt} className="bg-blue-50 border border-blue-100 text-status-selesai text-[9px] font-bold px-2 py-1 rounded-md truncate">{opt}</span>)}
                     </div>
                  </div>
-               ))}
+                 )
+               })}
             </div>
           )}
 
@@ -888,6 +825,7 @@
                   <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Pilih Identitas Anda</label>
                   <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none cursor-pointer" value={voteEmp} onChange={(e) => setVoteEmp(e.target.value)}>
                     <option value="">-- Nama Anda --</option>
+                    {/* Voters list is already sorted alphabetically */}
                     {voters.map(v => <option key={v} value={v}>{v} {sudahVoteNames.includes(v) ? '(Ubah Pilihan)' : ''}</option>)}
                   </select>
                </div>
@@ -916,7 +854,7 @@
       );
     };
 
-    // --- MENU 6: ADMIN PANEL (SUPER ADMIN CRUD + ENKRIPSI) ---
+    // --- MENU 6: ADMIN PANEL (SUPER ADMIN CRUD) ---
     const AdminPanel = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged, setIsAdminLogged }) => {
       const [pwd, setPwd] = useState('');
       const [toast, setToast] = useState(null);
@@ -1137,8 +1075,8 @@
         setIsSyncing(false);
       };
 
-      const handleResetIndividualProgress = async (id, name) => {
-        if(!window.confirm(`Reset progress pegawai "${name}" ke 0?`)) return;
+      const handleResetIndividualProgress = async (id) => {
+        if(!window.confirm(`Reset progress pegawai ke 0?`)) return;
         setIsSyncing(true);
         try {
           await db.ref(`artifacts/${APP_ID}/public/data/tasks/${id}`).update({
@@ -1167,7 +1105,8 @@
         try {
           const newId = Date.now();
           const today = new Date().toISOString().split('T')[0];
-          const votersList = employees.map(e => e.name); 
+          // List Pegawai Abjad untuk Voting
+          const votersList = employees.map(e => e.name).sort((a, b) => a.localeCompare(b)); 
           
           await db.ref(`artifacts/${APP_ID}/public/data/votings/${newId}`).set({
              id: newId, title: voteTitle, options: cleanOptions, isMulti: isMulti, voters: votersList, createdAt: today, status: 'Active'
@@ -1386,7 +1325,7 @@
                              <div className="text-[10px] text-slate-400 font-bold mt-1">Trg: <span className="text-midnight">{a.target}</span> | Capaian: <span className="text-status-selesai">{a.progress}</span></div>
                            </div>
                            <div className="flex gap-1.5">
-                             <button onClick={(e) => { e.preventDefault(); handleResetIndividualProgress(a.id, a.picId); }} className="bg-orange-50 text-orange-500 border border-orange-200 w-8 h-8 rounded-full flex items-center justify-center hover:bg-orange-100 transition-colors outline-none cursor-pointer" title="Reset 0"><i className="fa-solid fa-rotate-left text-[10px]"></i></button>
+                             <button onClick={(e) => { e.preventDefault(); handleResetIndividualProgress(a.id); }} className="bg-orange-50 text-orange-500 border border-orange-200 w-8 h-8 rounded-full flex items-center justify-center hover:bg-orange-100 transition-colors outline-none cursor-pointer" title="Reset 0"><i className="fa-solid fa-rotate-left text-[10px]"></i></button>
                              <button onClick={() => setEditModal({ isOpen: true, type: 'individual', data: { id: a.id, taskName: a.taskName, picId: a.picId, target: a.target, progress: a.progress, deadline: a.deadline } })} className="bg-slate-50 text-status-selesai border border-slate-200 w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-50 transition-colors outline-none cursor-pointer" title="Edit Bebas"><i className="fa-solid fa-pen text-[10px]"></i></button>
                              <button onClick={() => handleDeletePerson(a.id)} className="bg-red-50 text-red-500 border border-red-100 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-100 transition-colors outline-none cursor-pointer" title="Hapus Pegawai"><i className="fa-solid fa-xmark text-sm"></i></button>
                            </div>
@@ -1417,9 +1356,9 @@
                        </div>
                      </div>
                      <div className="flex gap-1.5">
-                       <button onClick={(e) => { e.preventDefault(); handleResetVoting(v.id, v.title); }} className="bg-white border border-slate-200 text-orange-500 hover:bg-orange-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Reset Semua Suara ke 0"><i className="fa-solid fa-rotate-left"></i></button>
+                       <button onClick={(e) => { e.preventDefault(); handleResetVoting(v.id); }} className="bg-white border border-slate-200 text-orange-500 hover:bg-orange-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Reset Semua Suara ke 0"><i className="fa-solid fa-rotate-left"></i></button>
                        <button onClick={(e) => { e.preventDefault(); setEditVoteModal({ isOpen: true, id: v.id, title: v.title, options: v.options, isMulti: v.isMulti }); }} className="bg-white border border-slate-200 text-status-selesai hover:bg-blue-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Edit Voting"><i className="fa-solid fa-pen"></i></button>
-                       <button onClick={(e) => { e.preventDefault(); handleDeleteVoting(v.id, v.title); }} className="bg-white border border-red-200 text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Hapus Voting"><i className="fa-solid fa-trash"></i></button>
+                       <button onClick={(e) => { e.preventDefault(); handleDeleteVoting(v.id); }} className="bg-white border border-red-200 text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Hapus Voting"><i className="fa-solid fa-trash"></i></button>
                      </div>
                    </div>
                  ))}
@@ -1545,6 +1484,7 @@
       const [isLoading, setIsLoading] = useState(true);
       const [globalError, setGlobalError] = useState(null);
       const [selectedTaskName, setSelectedTaskName] = useState(null);
+      const [selectedVoteId, setSelectedVoteId] = useState(null);
       const [db, setDb] = useState(null);
       
       const [isAdminLogged, setIsAdminLogged] = useState(() => sessionStorage.getItem('adminAuth') === 'true'); 
@@ -1561,6 +1501,7 @@
         }
       }, []);
 
+      // LISTENER REALTIME FIREBASE (Tasks & Votings)
       useEffect(() => {
         if (!db) return;
         const loader = document.getElementById('native-loader');
@@ -1574,7 +1515,8 @@
             snapshot.forEach(child => { loadedTasks.push({ id: child.key, ...child.val() }); });
             setTasks(loadedTasks);
             
-            const uniquePics = [...new Set(loadedTasks.map(t => t.picId))];
+            // Susun Abjad A-Z untuk dropdown list Pegawai
+            const uniquePics = [...new Set(loadedTasks.map(t => t.picId))].sort((a, b) => a.localeCompare(b));
             setEmployees(uniquePics.map(pic => ({ id: pic, name: pic })));
             setIsLoading(false);
             setGlobalError(null);
@@ -1601,6 +1543,12 @@
           groups[t.taskName].assignees.push(t);
           if (groups[t.taskName].progress < groups[t.taskName].target) groups[t.taskName].status = 'On Progress';
         });
+        
+        // Susun Abjad Assignees per Kegiatan
+        Object.values(groups).forEach(g => {
+           g.assignees.sort((a, b) => a.picId.localeCompare(b.picId));
+        });
+
         return Object.values(groups);
       }, [tasks]);
 
@@ -1617,6 +1565,7 @@
 
       if (isLoading) return <div className="min-h-screen flex flex-col gap-5 items-center justify-center bg-slate-50"><i className="fa-solid fa-circle-notch fa-spin text-status-selesai text-5xl drop-shadow-sm"></i><h5 className="font-black text-midnight text-sm uppercase tracking-widest">Menghubungkan ke Server...</h5></div>;
 
+      // === ROUTING UNTUK LIVE PREVIEW EKSKLUSIF ===
       if (previewParam) {
         return <LivePreviewView taskName={previewParam} groupedTasks={groupedTasks} />;
       }
@@ -1636,11 +1585,11 @@
           </header>
 
           <main className="p-5">
-            {activeTab === 'dashboard' && <Dashboard groupedTasks={groupedTasks} setActiveTab={setActiveTab} setSelectedTaskName={setSelectedTaskName} />}
+            {activeTab === 'dashboard' && <Dashboard groupedTasks={groupedTasks} votings={votings} setActiveTab={setActiveTab} setSelectedTaskName={setSelectedTaskName} setSelectedVoteId={setSelectedVoteId} />}
             {activeTab === 'kegiatan' && <DaftarKegiatan groupedTasks={groupedTasks} selectedTaskName={selectedTaskName} setSelectedTaskName={setSelectedTaskName} isAdminLogged={isAdminLogged} />}
-            {activeTab === 'peringkat' && <Leaderboard tasks={tasks} employees={employees} />}
+            {activeTab === 'peringkat' && <Leaderboard groupedTasks={groupedTasks} />}
             {activeTab === 'input' && <ProgressForm tasks={tasks} employees={employees} db={db} />}
-            {activeTab === 'voting' && <MenuVoting votings={votings} db={db} employees={employees} isAdminLogged={isAdminLogged} />}
+            {activeTab === 'voting' && <MenuVoting votings={votings} db={db} employees={employees} isAdminLogged={isAdminLogged} selectedVoteId={selectedVoteId} setSelectedVoteId={setSelectedVoteId} />}
             {activeTab === 'admin' && <AdminPanel db={db} tasks={tasks} groupedTasks={groupedTasks} votings={votings} employees={employees} isAdminLogged={isAdminLogged} setIsAdminLogged={setIsAdminLogged} />}
           </main>
 
@@ -1653,7 +1602,7 @@
               { id: 'voting', icon: 'fa-check-to-slot', label: 'Voting' },
               { id: 'admin', icon: 'fa-shield', label: 'Admin' }
             ].map(item => (
-              <button type="button" key={item.id} onClick={() => { setActiveTab(item.id); setSelectedTaskName(null); }} 
+              <button type="button" key={item.id} onClick={() => { setActiveTab(item.id); setSelectedTaskName(null); setSelectedVoteId(null); }} 
                 className={`flex flex-col items-center justify-center flex-1 min-w-[50px] gap-1.5 transition-all duration-300 outline-none cursor-pointer ${activeTab === item.id ? 'text-midnight scale-110' : 'text-slate-400 hover:text-slate-600'}`}>
                 <i className={`fa-solid ${item.icon} text-[18px] sm:text-xl transition-transform ${activeTab === item.id ? 'drop-shadow-md text-status-selesai' : ''}`}></i>
                 <span className="text-[8px] font-black uppercase tracking-wider">{item.label}</span>
