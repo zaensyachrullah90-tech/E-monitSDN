@@ -57,7 +57,7 @@
     .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
     .card-btn { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer; display: block; width: 100%; text-align: left; border: none; outline: none; }
     .card-btn:active { transform: scale(0.96); }
-    input, select, button { outline: none; }
+    input, select, button { outline: none; cursor: pointer; }
     
     /* Animasi Pre-Loader HTML Murni */
     .spinner { border: 4px solid rgba(11, 19, 43, 0.1); width: 50px; height: 50px; border-radius: 50%; border-left-color: #0B132B; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
@@ -131,14 +131,14 @@
           const now = new Date().getTime();
           const distance = targetDate - now;
           if (isNaN(distance)) { setTimeLeft("--:--"); setIsExpired(true); return; }
-          if (distance < 0) { setTimeLeft("WAKTU HABIS"); setIsExpired(true); return; }
+          if (distance < 0) { setTimeLeft("HABIS"); setIsExpired(true); return; }
 
           const d = Math.floor(distance / (1000 * 60 * 60 * 24));
           const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
           const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
           const s = Math.floor((distance % (1000 * 60)) / 1000);
           
-          setTimeLeft(`${d > 0 ? d + ' Hr ' : ''}${h < 10 ? '0'+h : h}:${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`);
+          setTimeLeft(`${d > 0 ? d + 'H ' : ''}${h < 10 ? '0'+h : h}:${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`);
           setIsExpired(d <= 2);
         };
         updateTimer();
@@ -183,8 +183,8 @@
                 <span className="text-slate-500">Progress ({group.progress}/{group.target})</span>
                 <span className={`font-black text-sm ${percentColor}`}>{percent}%</span>
               </div>
-              <div className="w-full bg-slate-100 rounded-full h-2 shadow-inner">
-                <div className={`${progressBg} h-2 rounded-full transition-all duration-1000 ease-out`} style={{ width: `${percent}%` }}></div>
+              <div className="w-full bg-slate-100 rounded-full h-2.5 shadow-inner">
+                <div className={`${progressBg} h-2.5 rounded-full transition-all duration-1000 ease-out`} style={{ width: `${percent}%` }}></div>
               </div>
             </div>
             
@@ -212,7 +212,7 @@
           <div className="flex justify-between items-center">
             <div>
               <h3 className="text-2xl font-black text-midnight tracking-tight">Beranda</h3>
-              <p className="text-slate-500 text-sm font-bold mt-0.5">Ringkasan Evaluasi Kinerja</p>
+              <p className="text-dslate-500 text-sm font-bold mt-0.5">Ringkasan Evaluasi Kinerja</p>
             </div>
             <span className="bg-white border border-slate-200 text-midnight font-bold px-3 py-1.5 rounded-full shadow-sm text-xs flex items-center gap-1.5">
               <i className="fa-solid fa-wifi fa-fade text-status-selesai"></i> Online
@@ -275,7 +275,13 @@
 
     // --- MENU 2: KEGIATAN & EVALUASI DETAIL ---
     const DaftarKegiatan = ({ groupedTasks, selectedTaskName, setSelectedTaskName, isAdminLogged }) => {
+      const [toast, setToast] = useState(null);
       const activeGroup = groupedTasks.find(g => g.taskName === selectedTaskName);
+
+      const showToast = (type) => {
+        setToast(type);
+        setTimeout(() => setToast(null), 3000);
+      };
 
       const handleExportExcel = () => {
         if(!activeGroup) return;
@@ -295,7 +301,8 @@
           const wb = window.XLSX.utils.book_new();
           window.XLSX.utils.book_append_sheet(wb, ws, "Evaluasi Data");
           window.XLSX.writeFile(wb, `Evaluasi_${activeGroup.taskName.replace(/\s+/g, '_')}.xlsx`);
-        } catch (err) { alert("Gagal Export Excel"); }
+          showToast('success');
+        } catch (err) { showToast('error'); }
       };
 
       const handleShareLivePreview = () => {
@@ -306,8 +313,8 @@
         textArea.select();
         try {
           document.execCommand('copy');
-          alert('Berhasil! Link Live Preview telah disalin.\nSilakan Tempel (Paste) di grup WhatsApp Anda.');
-        } catch (err) { alert('Salin link ini manual:\n' + url); }
+          showToast('success');
+        } catch (err) { showToast('error'); }
         document.body.removeChild(textArea);
       };
 
@@ -318,6 +325,17 @@
 
         return (
           <div className="animate-slide-up space-y-5">
+            
+            {/* COMPACT TOAST NOTIFICATION */}
+            {toast && (
+              <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-slide-up">
+                <div className={`px-5 py-2 rounded-full shadow-lg font-black text-xs flex items-center gap-2 text-white ${toast === 'success' ? 'bg-status-selesai' : 'bg-red-500'}`}>
+                  <i className={`fa-solid ${toast === 'success' ? 'fa-check-circle' : 'fa-xmark-circle'} text-lg`}></i> 
+                  {toast === 'success' ? 'BERHASIL' : 'GAGAL'}
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-2 justify-between items-center mb-2">
               <button onClick={() => setSelectedTaskName(null)} className="bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-4 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 transition-colors outline-none">
                 <i className="fa-solid fa-arrow-left-long text-status-selesai"></i> Kembali
@@ -384,7 +402,7 @@
                           </span>
                         </div>
                         <div className={`px-4 py-2 text-[10px] font-bold tracking-wider ${isDone ? 'bg-status-selesai/10 text-status-selesai' : 'bg-slate-100 text-slate-400'}`}>
-                           {isDone ? <><i className="fa-solid fa-flag-checkered mr-1"></i> Tuntas pada: {formatDateId(a.completedAt)}</> : <><i className="fa-solid fa-hourglass-start mr-1"></i> Mulai dikerjakan: {formatDateId(a.startDate)}</>}
+                           {isDone ? <><i className="fa-solid fa-flag-checkered mr-1"></i> Tuntas: {formatDateId(a.completedAt)}</> : <><i className="fa-solid fa-hourglass-start mr-1"></i> Mulai: {formatDateId(a.startDate)}</>}
                         </div>
                       </div>
                     );
@@ -410,129 +428,6 @@
               </div>
             )}
             {groupedTasks.map(group => <GroupedTaskCard key={group.taskName} group={group} onClick={setSelectedTaskName} />)}
-          </div>
-        </div>
-      );
-    };
-
-    // --- MENU KHUSUS: LIVE PREVIEW PUBLIK ---
-    const LivePreviewView = ({ taskName, groupedTasks }) => {
-      const activeGroup = groupedTasks.find(g => g.taskName === taskName);
-
-      if (!activeGroup) {
-        return (
-          <div className="min-h-screen flex flex-col gap-4 items-center justify-center bg-slate-50 p-6 text-center">
-            <i className="fa-solid fa-circle-exclamation text-slate-400 text-6xl"></i>
-            <h2 className="text-2xl font-black text-midnight">Kegiatan Tidak Ditemukan</h2>
-            <p className="text-slate-500 font-bold text-sm">Mungkin kegiatan ini sudah dihapus atau namanya salah.</p>
-          </div>
-        );
-      }
-
-      const totalPelaksana = activeGroup.assignees.length;
-      const selesaiCount = activeGroup.assignees.filter(a => a.progress >= a.target).length;
-      const belumCount = totalPelaksana - selesaiCount;
-      const totalProgressGroup = activeGroup.assignees.reduce((sum, a) => sum + a.progress, 0);
-      const totalTargetGroup = activeGroup.assignees.reduce((sum, a) => sum + a.target, 0);
-      const overallPercent = totalTargetGroup === 0 ? 0 : Math.min(Math.round((totalProgressGroup / totalTargetGroup) * 100), 100);
-
-      return (
-        <div className="min-h-screen bg-midnight text-white pb-10">
-          <div className="bg-gradient-to-r from-midnight-light to-midnight shadow-nav sticky top-0 z-50 border-b border-white/10">
-            <div className="px-5 py-4 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="bg-white/10 border border-white/20 text-white rounded-xl p-2 flex items-center justify-center shadow-inner" style={{width: '45px', height: '45px'}}>
-                  <i className="fa-solid fa-chart-line text-yellow-400 text-xl"></i>
-                </div>
-                <div>
-                  <h1 className="font-black text-lg leading-tight tracking-tight">Live Preview</h1>
-                  <p className="text-[10px] text-white/50 uppercase tracking-widest font-bold">MonitorSDMPKHTapin</p>
-                </div>
-              </div>
-              <span className="bg-red-500 text-white rounded-full px-3 py-1.5 shadow-glossy text-[10px] font-black uppercase tracking-wider flex items-center shadow-red-500/50">
-                <i className="fa-solid fa-circle text-[8px] fa-fade mr-1.5"></i> Live
-              </span>
-            </div>
-          </div>
-
-          <div className="p-5 space-y-6 max-w-[800px] mx-auto animate-fade-in mt-4">
-            
-            <div className="text-center space-y-2 mb-8">
-              <span className={`inline-flex items-center gap-1.5 ${activeGroup.status === 'Selesai' ? 'bg-status-selesai text-white' : 'bg-status-proses text-white'} text-xs font-black px-4 py-2 rounded-full shadow-glossy uppercase tracking-wider`}>
-                <i className={`fa-solid ${activeGroup.status === 'Selesai' ? 'fa-check-double' : 'fa-spinner fa-spin'}`}></i> {activeGroup.status}
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-black leading-tight mt-3 mb-1">{activeGroup.taskName}</h2>
-              <p className="text-white/60 font-bold text-sm"><i className="fa-solid fa-calendar-day text-blue-400"></i> Tenggat: {formatDateId(activeGroup.deadline)}</p>
-            </div>
-
-            <div className="bg-midnight-light rounded-3xl p-6 shadow-glossy border border-white/10">
-              <div className="flex justify-between items-end mb-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-white/50 font-bold mb-1">Capaian Keseluruhan</p>
-                  <div className="text-xl font-black text-white">{totalProgressGroup} <span className="text-sm text-white/50">/ {totalTargetGroup} Dokumen</span></div>
-                </div>
-                <h1 className="text-4xl font-black text-status-selesai">{overallPercent}%</h1>
-              </div>
-              <div className="w-full bg-midnight rounded-full h-4 shadow-inner border border-white/5">
-                <div className={`${overallPercent >= 100 ? 'bg-status-selesai' : 'bg-status-proses'} h-4 rounded-full transition-all duration-1000 relative overflow-hidden`} style={{ width: `${overallPercent}%` }}>
-                  <div className="absolute inset-0 bg-white/20" style={{backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%, transparent)', backgroundSize: '1rem 1rem', animation: 'progress-stripes 1s linear infinite'}}></div>
-                </div>
-              </div>
-            </div>
-            
-            <style>{`@keyframes progress-stripes { from { background-position: 1rem 0; } to { background-position: 0 0; } }`}</style>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-midnight-light rounded-2xl p-4 text-center border border-white/5 shadow-soft">
-                <h2 className="text-2xl font-black text-white mb-1">{totalPelaksana}</h2>
-                <span className="text-[10px] text-white/50 font-bold uppercase tracking-wider">Pelaksana</span>
-              </div>
-              <div className="bg-status-selesai/20 rounded-2xl p-4 text-center border border-status-selesai/30 shadow-soft">
-                <h2 className="text-2xl font-black text-status-selesai mb-1">{selesaiCount}</h2>
-                <span className="text-[10px] text-status-selesai font-bold uppercase tracking-wider">Selesai</span>
-              </div>
-              <div className="bg-status-proses/20 rounded-2xl p-4 text-center border border-status-proses/30 shadow-soft">
-                <h2 className="text-2xl font-black text-status-proses mb-1">{belumCount}</h2>
-                <span className="text-[10px] text-status-proses font-bold uppercase tracking-wider">Proses</span>
-              </div>
-            </div>
-
-            <div className="pt-4">
-              <h6 className="font-black text-white mb-4 flex items-center gap-2 text-sm uppercase tracking-wider border-b border-white/10 pb-3">
-                <i className="fa-solid fa-list-check text-white/50"></i> Daftar Pelaksana Secara Live
-              </h6>
-              <div className="space-y-3">
-                {activeGroup.assignees.map((a, idx) => {
-                  const isDone = a.progress >= a.target;
-                  const p = Math.min(Math.round((a.progress / a.target) * 100), 100);
-                  
-                  return (
-                    <div key={idx} className="bg-midnight-light rounded-2xl border border-white/5 shadow-soft p-4 relative overflow-hidden">
-                      <div className="flex justify-between items-center relative z-10 mb-3">
-                        <div className="font-black text-white text-sm">{a.picId}</div>
-                        <div className={`text-xs font-black ${isDone ? 'text-status-selesai' : 'text-status-proses'}`}>{p}%</div>
-                      </div>
-                      
-                      <div className="w-full bg-midnight rounded-full h-2 shadow-inner border border-white/5 relative z-10 mb-3">
-                        <div className={`${isDone ? 'bg-status-selesai' : 'bg-status-proses'} h-2 rounded-full transition-all duration-1000`} style={{ width: `${p}%` }}></div>
-                      </div>
-
-                      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider relative z-10">
-                        <span className="text-white/50">Capaian: <span className="text-white">{a.progress}</span> / {a.target}</span>
-                        <span className={isDone ? 'text-status-selesai' : 'text-status-proses'}>
-                          <i className={`fa-solid ${isDone ? 'fa-check-circle' : 'fa-spinner fa-spin'} mr-1`}></i> {isDone ? 'Selesai' : 'Proses'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            
-            <div className="text-center text-[10px] text-white/30 mt-10 mb-4 font-bold uppercase tracking-widest">
-              Live Preview • MonitorSDMPKHTapin
-            </div>
-
           </div>
         </div>
       );
@@ -600,22 +495,36 @@
       );
     };
 
-    // --- MENU 4: INPUT PROGRES ---
+    // --- MENU 4: INPUT PROGRES (ANTI-MACET DI HP) ---
     const ProgressForm = ({ tasks, employees, db }) => {
       const [selectedEmp, setSelectedEmp] = useState('');
       const [selectedTask, setSelectedTask] = useState('');
       const [amount, setAmount] = useState('');
-      const [message, setMessage] = useState('');
+      const [toast, setToast] = useState(null);
       const [isSyncing, setIsSyncing] = useState(false);
 
       const availableTasks = tasks.filter(t => String(t.picId) === String(selectedEmp) && t.status === 'On Progress');
 
+      const showToast = (type) => {
+        setToast(type);
+        setTimeout(() => setToast(null), 3000);
+      };
+
       const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!db) { alert("Sistem belum terhubung ke database. Cek koneksi Anda."); return; }
+        
+        // Custom Manual Validation untuk Bypass Bug Safari/Android Required Field
+        if (!selectedEmp || !selectedTask || !amount || parseInt(amount) <= 0) {
+          showToast('error');
+          return;
+        }
+        if (!db) { showToast('error'); return; }
+        
         setIsSyncing(true);
         try {
           const task = tasks.find(t => String(t.id) === String(selectedTask));
+          if(!task) { showToast('error'); setIsSyncing(false); return; }
+
           const newProgress = Math.min(task.progress + parseInt(amount), task.target);
           const isDone = newProgress >= task.target;
           
@@ -628,14 +537,24 @@
           await db.ref(`artifacts/${APP_ID}/public/data/tasks/${task.id}`).update(updates);
 
           setAmount('');
-          setMessage(`Laporan berhasil dikirim. ${isDone ? 'Kegiatan Selesai!' : ''}`);
-          setTimeout(() => setMessage(''), 4000);
-        } catch (err) { alert("Gagal mengirim laporan. Pastikan internet lancar."); }
+          showToast('success');
+        } catch (err) { showToast('error'); }
         setIsSyncing(false);
       };
 
       return (
-        <div className="animate-slide-up max-w-lg mx-auto space-y-6">
+        <div className="animate-slide-up max-w-lg mx-auto space-y-6 relative">
+          
+          {/* COMPACT TOAST NOTIFICATION */}
+          {toast && (
+            <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-slide-up">
+              <div className={`px-5 py-2 rounded-full shadow-lg font-black text-xs flex items-center gap-2 text-white ${toast === 'success' ? 'bg-status-selesai' : 'bg-red-500'}`}>
+                <i className={`fa-solid ${toast === 'success' ? 'fa-check-circle' : 'fa-xmark-circle'} text-lg`}></i> 
+                {toast === 'success' ? 'BERHASIL' : 'DATA TIDAK VALID'}
+              </div>
+            </div>
+          )}
+
           <div className="text-center mt-4">
             <div className="bg-gradient-to-br from-midnight to-midnight-light text-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-glossy">
                <i className="fa-solid fa-pen-to-square text-3xl"></i>
@@ -643,27 +562,21 @@
             <h3 className="text-2xl font-black text-midnight tracking-tight">Lapor Progres</h3>
             <p className="text-slate-500 text-sm font-bold mt-1">Kirim hasil pekerjaan harian Anda.</p>
           </div>
-
-          {message && (
-            <div className="bg-midnight text-white p-4 rounded-2xl shadow-lg font-bold flex items-center gap-3 animate-slide-up text-sm">
-              <i className="fa-solid fa-circle-check text-status-selesai text-xl"></i> {message}
-            </div>
-          )}
           
           <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-6 md:p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-user-tag text-slate-400 mr-2"></i>Pilih Identitas</label>
-                <select required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight focus:ring-2 focus:ring-midnight transition-all shadow-inner outline-none" value={selectedEmp} onChange={(e) => { setSelectedEmp(e.target.value); setSelectedTask(''); }}>
+                <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight outline-none cursor-pointer" value={selectedEmp} onChange={(e) => { setSelectedEmp(e.target.value); setSelectedTask(''); }}>
                   <option value="">-- Ketuk untuk memilih --</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                  {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
                 </select>
               </div>
               
               {selectedEmp && (
                 <div className="animate-slide-up">
                   <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-list-check text-slate-400 mr-2"></i>Pilih Pekerjaan Aktif</label>
-                  <select required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight focus:ring-2 focus:ring-midnight transition-all shadow-inner outline-none" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
+                  <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight outline-none cursor-pointer" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
                     <option value="">-- Pilih Pekerjaan --</option>
                     {availableTasks.map(t => <option key={t.id} value={t.id}>{t.taskName} (Sisa target: {t.target - t.progress})</option>)}
                   </select>
@@ -673,11 +586,11 @@
               {selectedTask && (
                 <div className="animate-slide-up">
                   <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-arrow-up-9-1 text-slate-400 mr-2"></i>Jumlah Diselesaikan</label>
-                  <input type="number" required min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-3xl text-center font-black text-status-selesai focus:ring-2 focus:ring-status-selesai transition-all shadow-inner placeholder:text-slate-300 outline-none" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
+                  <input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-3xl text-center font-black text-status-selesai outline-none placeholder:text-slate-300" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
                 </div>
               )}
               
-              <button type="submit" disabled={!selectedTask || isSyncing} className="w-full bg-gradient-to-r from-midnight to-midnight-light text-white font-bold py-4 rounded-xl shadow-glossy hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex justify-center items-center gap-2 mt-2 outline-none">
+              <button type="submit" disabled={isSyncing} className="w-full bg-gradient-to-r from-midnight to-midnight-light text-white font-bold py-4 rounded-xl shadow-glossy hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-2 mt-2 outline-none cursor-pointer">
                 {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin text-white"></i> Memproses...</> : <><i className="fa-solid fa-paper-plane text-status-selesai"></i> Kirim Laporan</>}
               </button>
             </form>
@@ -690,22 +603,27 @@
     const MenuVoting = ({ votings, db, employees, isAdminLogged }) => {
       const [selectedVoteId, setSelectedVoteId] = useState(null);
       const [activeTab, setActiveTab] = useState('statistik'); 
-      
       const [voteEmp, setVoteEmp] = useState('');
       const [selectedOptions, setSelectedOptions] = useState([]);
       const [isSyncing, setIsSyncing] = useState(false);
+      const [toast, setToast] = useState(null);
 
       const activeVote = votings.find(v => String(v.id) === String(selectedVoteId));
 
+      const showToast = (type) => {
+        setToast(type);
+        setTimeout(() => setToast(null), 3000);
+      };
+
       const handleCastVote = async (e) => {
         e.preventDefault();
-        if(!db || selectedOptions.length === 0) return;
+        if(!db || !voteEmp || selectedOptions.length === 0) { showToast('error'); return; }
         setIsSyncing(true);
         try {
            await db.ref(`artifacts/${APP_ID}/public/data/votings/${activeVote.id}/votes/${voteEmp}`).set(selectedOptions);
-           alert("Suara Anda berhasil direkam!");
+           showToast('success');
            setVoteEmp(''); setSelectedOptions([]); setActiveTab('statistik');
-        } catch (err) { alert("Gagal menyimpan suara."); }
+        } catch (err) { showToast('error'); }
         setIsSyncing(false);
       };
 
@@ -736,10 +654,10 @@
                 const totalVoters = v.voters ? v.voters.length : 0;
                 const totalVotes = v.votes ? Object.keys(v.votes).length : 0;
                 return (
-                  <button key={v.id} onClick={() => setSelectedVoteId(v.id)} className="card-btn bg-white rounded-3xl shadow-soft border border-slate-100 p-5 relative overflow-hidden">
+                  <button type="button" key={v.id} onClick={() => setSelectedVoteId(v.id)} className="card-btn bg-white rounded-3xl shadow-soft border border-slate-100 p-5 relative overflow-hidden">
                     <div className="flex items-start justify-between mb-3">
                       <h5 className="font-black text-midnight text-lg w-3/4">{v.title}</h5>
-                      <span className="bg-blue-50 text-status-selesai text-[10px] font-black px-2 py-1 rounded-md border border-blue-100 uppercase">{v.isMulti ? 'Multi' : 'Single'} Pilih</span>
+                      <span className="bg-blue-50 text-status-selesai text-[10px] font-black px-2 py-1 rounded-md border border-blue-100 uppercase">{v.isMulti ? 'Multi' : 'Single'}</span>
                     </div>
                     <div className="text-xs font-bold text-slate-500 mb-3"><i className="fa-solid fa-calendar-day mr-1"></i> Dibuat: {formatDateId(v.createdAt)}</div>
                     <div className="w-full bg-slate-100 rounded-full h-1.5 mb-1.5"><div className="bg-status-selesai h-1.5 rounded-full" style={{width: `${totalVoters===0?0:(totalVotes/totalVoters)*100}%`}}></div></div>
@@ -765,8 +683,17 @@
       });
 
       return (
-        <div className="animate-slide-up space-y-4">
-          <button onClick={() => setSelectedVoteId(null)} className="bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-4 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 outline-none">
+        <div className="animate-slide-up space-y-4 relative">
+          {toast && (
+            <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-slide-up">
+              <div className={`px-5 py-2 rounded-full shadow-lg font-black text-xs flex items-center gap-2 text-white ${toast === 'success' ? 'bg-status-selesai' : 'bg-red-500'}`}>
+                <i className={`fa-solid ${toast === 'success' ? 'fa-check-circle' : 'fa-xmark-circle'} text-lg`}></i> 
+                {toast === 'success' ? 'BERHASIL' : 'GAGAL'}
+              </div>
+            </div>
+          )}
+
+          <button type="button" onClick={() => setSelectedVoteId(null)} className="bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-4 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 outline-none cursor-pointer">
             <i className="fa-solid fa-arrow-left-long text-status-selesai"></i> Kembali
           </button>
 
@@ -777,10 +704,10 @@
           </div>
 
           <div className="flex bg-white rounded-xl shadow-sm border border-slate-100 p-1">
-             <button onClick={()=>setActiveTab('statistik')} className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-colors ${activeTab==='statistik' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>Statistik</button>
-             <button onClick={()=>setActiveTab('sudah')} className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-colors ${activeTab==='sudah' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>Sudah ({sudahVoteNames.length})</button>
-             <button onClick={()=>setActiveTab('belum')} className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-colors ${activeTab==='belum' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>Belum ({belumVoteNames.length})</button>
-             <button onClick={()=>setActiveTab('beri_suara')} className={`flex-1 py-2.5 text-xs font-black rounded-lg transition-colors ${activeTab==='beri_suara' ? 'bg-status-selesai text-white shadow-md' : 'text-status-selesai hover:bg-blue-50'}`}>Vote!</button>
+             <button type="button" onClick={()=>setActiveTab('statistik')} className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-colors outline-none cursor-pointer ${activeTab==='statistik' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>Statistik</button>
+             <button type="button" onClick={()=>setActiveTab('sudah')} className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-colors outline-none cursor-pointer ${activeTab==='sudah' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>Sudah ({sudahVoteNames.length})</button>
+             <button type="button" onClick={()=>setActiveTab('belum')} className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-colors outline-none cursor-pointer ${activeTab==='belum' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>Belum ({belumVoteNames.length})</button>
+             <button type="button" onClick={()=>setActiveTab('beri_suara')} className={`flex-1 py-2.5 text-xs font-black rounded-lg transition-colors outline-none cursor-pointer ${activeTab==='beri_suara' ? 'bg-status-selesai text-white shadow-md' : 'text-status-selesai hover:bg-blue-50'}`}>Vote!</button>
           </div>
 
           {activeTab === 'statistik' && (
@@ -831,7 +758,7 @@
             <form onSubmit={handleCastVote} className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 space-y-5 animate-fade-in">
                <div>
                   <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Pilih Identitas Anda</label>
-                  <select required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none" value={voteEmp} onChange={(e) => setVoteEmp(e.target.value)}>
+                  <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none cursor-pointer" value={voteEmp} onChange={(e) => setVoteEmp(e.target.value)}>
                     <option value="">-- Nama Anda --</option>
                     {voters.map(v => <option key={v} value={v}>{v} {sudahVoteNames.includes(v) ? '(Ubah Pilihan)' : ''}</option>)}
                   </select>
@@ -843,7 +770,7 @@
                        {activeVote.options.map(opt => {
                          const isSelected = selectedOptions.includes(opt);
                          return (
-                           <button type="button" key={opt} onClick={() => toggleOption(opt)} className={`w-full flex items-center justify-between p-3 rounded-xl border text-sm font-bold transition-colors outline-none ${isSelected ? 'bg-blue-50 border-status-selesai text-status-selesai' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                           <button type="button" key={opt} onClick={() => toggleOption(opt)} className={`w-full flex items-center justify-between p-3 rounded-xl border text-sm font-bold transition-colors outline-none cursor-pointer ${isSelected ? 'bg-blue-50 border-status-selesai text-status-selesai' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
                               <span>{opt}</span>
                               {isSelected && <i className="fa-solid fa-circle-check"></i>}
                            </button>
@@ -852,7 +779,7 @@
                     </div>
                  </div>
                )}
-               <button type="submit" disabled={!voteEmp || selectedOptions.length === 0 || isSyncing} className="w-full bg-status-selesai text-white font-bold py-3.5 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none mt-2">
+               <button type="submit" disabled={isSyncing} className="w-full bg-status-selesai text-white font-bold py-3.5 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none mt-2 cursor-pointer">
                   {isSyncing ? 'Mengirim...' : 'Kirim Suara'}
                </button>
             </form>
@@ -864,8 +791,7 @@
     // --- MENU 6: ADMIN PANEL (SUPER ADMIN CRUD + ENKRIPSI) ---
     const AdminPanel = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged, setIsAdminLogged }) => {
       const [pwd, setPwd] = useState('');
-      const [successMsg, setSuccessMsg] = useState('');
-      const [errorMsg, setErrorMsg] = useState('');
+      const [toast, setToast] = useState(null);
       const [isSyncing, setIsSyncing] = useState(false);
       const fileInputRef = useRef(null);
 
@@ -875,6 +801,11 @@
       const [voteTitle, setVoteTitle] = useState('');
       const [voteOptions, setVoteOptions] = useState(['']);
       const [isMulti, setIsMulti] = useState(false);
+
+      const showToast = (type) => {
+        setToast(type);
+        setTimeout(() => setToast(null), 3000);
+      };
 
       if (!isAdminLogged) {
         return (
@@ -891,7 +822,7 @@
                 else { alert('Password Salah!'); setPwd(''); }
               }}>
                 <input type="password" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-center text-lg font-black text-midnight tracking-widest mb-4 focus:ring-2 focus:ring-midnight outline-none transition-all shadow-inner" placeholder="PASSWORD" value={pwd} onChange={e=>setPwd(e.target.value)}/>
-                <button className="w-full bg-midnight text-white font-bold py-3.5 rounded-xl shadow-glossy active:scale-95 transition-all flex justify-center items-center gap-2 outline-none">
+                <button type="submit" className="w-full bg-midnight text-white font-bold py-3.5 rounded-xl shadow-glossy active:scale-95 transition-all flex justify-center items-center gap-2 outline-none cursor-pointer">
                   <i className="fa-solid fa-lock-open text-status-selesai"></i> Buka Panel
                 </button>
               </form>
@@ -900,10 +831,12 @@
         );
       }
 
-      // --- ADMIN: TAMBAH TUGAS MANUAL ---
       const handleAddManual = async (e) => {
         e.preventDefault();
-        setIsSyncing(true); setErrorMsg(''); setSuccessMsg('');
+        
+        if(!newTask.taskName || !newTask.picId || !newTask.deadline) { showToast('error'); return; }
+        
+        setIsSyncing(true);
         try {
           const updates = {};
           let addedCount = 0;
@@ -931,20 +864,18 @@
 
           if (addedCount > 0) {
              await db.ref().update(updates);
-             setSuccessMsg(`Berhasil menambah ${addedCount} penugasan manual!`);
+             showToast('success');
              setNewTask({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
-             setTimeout(() => setSuccessMsg(''), 5000);
-          } else { setErrorMsg("Data belum lengkap."); }
-        } catch (err) { setErrorMsg("Gagal menambah tugas."); }
+          } else { showToast('error'); }
+        } catch (err) { showToast('error'); }
         setIsSyncing(false);
       };
 
-      // --- ADMIN: EXCEL UPLOAD ---
       const handleExcelUpload = (e) => {
         const file = e.target.files[0];
         if (!file || !db) return;
 
-        setIsSyncing(true); setErrorMsg(''); setSuccessMsg('');
+        setIsSyncing(true);
         const fileExt = file.name.toLowerCase().split('.').pop();
         const reader = new FileReader();
 
@@ -999,23 +930,19 @@
              }
 
              if (addedCount > 0) {
-               try {
-                 await db.ref().update(updates); 
-                 setSuccessMsg(`BERHASIL! ${addedCount} kegiatan masuk ke database.`); 
-                 setTimeout(() => setSuccessMsg(''), 6000);
-               } catch (fbError) { setErrorMsg("UPLOAD DITOLAK! Cek rules Database Anda."); }
-             } else { setErrorMsg("Data Kosong. File harus berisi isian data."); }
-           } catch (error) { setErrorMsg("Format file gagal terbaca. Harus .xlsx atau .csv"); 
+               await db.ref().update(updates); 
+               showToast('success');
+             } else { showToast('error'); }
+           } catch (error) { showToast('error'); 
            } finally { setIsSyncing(false); if(fileInputRef.current) fileInputRef.current.value = ''; }
         };
-        reader.onerror = () => { setErrorMsg("Gagal membaca file."); setIsSyncing(false); };
+        reader.onerror = () => { showToast('error'); setIsSyncing(false); };
         if (fileExt === 'csv') reader.readAsText(file); else reader.readAsArrayBuffer(file);
       };
 
-      // --- ADMIN: MANAJEMEN TUGAS ---
       const handleSaveEdit = async (e) => {
         e.preventDefault();
-        setIsSyncing(true); setErrorMsg('');
+        setIsSyncing(true);
         try {
           const updates = {};
           if (editModal.type === 'group') {
@@ -1047,27 +974,27 @@
              };
           }
           await db.ref().update(updates);
-          setSuccessMsg('Perubahan data berhasil disimpan!');
+          showToast('success');
           setEditModal({ isOpen: false, type: '', data: {}, oldTaskName: '' });
-          setTimeout(() => setSuccessMsg(''), 4000);
-        } catch (err) { setErrorMsg("Gagal menyimpan editan."); }
+        } catch (err) { showToast('error'); }
         setIsSyncing(false);
       };
 
       const handleDeleteGroup = async (taskName) => {
-        if(!window.confirm(`HAPUS PERMANEN seluruh kegiatan "${taskName}" ?`)) return;
+        if(!window.confirm(`Hapus seluruh kegiatan "${taskName}" ?`)) return;
         setIsSyncing(true);
         try {
           const updates = {};
           const groupTasks = tasks.filter(t => t.taskName === taskName);
           groupTasks.forEach(t => { updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}`] = null; });
           await db.ref().update(updates);
-        } catch (e) { alert("Gagal menghapus."); }
+          showToast('success');
+        } catch (e) { showToast('error'); }
         setIsSyncing(false);
       };
 
       const handleResetGroupProgress = async (taskName) => {
-        if(!window.confirm(`RESET CAPAIAN: Yakin kembalikan seluruh progres pegawai di kegiatan "${taskName}" menjadi 0?`)) return;
+        if(!window.confirm(`Reset progress "${taskName}" ke 0?`)) return;
         setIsSyncing(true);
         try {
           const updates = {};
@@ -1078,25 +1005,24 @@
              updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/completedAt`] = null;
           });
           await db.ref().update(updates);
-          setSuccessMsg(`Progress ${taskName} berhasil di-reset ke 0!`);
-          setTimeout(() => setSuccessMsg(''), 4000);
-        } catch (e) { alert("Gagal mereset."); }
+          showToast('success');
+        } catch (e) { showToast('error'); }
         setIsSyncing(false);
       };
 
-      const handleDeletePerson = async (id, name) => {
-        if(!window.confirm(`Hapus pegawai "${name}" dari kegiatan ini?`)) return;
+      const handleDeletePerson = async (id) => {
+        if(!window.confirm(`Hapus pegawai dari kegiatan ini?`)) return;
         setIsSyncing(true);
-        try { await db.ref(`artifacts/${APP_ID}/public/data/tasks/${id}`).remove(); } catch (e) { alert("Gagal menghapus."); }
+        try { await db.ref(`artifacts/${APP_ID}/public/data/tasks/${id}`).remove(); showToast('success'); } 
+        catch (e) { showToast('error'); }
         setIsSyncing(false);
       };
 
-      // --- ADMIN: MANAJEMEN VOTING ---
       const handleCreateVoting = async (e) => {
         e.preventDefault();
-        if(!db || employees.length === 0) { alert("Belum ada data pegawai untuk diikutkan voting."); return; }
+        if(!db || employees.length === 0) { showToast('error'); return; }
         const cleanOptions = voteOptions.map(o => o.trim()).filter(o => o !== '');
-        if(cleanOptions.length < 2) { alert("Minimal harus ada 2 opsi pilihan."); return; }
+        if(cleanOptions.length < 2) { showToast('error'); return; }
 
         setIsSyncing(true);
         try {
@@ -1108,42 +1034,40 @@
              id: newId, title: voteTitle, options: cleanOptions, isMulti: isMulti, voters: votersList, createdAt: today, status: 'Active'
           });
 
-          setSuccessMsg(`Acara Voting "${voteTitle}" berhasil dibuat!`);
+          showToast('success');
           setVoteTitle(''); setVoteOptions(['']); setIsMulti(false);
-          setTimeout(() => setSuccessMsg(''), 4000);
-        } catch (err) { setErrorMsg("Gagal membuat voting."); }
+        } catch (err) { showToast('error'); }
         setIsSyncing(false);
       };
 
-      const handleDeleteVoting = async (voteId, title) => {
-        if(!window.confirm(`HAPUS PERMANEN acara voting "${title}" ?`)) return;
+      const handleDeleteVoting = async (voteId) => {
+        if(!window.confirm(`Hapus acara voting ini?`)) return;
         setIsSyncing(true);
         try {
           await db.ref(`artifacts/${APP_ID}/public/data/votings/${voteId}`).remove();
-          setSuccessMsg(`Voting "${title}" dihapus!`); setTimeout(() => setSuccessMsg(''), 4000);
-        } catch (e) { alert("Gagal menghapus voting."); }
+          showToast('success');
+        } catch (e) { showToast('error'); }
         setIsSyncing(false);
       };
 
-      const handleResetVoting = async (voteId, title) => {
-        if(!window.confirm(`RESET SUARA: Yakin menghapus seluruh suara yang sudah masuk di "${title}"?`)) return;
+      const handleResetVoting = async (voteId) => {
+        if(!window.confirm(`Hapus semua suara di voting ini?`)) return;
         setIsSyncing(true);
         try {
           await db.ref(`artifacts/${APP_ID}/public/data/votings/${voteId}/votes`).remove();
-          setSuccessMsg(`Suara di "${title}" berhasil di-reset!`); setTimeout(() => setSuccessMsg(''), 4000);
-        } catch (e) { alert("Gagal mereset voting."); }
+          showToast('success');
+        } catch (e) { showToast('error'); }
         setIsSyncing(false);
       };
 
-      // --- ADMIN: RESET DATABASE ---
       const handleResetAll = async () => {
-        if(!window.confirm("BAHAYA! Yakin hapus SELURUH DATABASE? Aksi ini tidak bisa dibatalkan!")) return;
+        if(!window.confirm("Yakin hapus SELURUH DATABASE?")) return;
         setIsSyncing(true);
         try {
           await db.ref(`artifacts/${APP_ID}/public/data/tasks`).remove();
           await db.ref(`artifacts/${APP_ID}/public/data/votings`).remove();
-          setSuccessMsg('Seluruh database berhasil dikosongkan!'); setTimeout(() => setSuccessMsg(''), 5000);
-        } catch (e) { alert("Gagal mereset."); }
+          showToast('success');
+        } catch (e) { showToast('error'); }
         setIsSyncing(false);
       };
 
@@ -1154,20 +1078,28 @@
           const workbook = window.XLSX.utils.book_new();
           window.XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
           window.XLSX.writeFile(workbook, "Template_MonitorSDMPKHTapin.xlsx");
-        } catch (err) { alert("Download gagal."); }
+        } catch (err) { showToast('error'); }
       };
 
       return (
-        <div className="animate-slide-up space-y-6 pb-10">
+        <div className="animate-slide-up space-y-6 pb-10 relative">
+          
+          {/* COMPACT TOAST NOTIFICATION */}
+          {toast && (
+            <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-slide-up">
+              <div className={`px-5 py-2 rounded-full shadow-lg font-black text-xs flex items-center gap-2 text-white ${toast === 'success' ? 'bg-status-selesai' : 'bg-red-500'}`}>
+                <i className={`fa-solid ${toast === 'success' ? 'fa-check-circle' : 'fa-xmark-circle'} text-lg`}></i> 
+                {toast === 'success' ? 'BERHASIL' : 'GAGAL'}
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-between items-center">
             <h3 className="text-2xl font-black text-midnight tracking-tight">Super Admin</h3>
-            <button onClick={() => { setIsAdminLogged(false); sessionStorage.removeItem('adminAuth'); }} className="bg-white border border-slate-200 text-red-500 font-bold px-4 py-1.5 rounded-full shadow-sm text-xs flex items-center gap-1.5 hover:bg-slate-50 transition-colors outline-none">
+            <button onClick={() => { setIsAdminLogged(false); sessionStorage.removeItem('adminAuth'); }} className="bg-white border border-slate-200 text-red-500 font-bold px-4 py-1.5 rounded-full shadow-sm text-xs flex items-center gap-1.5 hover:bg-slate-50 transition-colors outline-none cursor-pointer">
               <i className="fa-solid fa-power-off"></i> Keluar
             </button>
           </div>
-          
-          {successMsg && <div className="bg-midnight text-white p-4 rounded-2xl shadow-lg font-bold flex items-center gap-3 animate-slide-up text-sm"><i className="fa-solid fa-circle-check text-status-selesai text-xl"></i> {successMsg}</div>}
-          {errorMsg && <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-2xl shadow-lg font-bold flex flex-col gap-2 animate-slide-up text-sm"><div className="flex items-center gap-2"><i className="fa-solid fa-triangle-exclamation text-xl"></i> <span>ERROR:</span></div><span className="font-medium text-xs">{errorMsg}</span></div>}
           
           {/* SECTION: BUAT VOTING BARU */}
           <div className="bg-gradient-to-br from-indigo-600 to-blue-800 rounded-3xl shadow-soft p-5 text-white relative overflow-hidden">
@@ -1177,23 +1109,23 @@
               <form onSubmit={handleCreateVoting} className="space-y-4">
                  <div>
                     <label className="block text-[10px] font-bold text-white/70 mb-1 uppercase">Topik / Nama Voting</label>
-                    <input required type="text" className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 text-sm font-bold text-white outline-none placeholder:text-white/30" value={voteTitle} onChange={e => setVoteTitle(e.target.value)} placeholder="Contoh: Menu Makan Siang" />
+                    <input type="text" className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 text-sm font-bold text-white outline-none placeholder:text-white/30" value={voteTitle} onChange={e => setVoteTitle(e.target.value)} placeholder="Contoh: Menu Makan Siang" />
                  </div>
                  <div>
                     <label className="block text-[10px] font-bold text-white/70 mb-1 uppercase">Opsi Pilihan</label>
                     {voteOptions.map((opt, idx) => (
                       <div key={idx} className="flex gap-2 mb-2">
-                        <input required type="text" className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-sm font-bold text-white outline-none placeholder:text-white/30" value={opt} onChange={e => { const newArr = [...voteOptions]; newArr[idx] = e.target.value; setVoteOptions(newArr); }} placeholder={`Opsi ${idx+1}`} />
-                        {voteOptions.length > 1 && <button type="button" onClick={() => setVoteOptions(voteOptions.filter((_, i) => i !== idx))} className="bg-red-500/20 text-red-200 border border-red-500/30 w-10 rounded-xl flex items-center justify-center outline-none"><i className="fa-solid fa-trash text-xs"></i></button>}
+                        <input type="text" className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-sm font-bold text-white outline-none placeholder:text-white/30" value={opt} onChange={e => { const newArr = [...voteOptions]; newArr[idx] = e.target.value; setVoteOptions(newArr); }} placeholder={`Opsi ${idx+1}`} />
+                        {voteOptions.length > 1 && <button type="button" onClick={() => setVoteOptions(voteOptions.filter((_, i) => i !== idx))} className="bg-red-500/20 text-red-200 border border-red-500/30 w-10 rounded-xl flex items-center justify-center outline-none cursor-pointer"><i className="fa-solid fa-trash text-xs"></i></button>}
                       </div>
                     ))}
-                    <button type="button" onClick={() => setVoteOptions([...voteOptions, ''])} className="text-xs font-bold text-yellow-300 mt-1 outline-none"><i className="fa-solid fa-plus mr-1"></i> Tambah Opsi</button>
+                    <button type="button" onClick={() => setVoteOptions([...voteOptions, ''])} className="text-xs font-bold text-yellow-300 mt-1 outline-none cursor-pointer"><i className="fa-solid fa-plus mr-1"></i> Tambah Opsi</button>
                  </div>
                  <div className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/10 mt-2">
-                    <input type="checkbox" id="multiVote" checked={isMulti} onChange={e => setIsMulti(e.target.checked)} className="w-4 h-4 accent-blue-500 rounded outline-none" />
+                    <input type="checkbox" id="multiVote" checked={isMulti} onChange={e => setIsMulti(e.target.checked)} className="w-4 h-4 accent-blue-500 rounded outline-none cursor-pointer" />
                     <label htmlFor="multiVote" className="text-xs font-bold text-white cursor-pointer select-none">Boleh pilih lebih dari satu opsi (Multi Vote)</label>
                  </div>
-                 <button type="submit" disabled={isSyncing} className="w-full bg-white text-blue-900 font-black py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none mt-2">
+                 <button type="submit" disabled={isSyncing} className="w-full bg-white text-blue-900 font-black py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none mt-2 cursor-pointer">
                     {isSyncing ? 'Membuat...' : 'Terbitkan Voting'}
                  </button>
               </form>
@@ -1210,11 +1142,11 @@
                   <h6 className="font-bold text-midnight text-xs uppercase tracking-wider border-b border-slate-100 pb-2">Input Manual & Multi-Target</h6>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Kegiatan</label>
-                    <input required type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:border-midnight focus:ring-1 focus:ring-midnight shadow-inner" value={newTask.taskName} onChange={e => setNewTask({...newTask, taskName: e.target.value})} placeholder="Contoh: Entry Data PKH" />
+                    <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:border-midnight focus:ring-1 focus:ring-midnight shadow-inner" value={newTask.taskName} onChange={e => setNewTask({...newTask, taskName: e.target.value})} placeholder="Contoh: Entry Data PKH" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Tugaskan Ke</label>
-                    <input required list="emp-list" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:border-midnight focus:ring-1 focus:ring-midnight shadow-inner" value={newTask.picId} onChange={e => setNewTask({...newTask, picId: e.target.value})} placeholder="Ketik nama atau pilih opsi..." />
+                    <input list="emp-list" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:border-midnight focus:ring-1 focus:ring-midnight shadow-inner cursor-pointer" value={newTask.picId} onChange={e => setNewTask({...newTask, picId: e.target.value})} placeholder="Ketik nama atau pilih opsi..." />
                     <datalist id="emp-list">
                       <option value="all">🚀 SEMUA PEGAWAI SEKALIGUS</option>
                       {employees.map(emp => <option key={emp.id} value={emp.name} />)}
@@ -1232,22 +1164,22 @@
                       ))}
                       <div className="pt-2">
                         <label className="block text-[10px] font-bold text-blue-800 uppercase mb-1">Tenggat Waktu Bersama</label>
-                        <input required type="date" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
+                        <input type="date" className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none cursor-pointer" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
                       </div>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Target Angka</label>
-                        <input required type="number" min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none text-center shadow-inner" value={newTask.target} onChange={e => setNewTask({...newTask, target: e.target.value})} placeholder="0" />
+                        <input type="number" min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none text-center shadow-inner" value={newTask.target} onChange={e => setNewTask({...newTask, target: e.target.value})} placeholder="0" />
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Tenggat</label>
-                        <input required type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none shadow-inner" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
+                        <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none shadow-inner cursor-pointer" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
                       </div>
                     </div>
                   )}
-                  <button type="submit" disabled={isSyncing || !db} className="w-full bg-midnight text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none flex justify-center items-center gap-2">
+                  <button type="submit" disabled={isSyncing || !db} className="w-full bg-midnight text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none flex justify-center items-center gap-2 cursor-pointer">
                     {isSyncing ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-plus"></i>} Simpan Tugas Baru
                   </button>
                </form>
@@ -1259,11 +1191,11 @@
                    <div className="relative z-10">
                      <p className="text-white/60 text-[10px] font-bold mb-3 uppercase tracking-wide">Format: .xlsx atau .csv (Kolom A-D)</p>
                      <div className="flex gap-2">
-                       <button onClick={() => {fileInputRef.current.value = ''; handleDownloadTemplate();}} className="flex-1 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 backdrop-blur-md outline-none">
+                       <button onClick={() => {fileInputRef.current.value = ''; handleDownloadTemplate();}} className="flex-1 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 backdrop-blur-md outline-none cursor-pointer">
                          <i className="fa-solid fa-download"></i> Template
                        </button>
                        <input type="file" accept=".xlsx, .csv" ref={fileInputRef} onChange={handleExcelUpload} className="hidden" />
-                       <button onClick={() => fileInputRef.current.click()} disabled={isSyncing || !db} className="flex-[2] bg-white text-midnight font-black py-2.5 rounded-xl shadow-soft hover:bg-slate-50 transition-colors flex justify-center items-center gap-2 text-xs outline-none">
+                       <button onClick={() => fileInputRef.current.click()} disabled={isSyncing || !db} className="flex-[2] bg-white text-midnight font-black py-2.5 rounded-xl shadow-soft hover:bg-slate-50 transition-colors flex justify-center items-center gap-2 text-xs outline-none cursor-pointer">
                           {isSyncing ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-file-excel text-emerald-500"></i>} Upload File
                        </button>
                      </div>
@@ -1290,9 +1222,9 @@
                          <span className="bg-midnight text-white text-[10px] px-2 py-0.5 rounded-md">{g.assignees.length}</span>
                        </span>
                        <div className="flex gap-1.5">
-                         <button onClick={(e) => { e.preventDefault(); handleResetGroupProgress(g.taskName); }} className="bg-white border border-slate-200 text-orange-500 hover:bg-orange-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none" title="Reset Semua Capaian ke 0"><i className="fa-solid fa-rotate-left"></i></button>
-                         <button onClick={(e) => { e.preventDefault(); setEditModal({ isOpen: true, type: 'group', oldTaskName: g.taskName, data: { taskName: g.taskName, deadline: g.deadline } }); }} className="bg-white border border-slate-200 text-status-selesai hover:bg-blue-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none" title="Edit Grup"><i className="fa-solid fa-pen"></i></button>
-                         <button onClick={(e) => { e.preventDefault(); handleDeleteGroup(g.taskName); }} className="bg-white border border-red-200 text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none" title="Hapus Grup"><i className="fa-solid fa-trash"></i></button>
+                         <button onClick={(e) => { e.preventDefault(); handleResetGroupProgress(g.taskName); }} className="bg-white border border-slate-200 text-orange-500 hover:bg-orange-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Reset Semua Capaian ke 0"><i className="fa-solid fa-rotate-left"></i></button>
+                         <button onClick={(e) => { e.preventDefault(); setEditModal({ isOpen: true, type: 'group', oldTaskName: g.taskName, data: { taskName: g.taskName, deadline: g.deadline } }); }} className="bg-white border border-slate-200 text-status-selesai hover:bg-blue-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Edit Grup"><i className="fa-solid fa-pen"></i></button>
+                         <button onClick={(e) => { e.preventDefault(); handleDeleteGroup(g.taskName); }} className="bg-white border border-red-200 text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Hapus Grup"><i className="fa-solid fa-trash"></i></button>
                        </div>
                      </summary>
                      <div className="px-4 pb-4 pt-1 space-y-2 border-t border-slate-200/60 mt-1">
@@ -1303,8 +1235,8 @@
                              <div className="text-[10px] text-slate-400 font-bold mt-1">Trg: <span className="text-midnight">{a.target}</span> | Capaian: <span className="text-status-selesai">{a.progress}</span></div>
                            </div>
                            <div className="flex gap-1.5">
-                             <button onClick={() => setEditModal({ isOpen: true, type: 'individual', data: { id: a.id, taskName: a.taskName, picId: a.picId, target: a.target, progress: a.progress, deadline: a.deadline } })} className="bg-slate-50 text-status-selesai border border-slate-200 w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-50 transition-colors outline-none" title="Edit Bebas"><i className="fa-solid fa-pen text-[10px]"></i></button>
-                             <button onClick={() => handleDeletePerson(a.id, a.picId)} className="bg-red-50 text-red-500 border border-red-100 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-100 transition-colors outline-none" title="Hapus Pegawai"><i className="fa-solid fa-xmark text-sm"></i></button>
+                             <button onClick={() => setEditModal({ isOpen: true, type: 'individual', data: { id: a.id, taskName: a.taskName, picId: a.picId, target: a.target, progress: a.progress, deadline: a.deadline } })} className="bg-slate-50 text-status-selesai border border-slate-200 w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-50 transition-colors outline-none cursor-pointer" title="Edit Bebas"><i className="fa-solid fa-pen text-[10px]"></i></button>
+                             <button onClick={() => handleDeletePerson(a.id, a.picId)} className="bg-red-50 text-red-500 border border-red-100 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-100 transition-colors outline-none cursor-pointer" title="Hapus Pegawai"><i className="fa-solid fa-xmark text-sm"></i></button>
                            </div>
                          </div>
                        ))}
@@ -1315,7 +1247,7 @@
             </div>
           </div>
 
-          {/* SECTION: KELOLA VOTING (CRUD FULL) */}
+          {/* SECTION: KELOLA VOTING */}
           <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
             <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
               <i className="fa-solid fa-check-to-slot text-status-proses"></i> <span className="font-black text-midnight text-sm uppercase tracking-wider">Kelola Kotak Suara</span>
@@ -1333,15 +1265,15 @@
                        </div>
                      </div>
                      <div className="flex gap-1.5">
-                       <button onClick={(e) => { e.preventDefault(); handleResetVoting(v.id, v.title); }} className="bg-white border border-slate-200 text-orange-500 hover:bg-orange-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none" title="Reset Semua Suara ke 0"><i className="fa-solid fa-rotate-left"></i></button>
-                       <button onClick={(e) => { e.preventDefault(); handleDeleteVoting(v.id, v.title); }} className="bg-white border border-red-200 text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none" title="Hapus Voting"><i className="fa-solid fa-trash"></i></button>
+                       <button onClick={(e) => { e.preventDefault(); handleResetVoting(v.id, v.title); }} className="bg-white border border-slate-200 text-orange-500 hover:bg-orange-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Reset Semua Suara ke 0"><i className="fa-solid fa-rotate-left"></i></button>
+                       <button onClick={(e) => { e.preventDefault(); handleDeleteVoting(v.id, v.title); }} className="bg-white border border-red-200 text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Hapus Voting"><i className="fa-solid fa-trash"></i></button>
                      </div>
                    </div>
                  ))}
                </div>
 
                <div className="border-t border-slate-200 pt-5 mt-5">
-                 <button onClick={handleResetAll} disabled={isSyncing || !db} className="w-full bg-red-50 text-red-600 border border-red-200 font-black py-3.5 rounded-xl shadow-sm hover:bg-red-100 transition-colors flex justify-center items-center gap-2 outline-none">
+                 <button onClick={handleResetAll} disabled={isSyncing || !db} className="w-full bg-red-50 text-red-600 border border-red-200 font-black py-3.5 rounded-xl shadow-sm hover:bg-red-100 transition-colors flex justify-center items-center gap-2 outline-none cursor-pointer">
                    <i className="fa-solid fa-skull-crossbones"></i> FORMAT KOSONG DATABASE
                  </button>
                </div>
@@ -1352,38 +1284,38 @@
             </div>
           </div>
           
-          {/* MODAL EDIT (GLASSMORPHISM) SUPER ADMIN */}
+          {/* MODAL EDIT SUPER ADMIN */}
           {editModal.isOpen && (
             <div className="fixed inset-0 z-[9999] bg-midnight/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
               <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-slide-up">
                  <div className="bg-gradient-to-r from-midnight to-midnight-light p-4 px-5 flex justify-between items-center text-white">
                     <h3 className="font-black text-sm uppercase tracking-wider"><i className="fa-solid fa-pen-to-square mr-2 text-status-selesai"></i> {editModal.type === 'group' ? 'Edit Grup Kegiatan' : 'Bypass Edit Data'}</h3>
-                    <button onClick={() => setEditModal({isOpen: false, type:'', data:{}, oldTaskName:''})} className="opacity-70 hover:opacity-100 outline-none"><i className="fa-solid fa-xmark text-xl"></i></button>
+                    <button type="button" onClick={() => setEditModal({isOpen: false, type:'', data:{}, oldTaskName:''})} className="opacity-70 hover:opacity-100 outline-none cursor-pointer"><i className="fa-solid fa-xmark text-xl"></i></button>
                  </div>
                  <div className="p-6">
                     <form onSubmit={handleSaveEdit} className="space-y-4">
                        <div>
                           <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Kegiatan</label>
-                          <input required type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none" value={editModal.data.taskName} onChange={e => setEditModal({...editModal, data: {...editModal.data, taskName: e.target.value}})} />
+                          <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none" value={editModal.data.taskName} onChange={e => setEditModal({...editModal, data: {...editModal.data, taskName: e.target.value}})} />
                        </div>
                        
                        {editModal.type === 'individual' && (
                          <>
                            <div>
                               <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Pegawai / PIC</label>
-                              <input required type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none" value={editModal.data.picId} onChange={e => setEditModal({...editModal, data: {...editModal.data, picId: e.target.value}})} />
+                              <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none" value={editModal.data.picId} onChange={e => setEditModal({...editModal, data: {...editModal.data, picId: e.target.value}})} />
                            </div>
                            <div className="grid grid-cols-2 gap-3">
                              <div>
                                 <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Target Angka</label>
-                                <input required type="number" min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none text-center" value={editModal.data.target} onChange={e => setEditModal({...editModal, data: {...editModal.data, target: e.target.value}})} />
+                                <input type="number" min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none text-center" value={editModal.data.target} onChange={e => setEditModal({...editModal, data: {...editModal.data, target: e.target.value}})} />
                              </div>
                              <div>
                                 <label className="flex justify-between items-center text-[10px] font-bold text-slate-500 mb-1 uppercase">
                                   <span>Capaian</span>
-                                  <button type="button" onClick={() => setEditModal({...editModal, data: {...editModal.data, progress: 0}})} className="text-orange-500 hover:text-orange-600 outline-none">Reset 0</button>
+                                  <button type="button" onClick={() => setEditModal({...editModal, data: {...editModal.data, progress: 0}})} className="text-orange-500 hover:text-orange-600 outline-none cursor-pointer">Reset 0</button>
                                 </label>
-                                <input required type="number" min="0" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-black text-status-selesai outline-none text-center shadow-inner" value={editModal.data.progress} onChange={e => setEditModal({...editModal, data: {...editModal.data, progress: e.target.value}})} />
+                                <input type="number" min="0" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-black text-status-selesai outline-none text-center shadow-inner" value={editModal.data.progress} onChange={e => setEditModal({...editModal, data: {...editModal.data, progress: e.target.value}})} />
                              </div>
                            </div>
                          </>
@@ -1391,11 +1323,11 @@
                        
                        <div>
                           <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Tenggat Waktu</label>
-                          <input required type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none" value={editModal.data.deadline} onChange={e => setEditModal({...editModal, data: {...editModal.data, deadline: e.target.value}})} />
+                          <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none cursor-pointer" value={editModal.data.deadline} onChange={e => setEditModal({...editModal, data: {...editModal.data, deadline: e.target.value}})} />
                        </div>
                        
                        <div className="pt-2">
-                         <button type="submit" disabled={isSyncing} className="w-full bg-status-selesai text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none flex justify-center items-center gap-2">
+                         <button type="submit" disabled={isSyncing} className="w-full bg-status-selesai text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none flex justify-center items-center gap-2 cursor-pointer">
                            {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...</> : <><i className="fa-solid fa-floppy-disk"></i> Simpan Perubahan</>}
                          </button>
                        </div>
@@ -1418,7 +1350,7 @@
       const [activeTab, setActiveTab] = useState('dashboard');
       const [employees, setEmployees] = useState([]);
       const [tasks, setTasks] = useState([]);
-      const [votings, setVotings] = useState([]); // State untuk data Voting
+      const [votings, setVotings] = useState([]); 
       const [isLoading, setIsLoading] = useState(true);
       const [globalError, setGlobalError] = useState(null);
       const [selectedTaskName, setSelectedTaskName] = useState(null);
@@ -1488,7 +1420,7 @@
             <i className="fa-solid fa-triangle-exclamation text-red-500 text-7xl drop-shadow-md"></i>
             <h2 className="text-2xl font-black text-midnight">Koneksi Terhambat</h2>
             <p className="text-slate-600 font-bold bg-white border border-red-100 p-5 rounded-2xl shadow-soft text-sm max-w-sm"><span className="text-red-500 block mb-2">{globalError}</span></p>
-            <button onClick={() => window.location.reload()} className="bg-midnight text-white px-8 py-3.5 rounded-full font-bold shadow-glossy mt-2 active:scale-95 transition-all">Muat Ulang Layar</button>
+            <button onClick={() => window.location.reload()} className="bg-midnight text-white px-8 py-3.5 rounded-full font-bold shadow-glossy mt-2 active:scale-95 transition-all outline-none cursor-pointer">Muat Ulang Layar</button>
           </div>
         );
       }
@@ -1532,8 +1464,8 @@
               { id: 'voting', icon: 'fa-check-to-slot', label: 'Voting' },
               { id: 'admin', icon: 'fa-shield', label: 'Admin' }
             ].map(item => (
-              <button key={item.id} onClick={() => { setActiveTab(item.id); setSelectedTaskName(null); }} 
-                className={`flex flex-col items-center justify-center flex-1 min-w-[50px] gap-1.5 transition-all duration-300 outline-none ${activeTab === item.id ? 'text-midnight scale-110' : 'text-slate-400 hover:text-slate-600'}`}>
+              <button type="button" key={item.id} onClick={() => { setActiveTab(item.id); setSelectedTaskName(null); }} 
+                className={`flex flex-col items-center justify-center flex-1 min-w-[50px] gap-1.5 transition-all duration-300 outline-none cursor-pointer ${activeTab === item.id ? 'text-midnight scale-110' : 'text-slate-400 hover:text-slate-600'}`}>
                 <i className={`fa-solid ${item.icon} text-[18px] sm:text-xl transition-transform ${activeTab === item.id ? 'drop-shadow-md text-status-selesai' : ''}`}></i>
                 <span className="text-[8px] font-black uppercase tracking-wider">{item.label}</span>
               </button>
@@ -1559,5 +1491,3 @@
   </script>
 </body>
 </html>
-
-
