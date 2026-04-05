@@ -331,27 +331,46 @@
         } catch (err) { showToast('error'); }
       };
 
+      // FUNGSI SHARE LIVE LINK DENGAN DOUBLE FALLBACK AGAR PASTI BERHASIL
       const handleShareLivePreview = () => {
         const url = `${window.location.origin}${window.location.pathname}?preview=${encodeURIComponent(activeGroup.taskName)}`;
-        const textArea = document.createElement("textarea");
-        textArea.value = url;
-        document.body.appendChild(textArea);
-        textArea.select();
-        try {
-          document.execCommand('copy');
-          showToast('success');
-        } catch (err) { showToast('error'); }
-        document.body.removeChild(textArea);
+        
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(url).then(() => {
+            showToast('success');
+            alert('Berhasil! Link Live Preview telah disalin.\n\nSilakan Paste di WhatsApp:\n' + url);
+          }).catch(() => {
+            window.prompt("Salin link Live Preview berikut manual:", url);
+          });
+        } else {
+          const textArea = document.createElement("textarea");
+          textArea.value = url;
+          textArea.style.position = "fixed";
+          textArea.style.left = "-999999px";
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          try {
+            document.execCommand('copy');
+            showToast('success');
+            alert('Berhasil! Link Live Preview telah disalin.\n\nSilakan Paste di WhatsApp:\n' + url);
+          } catch (err) {
+            window.prompt("Salin link Live Preview berikut manual:", url);
+          }
+          document.body.removeChild(textArea);
+        }
       };
 
       if (activeGroup) {
         const totalPelaksana = activeGroup.assignees.length;
         const selesaiCount = activeGroup.assignees.filter(a => a.progress >= a.target).length;
         const belumCount = totalPelaksana - selesaiCount;
+        const today = new Date().toISOString().split('T')[0];
 
         return (
           <div className="animate-slide-up space-y-5">
             
+            {/* COMPACT TOAST NOTIFICATION */}
             {toast && (
               <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-slide-up">
                 <div className={`px-5 py-2 rounded-full shadow-lg font-black text-xs flex items-center gap-2 text-white ${toast === 'success' ? 'bg-status-selesai' : 'bg-red-500'}`}>
@@ -366,6 +385,7 @@
                 <i className="fa-solid fa-arrow-left-long text-status-selesai"></i> Kembali
               </button>
               
+              {/* TOMBOL RAHASIA ADMIN */}
               {isAdminLogged && (
                 <div className="flex gap-2">
                   <button onClick={handleShareLivePreview} className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md rounded-full font-black px-3 py-2 text-[10px] sm:text-xs flex items-center gap-1.5 hover:scale-95 transition-transform outline-none">
@@ -414,18 +434,23 @@
                     const isDone = a.progress >= a.target;
                     const badgeBg = isDone ? 'bg-status-selesai border-status-selesai text-white' : 'bg-white border-status-proses border-2 text-status-proses';
                     const iconClass = isDone ? 'fa-solid fa-circle-check text-white' : 'fa-solid fa-spinner fa-spin text-status-proses';
-                    
+                    const progresHariIni = (a.daily && a.daily[today]) ? a.daily[today] : 0;
+
                     return (
                       <div key={idx} className="flex flex-col bg-slate-50 rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                         <div className="flex justify-between items-center p-4">
                           <div>
                             <div className="font-bold text-midnight text-sm mb-1">{a.picId}</div>
-                            <div className="text-xs text-slate-500 font-medium">Capaian: <span className="font-bold text-midnight">{a.progress}</span> / {a.target}</div>
+                            <div className="text-[10px] text-slate-500 font-bold">
+                              Trg: <span className="text-midnight">{a.target}</span> | Capaian: <span className="text-status-selesai">{a.progress}</span> 
+                              {progresHariIni > 0 && <span className="text-yellow-600 ml-1 bg-yellow-50 px-1 rounded border border-yellow-100">(+{progresHariIni} hari ini)</span>}
+                            </div>
                           </div>
                           <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm ${badgeBg}`}>
                             <i className={iconClass}></i> {isDone ? 'Selesai' : 'Proses'}
                           </span>
                         </div>
+                        {/* RECORD TANGGAL SELESAI */}
                         <div className={`px-4 py-2 text-[10px] font-bold tracking-wider ${isDone ? 'bg-status-selesai/10 text-status-selesai' : 'bg-slate-100 text-slate-400'}`}>
                            {isDone ? <><i className="fa-solid fa-flag-checkered mr-1"></i> Tuntas pada: {formatDateId(a.completedAt)}</> : <><i className="fa-solid fa-hourglass-start mr-1"></i> Mulai dikerjakan: {formatDateId(a.startDate)}</>}
                         </div>
@@ -458,11 +483,138 @@
       );
     };
 
+    // --- MENU KHUSUS: LIVE PREVIEW PUBLIK ---
+    const LivePreviewView = ({ taskName, groupedTasks }) => {
+      const activeGroup = groupedTasks.find(g => g.taskName === taskName);
+
+      if (!activeGroup) {
+        return (
+          <div className="min-h-screen flex flex-col gap-4 items-center justify-center bg-slate-50 p-6 text-center">
+            <i className="fa-solid fa-circle-exclamation text-slate-400 text-6xl"></i>
+            <h2 className="text-2xl font-black text-midnight">Kegiatan Tidak Ditemukan</h2>
+            <p className="text-slate-500 font-bold text-sm">Mungkin kegiatan ini sudah dihapus atau namanya salah.</p>
+          </div>
+        );
+      }
+
+      const totalPelaksana = activeGroup.assignees.length;
+      const selesaiCount = activeGroup.assignees.filter(a => a.progress >= a.target).length;
+      const belumCount = totalPelaksana - selesaiCount;
+      const totalProgressGroup = activeGroup.assignees.reduce((sum, a) => sum + a.progress, 0);
+      const totalTargetGroup = activeGroup.assignees.reduce((sum, a) => sum + a.target, 0);
+      const overallPercent = totalTargetGroup === 0 ? 0 : Math.min(Math.round((totalProgressGroup / totalTargetGroup) * 100), 100);
+      const today = new Date().toISOString().split('T')[0];
+
+      return (
+        <div className="min-h-screen bg-midnight text-white pb-10">
+          <div className="bg-gradient-to-r from-midnight-light to-midnight shadow-nav sticky top-0 z-50 border-b border-white/10">
+            <div className="px-5 py-4 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/10 border border-white/20 text-white rounded-xl p-2 flex items-center justify-center shadow-inner" style={{width: '45px', height: '45px'}}>
+                  <i className="fa-solid fa-chart-line text-yellow-400 text-xl"></i>
+                </div>
+                <div>
+                  <h1 className="font-black text-lg leading-tight tracking-tight">Live Preview</h1>
+                  <p className="text-[10px] text-white/50 uppercase tracking-widest font-bold">MonitorSDMPKHTapin</p>
+                </div>
+              </div>
+              <span className="bg-red-500 text-white rounded-full px-3 py-1.5 shadow-glossy text-[10px] font-black uppercase tracking-wider flex items-center shadow-red-500/50">
+                <i className="fa-solid fa-circle text-[8px] fa-fade mr-1.5"></i> Live
+              </span>
+            </div>
+          </div>
+
+          <div className="p-5 space-y-6 max-w-[800px] mx-auto animate-fade-in mt-4">
+            
+            <div className="text-center space-y-2 mb-8">
+              <span className={`inline-flex items-center gap-1.5 ${activeGroup.status === 'Selesai' ? 'bg-status-selesai text-white' : 'bg-status-proses text-white'} text-xs font-black px-4 py-2 rounded-full shadow-glossy uppercase tracking-wider`}>
+                <i className={`fa-solid ${activeGroup.status === 'Selesai' ? 'fa-check-double' : 'fa-spinner fa-spin'}`}></i> {activeGroup.status}
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-black leading-tight mt-3 mb-1">{activeGroup.taskName}</h2>
+              <p className="text-white/60 font-bold text-sm"><i className="fa-solid fa-calendar-day text-blue-400"></i> Tenggat: {formatDateId(activeGroup.deadline)}</p>
+            </div>
+
+            <div className="bg-midnight-light rounded-3xl p-6 shadow-glossy border border-white/10">
+              <div className="flex justify-between items-end mb-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-white/50 font-bold mb-1">Capaian Keseluruhan</p>
+                  <div className="text-xl font-black text-white">{totalProgressGroup} <span className="text-sm text-white/50">/ {totalTargetGroup} Dokumen</span></div>
+                </div>
+                <h1 className="text-4xl font-black text-status-selesai">{overallPercent}%</h1>
+              </div>
+              <div className="w-full bg-midnight rounded-full h-4 shadow-inner border border-white/5">
+                <div className={`${overallPercent >= 100 ? 'bg-status-selesai' : 'bg-status-proses'} h-4 rounded-full transition-all duration-1000 relative overflow-hidden`} style={{ width: `${overallPercent}%` }}>
+                  <div className="absolute inset-0 bg-white/20" style={{backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%, transparent)', backgroundSize: '1rem 1rem', animation: 'progress-stripes 1s linear infinite'}}></div>
+                </div>
+              </div>
+            </div>
+            
+            <style>{`@keyframes progress-stripes { from { background-position: 1rem 0; } to { background-position: 0 0; } }`}</style>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-midnight-light rounded-2xl p-4 text-center border border-white/5 shadow-soft">
+                <h2 className="text-2xl font-black text-white mb-1">{totalPelaksana}</h2>
+                <span className="text-[10px] text-white/50 font-bold uppercase tracking-wider">Pelaksana</span>
+              </div>
+              <div className="bg-status-selesai/20 rounded-2xl p-4 text-center border border-status-selesai/30 shadow-soft">
+                <h2 className="text-2xl font-black text-status-selesai mb-1">{selesaiCount}</h2>
+                <span className="text-[10px] text-status-selesai font-bold uppercase tracking-wider">Selesai</span>
+              </div>
+              <div className="bg-status-proses/20 rounded-2xl p-4 text-center border border-status-proses/30 shadow-soft">
+                <h2 className="text-2xl font-black text-status-proses mb-1">{belumCount}</h2>
+                <span className="text-[10px] text-status-proses font-bold uppercase tracking-wider">Proses</span>
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <h6 className="font-black text-white mb-4 flex items-center gap-2 text-sm uppercase tracking-wider border-b border-white/10 pb-3">
+                <i className="fa-solid fa-list-check text-white/50"></i> Daftar Pelaksana Secara Live
+              </h6>
+              <div className="space-y-3">
+                {activeGroup.assignees.map((a, idx) => {
+                  const isDone = a.progress >= a.target;
+                  const p = Math.min(Math.round((a.progress / a.target) * 100), 100);
+                  const progresHariIni = (a.daily && a.daily[today]) ? a.daily[today] : 0;
+                  
+                  return (
+                    <div key={idx} className="bg-midnight-light rounded-2xl border border-white/5 shadow-soft p-4 relative overflow-hidden">
+                      <div className="flex justify-between items-center relative z-10 mb-3">
+                        <div className="font-black text-white text-sm">{a.picId}</div>
+                        <div className={`text-xs font-black ${isDone ? 'text-status-selesai' : 'text-status-proses'}`}>{p}%</div>
+                      </div>
+                      
+                      <div className="w-full bg-midnight rounded-full h-2 shadow-inner border border-white/5 relative z-10 mb-3">
+                        <div className={`${isDone ? 'bg-status-selesai' : 'bg-status-proses'} h-2 rounded-full transition-all duration-1000`} style={{ width: `${p}%` }}></div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider relative z-10">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-white/50">Capaian: <span className="text-white">{a.progress}</span> / {a.target}</span>
+                          {progresHariIni > 0 && <span className="text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-2 py-0.5 rounded w-max"><i className="fa-solid fa-arrow-trend-up"></i> Hari Ini: +{progresHariIni}</span>}
+                        </div>
+                        <span className={isDone ? 'text-status-selesai' : 'text-status-proses'}>
+                          <i className={`fa-solid ${isDone ? 'fa-check-circle' : 'fa-spinner fa-spin'} mr-1`}></i> {isDone ? 'Selesai' : 'Proses'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <div className="text-center text-[10px] text-white/30 mt-10 mb-4 font-bold uppercase tracking-widest">
+              Live Preview • MonitorSDMPKHTapin
+            </div>
+
+          </div>
+        </div>
+      );
+    };
+
     // --- MENU 3: LEADERBOARD (RANK PER KEGIATAN SPESIFIK) ---
     const Leaderboard = ({ groupedTasks }) => {
       const [selectedRankTask, setSelectedRankTask] = useState(null);
 
-      // JIKA KEGIATAN SUDAH DIKLIK -> TAMPILKAN RANKING KHUSUS KEGIATAN TERSEBUT
       if (selectedRankTask) {
         const activeGroup = groupedTasks.find(g => g.taskName === selectedRankTask);
         if (!activeGroup) {
@@ -470,7 +622,6 @@
           return null;
         }
 
-        // Kalkulasi persentase kinerja KHUSUS untuk kegiatan ini
         const stats = activeGroup.assignees.map(a => {
            const percent = a.target === 0 ? 0 : Math.min(Math.round((a.progress / a.target) * 100), 100);
            return { ...a, percent };
@@ -531,7 +682,6 @@
         );
       }
 
-      // TAMPILAN AWAL (PILIH KEGIATAN UNTUK MELIHAT RANK)
       return (
         <div className="animate-slide-up space-y-6">
           <div>
@@ -551,7 +701,7 @@
       );
     };
 
-    // --- MENU 4: INPUT PROGRES (Hanya Icon Notifikasi) ---
+    // --- MENU 4: INPUT PROGRES (Hanya Icon Notifikasi + Daily Progress) ---
     const ProgressForm = ({ tasks, employees, db }) => {
       const [selectedEmp, setSelectedEmp] = useState('');
       const [selectedTask, setSelectedTask] = useState('');
@@ -578,11 +728,19 @@
           const task = tasks.find(t => String(t.id) === String(selectedTask));
           if(!task) { showToast('error'); setIsSyncing(false); return; }
 
-          const newProgress = Math.min(task.progress + parseInt(amount), task.target);
+          const amountInt = parseInt(amount);
+          const newProgress = Math.min(task.progress + amountInt, task.target);
           const isDone = newProgress >= task.target;
-          
           const today = new Date().toISOString().split('T')[0];
-          const updates = { progress: newProgress, status: isDone ? 'Selesai' : 'On Progress' };
+
+          // Hitung progres khusus hari ini
+          const currentDaily = (task.daily && task.daily[today]) ? parseInt(task.daily[today]) : 0;
+          
+          const updates = { 
+            progress: newProgress, 
+            status: isDone ? 'Selesai' : 'On Progress'
+          };
+          updates[`daily/${today}`] = currentDaily + amountInt;
           
           if (isDone && task.status !== 'Selesai') updates.completedAt = today;
           else if (!isDone) updates.completedAt = null;
@@ -638,7 +796,7 @@
               
               {selectedTask && (
                 <div className="animate-slide-up">
-                  <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-arrow-up-9-1 text-slate-400 mr-2"></i>Jumlah Diselesaikan</label>
+                  <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-arrow-up-9-1 text-slate-400 mr-2"></i>Jumlah Diselesaikan Hari Ini</label>
                   <input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-3xl text-center font-black text-status-selesai outline-none placeholder:text-slate-300" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
                 </div>
               )}
@@ -672,7 +830,6 @@
         if(!db || !voteEmp || selectedOptions.length === 0) { showToast('error'); return; }
         setIsSyncing(true);
         try {
-           // ENKRIPSI KEY: Mencegah error jika ada titik (.) di nama pegawai
            const safeKey = btoa(unescape(encodeURIComponent(voteEmp))).replace(/[.#$/\[\]]/g, '_');
            await db.ref(`artifacts/${APP_ID}/public/data/votings/${activeVote.id}/votes/${safeKey}`).set({
              name: voteEmp,
@@ -729,10 +886,8 @@
 
       const votesObj = activeVote.votes || {};
       const votesArray = Object.values(votesObj);
-      // Susun secara abjad untuk nama yang sudah vote
       const sudahVoteNames = votesArray.map(v => v.name).sort((a,b) => a.localeCompare(b));
       const voters = activeVote.voters || [];
-      // Susun secara abjad untuk nama yang belum vote
       const belumVoteNames = voters.filter(v => !sudahVoteNames.includes(v)).sort((a,b) => a.localeCompare(b));
 
       const optionCounts = {};
@@ -793,18 +948,15 @@
 
           {activeTab === 'sudah' && (
             <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 space-y-3 animate-fade-in">
-               {sudahVoteNames.length === 0 && <p className="text-center text-xs font-bold text-slate-400 py-4">Belum ada suara masuk.</p>}
-               {sudahVoteNames.map(name => {
-                 const voteData = votesArray.find(v => v.name === name);
-                 return (
-                 <div key={name} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <span className="font-bold text-midnight text-xs">{name}</span>
+               {votesArray.length === 0 && <p className="text-center text-xs font-bold text-slate-400 py-4">Belum ada suara masuk.</p>}
+               {votesArray.map(voteData => (
+                 <div key={voteData.name} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <span className="font-bold text-midnight text-xs">{voteData.name}</span>
                     <div className="flex gap-1 flex-wrap justify-end max-w-[60%]">
-                      {voteData && voteData.options && voteData.options.map(opt => <span key={opt} className="bg-blue-50 border border-blue-100 text-status-selesai text-[9px] font-bold px-2 py-1 rounded-md truncate">{opt}</span>)}
+                      {voteData.options && voteData.options.map(opt => <span key={opt} className="bg-blue-50 border border-blue-100 text-status-selesai text-[9px] font-bold px-2 py-1 rounded-md truncate">{opt}</span>)}
                     </div>
                  </div>
-                 )
-               })}
+               ))}
             </div>
           )}
 
@@ -825,7 +977,6 @@
                   <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Pilih Identitas Anda</label>
                   <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none cursor-pointer" value={voteEmp} onChange={(e) => setVoteEmp(e.target.value)}>
                     <option value="">-- Nama Anda --</option>
-                    {/* Voters list is already sorted alphabetically */}
                     {voters.map(v => <option key={v} value={v}>{v} {sudahVoteNames.includes(v) ? '(Ubah Pilihan)' : ''}</option>)}
                   </select>
                </div>
@@ -1105,7 +1256,6 @@
         try {
           const newId = Date.now();
           const today = new Date().toISOString().split('T')[0];
-          // List Pegawai Abjad untuk Voting
           const votersList = employees.map(e => e.name).sort((a, b) => a.localeCompare(b)); 
           
           await db.ref(`artifacts/${APP_ID}/public/data/votings/${newId}`).set({
@@ -1318,11 +1468,17 @@
                        </div>
                      </summary>
                      <div className="px-4 pb-4 pt-1 space-y-2 border-t border-slate-200/60 mt-1">
-                       {g.assignees.map(a => (
+                       {g.assignees.map(a => {
+                         const today = new Date().toISOString().split('T')[0];
+                         const progresHariIni = (a.daily && a.daily[today]) ? a.daily[today] : 0;
+                         return (
                          <div key={a.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-xl shadow-sm">
                            <div className="flex-1">
                              <div className="text-xs font-bold text-midnight flex items-center gap-2"><i className="fa-solid fa-user-tag text-slate-300"></i> {a.picId}</div>
-                             <div className="text-[10px] text-slate-400 font-bold mt-1">Trg: <span className="text-midnight">{a.target}</span> | Capaian: <span className="text-status-selesai">{a.progress}</span></div>
+                             <div className="text-[10px] text-slate-400 font-bold mt-1">
+                               Trg: <span className="text-midnight">{a.target}</span> | Capaian: <span className="text-status-selesai">{a.progress}</span>
+                               {progresHariIni > 0 && <span className="text-yellow-600 ml-1 bg-yellow-50 px-1 rounded border border-yellow-100">(+{progresHariIni} hari ini)</span>}
+                             </div>
                            </div>
                            <div className="flex gap-1.5">
                              <button onClick={(e) => { e.preventDefault(); handleResetIndividualProgress(a.id); }} className="bg-orange-50 text-orange-500 border border-orange-200 w-8 h-8 rounded-full flex items-center justify-center hover:bg-orange-100 transition-colors outline-none cursor-pointer" title="Reset 0"><i className="fa-solid fa-rotate-left text-[10px]"></i></button>
@@ -1330,7 +1486,7 @@
                              <button onClick={() => handleDeletePerson(a.id)} className="bg-red-50 text-red-500 border border-red-100 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-100 transition-colors outline-none cursor-pointer" title="Hapus Pegawai"><i className="fa-solid fa-xmark text-sm"></i></button>
                            </div>
                          </div>
-                       ))}
+                       )})}
                      </div>
                    </details>
                  ))}
@@ -1429,7 +1585,7 @@
             </div>
           )}
 
-          {/* MODAL EDIT VOTING (BARU) */}
+          {/* MODAL EDIT VOTING */}
           {editVoteModal.isOpen && (
             <div className="fixed inset-0 z-[9999] bg-midnight/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
               <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-slide-up">
@@ -1549,7 +1705,7 @@
            g.assignees.sort((a, b) => a.picId.localeCompare(b.picId));
         });
 
-        return Object.values(groups);
+        return Object.values(groups).sort((a, b) => a.taskName.localeCompare(b.taskName));
       }, [tasks]);
 
       if (globalError) {
