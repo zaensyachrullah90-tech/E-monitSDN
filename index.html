@@ -1,1787 +1,831 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>MonitorSDMPKHTapin - Premium</title>
-
-  <!-- PENGAMAN 1: Mencegah layar blank akibat error sistem -->
-  <script>
-    window.onerror = function(msg, url, line) { 
-      if(msg.includes("ResizeObserver")) return true;
-      const loader = document.getElementById('native-loader');
-      if(loader) loader.innerHTML = `<h3 style="color:red; font-family:sans-serif; text-align:center; margin-top:20px;">Gagal memuat. Silakan Refresh browser Anda.</h3>`;
-      return false; 
-    };
-  </script>
-
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            midnight: { DEFAULT: '#0B132B', light: '#1C2541', accent: '#3A506B' },
-            status: { proses: '#10b981', selesai: '#3b82f6' }
-          },
-          boxShadow: {
-            'glossy': '0 10px 25px -5px rgba(11, 19, 43, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.1)',
-            'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)'
-          }
-        }
-      }
-    }
-  </script>
-  
-  <!-- Font Awesome 6 -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" />
-
-  <!-- FIREBASE REALTIME DATABASE COMPAT -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-
-  <!-- React & Excel Dependencies -->
-  <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-  <style>
-    body { background-color: #f4f6f9; font-family: 'Inter', system-ui, sans-serif; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
-    .hide-scrollbar::-webkit-scrollbar { display: none; }
-    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    .animate-slide-up { animation: slideUp 0.3s ease-out forwards; }
-    .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
-    .card-btn { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer; display: block; width: 100%; text-align: left; border: none; outline: none; }
-    .card-btn:active { transform: scale(0.96); }
-    input, select, button { outline: none; cursor: pointer; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VerifDigi Pro - Night Edition</title>
     
-    /* Animasi Pre-Loader HTML Murni */
-    .spinner { border: 4px solid rgba(11, 19, 43, 0.1); width: 50px; height: 50px; border-radius: 50%; border-left-color: #0B132B; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-  </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.3/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        body { background-color: #0b1120; color: #e2e8f0; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        
+        .glass-header { background: rgba(11, 17, 32, 0.9); backdrop-filter: blur(10px); border-bottom: 1px solid #1e293b; }
+        .card-custom { background-color: #111827; border: 1px solid #1e293b; border-radius: 1.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .card-stats { background: linear-gradient(135deg, #0284c7, #1e3a8a); border: none; color: white; }
+        
+        .nav-pills .nav-link { color: #94a3b8; border-radius: 1rem; padding: 10px 20px; font-weight: 600; cursor: pointer; transition: all 0.3s; border: none; background: transparent; }
+        .nav-pills .nav-link:hover { background-color: #1e293b; color: #f8fafc; }
+        .nav-pills .nav-link.active { background-color: #2563eb; color: white; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4); }
+        
+        .form-control, .form-select { background-color: #0f172a; border: 1px solid #334155; color: #f8fafc; border-radius: 1rem; padding: 12px 16px; }
+        .form-control:focus, .form-select:focus { background-color: #1e293b; border-color: #3b82f6; color: white; box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25); }
+        .form-select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e"); }
+        
+        .table { color: #cbd5e1; }
+        .table-dark { background-color: transparent; }
+        .table-dark th { background-color: #0f172a; border-bottom: 2px solid #334155; color: #94a3b8; text-transform: uppercase; font-size: 0.8rem; }
+        .table-dark td { background-color: #1e293b; border-bottom: 1px solid #334155; vertical-align: middle; }
+        .table-hover>tbody>tr:hover>td { background-color: #334155; color: white; }
+
+        .btn-brand { background-color: #2563eb; border: none; color: white; border-radius: 1rem; padding: 12px 24px; font-weight: 700; transition: all 0.2s; }
+        .btn-brand:hover { background-color: #1d4ed8; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(37, 99, 235, 0.4); color: white;}
+        .btn-light-custom { background-color: #1e293b; color: #e2e8f0; border: none; border-radius: 1rem; padding: 12px 24px; font-weight: 700; }
+        .btn-light-custom:hover { background-color: #334155; color: white; }
+
+        .badge-brand { background-color: #1e3a8a; color: #93c5fd; padding: 6px 12px; border-radius: 8px; border: 1px solid #1e40af; font-size: 0.75rem; }
+
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; }
+        .spinner-border { width: 3rem; height: 3rem; border-width: 0.3em; }
+
+        .mobile-menu-collapse { display: none; }
+        .mobile-menu-collapse.show { display: block; animation: fadeIn 0.2s; }
+        @media (min-width: 992px) { .mobile-menu-collapse { display: block !important; } }
+    </style>
 </head>
-<body class="text-slate-800 pb-24">
+<body>
+    <div id="root"></div>
 
-  <!-- PENGAMAN 2: PRE-LOADER ANTI BLANK PUTIH -->
-  <div id="native-loader" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; background-color: #f4f6f9; width: 100%; position: absolute; z-index: 9999;">
-    <div class="spinner"></div>
-    <h2 style="font-family: sans-serif; font-weight: 900; color: #0B132B; margin: 0; font-size: 20px;">Memuat Sistem...</h2>
-    <p style="font-family: sans-serif; color: #6c757d; font-size: 13px; margin-top: 5px; font-weight: bold;">MonitorSDMPKHTapin</p>
-  </div>
+    <script type="text/babel">
+        // -----------------------------------------------------------------------------------------
+        // GANTI URL DI BAWAH INI DENGAN URL WEB APP BARU ANDA (YANG AKHIRANNYA /exec)
+        // -----------------------------------------------------------------------------------------
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwEpoHeafLplDRTMtgYzzEezALGxifiKC0GdreUyfbSlQcFion9CD9dpYKFpUiQeLfw/exec"; 
 
-  <div id="root"></div>
+        const { useState, useEffect, useRef } = React;
 
-  <script type="text/babel">
-    const { useState, useMemo, useRef, useEffect, memo, Component } = React;
-
-    // --- ERROR BOUNDARY REACT ---
-    class ErrorBoundary extends Component {
-      constructor(props) { super(props); this.state = { hasError: false, errorMsg: '' }; }
-      static getDerivedStateFromError(error) { return { hasError: true, errorMsg: error.toString() }; }
-      render() {
-        if (this.state.hasError) {
-          return (
-            <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-red-50 text-center">
-               <i className="fa-solid fa-triangle-exclamation text-red-500 text-6xl mb-4 drop-shadow-md"></i>
-               <h2 className="text-2xl font-black text-red-700 mb-2">Aplikasi Terhenti</h2>
-               <p className="text-xs font-bold text-red-600 mb-6 bg-white p-3 rounded-lg border border-red-200">{this.state.errorMsg}</p>
-               <button onClick={() => window.location.reload()} className="bg-red-600 text-white font-bold py-3 px-6 rounded-full shadow-md">Muat Ulang Aplikasi</button>
-            </div>
-          );
-        }
-        return this.props.children;
-      }
-    }
-
-    // =========================================================================
-    // 🔥 KONFIGURASI FIREBASE ANDA
-    // =========================================================================
-    const firebaseConfig = {
-        apiKey: "AIzaSyBEc1KmTOURFvVkUsGXb1Q_sTwX0tm_z9E",
-        authDomain: "monit-kegiatan.firebaseapp.com",
-        databaseURL: "https://monit-kegiatan-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "monit-kegiatan",
-        storageBucket: "monit-kegiatan.firebasestorage.app",
-        messagingSenderId: "778332842690",
-        appId: "1:778332842690:web:a723b5200fda1f3391e95b"
-    };
-    const APP_ID = 'monit-kegiatan';
-    // =========================================================================
-
-    const formatDateId = (dateString) => {
-      if (!dateString) return "-";
-      const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-      const parts = dateString.split("-");
-      if(parts.length !== 3) return dateString;
-      return `${parts[2]} ${months[parseInt(parts[1])-1]} ${parts[0]}`;
-    };
-
-    // --- KOMPONEN: LIVE COUNTDOWN KAPSUL ---
-    const LiveCountdown = memo(({ deadline }) => {
-      const [timeLeft, setTimeLeft] = useState('');
-      const [isExpired, setIsExpired] = useState(false);
-
-      useEffect(() => {
-        const targetDate = new Date(`${deadline}T23:59:59`).getTime();
-        const updateTimer = () => {
-          const now = new Date().getTime();
-          const distance = targetDate - now;
-          if (isNaN(distance)) { setTimeLeft("--:--"); setIsExpired(true); return; }
-          if (distance < 0) { setTimeLeft("HABIS"); setIsExpired(true); return; }
-
-          const d = Math.floor(distance / (1000 * 60 * 60 * 24));
-          const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-          const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-          const s = Math.floor((distance % (1000 * 60)) / 1000);
-          
-          setTimeLeft(`${d > 0 ? d + 'H ' : ''}${h < 10 ? '0'+h : h}:${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`);
-          setIsExpired(d <= 2);
+        const ToastMessage = ({ message, type, onClose }) => {
+            useEffect(() => { const timer = setTimeout(onClose, 8000); return () => clearTimeout(timer); }, [onClose]);
+            const bgClass = type === 'error' ? 'bg-danger' : type === 'success' ? 'bg-success' : 'bg-warning text-dark';
+            const icon = type === 'error' ? 'fa-triangle-exclamation' : type === 'success' ? 'fa-check-circle' : 'fa-info-circle';
+            return (
+                <div className={`toast show align-items-center text-white ${bgClass} border-0 mb-3 shadow-lg`} role="alert">
+                    <div className="d-flex">
+                        <div className="toast-body d-flex align-items-center gap-3 fw-bold"><i className={`fas ${icon} fs-4`}></i> {message}</div>
+                        <button type="button" className="btn-close btn-close-white me-2 m-auto" onClick={onClose}></button>
+                    </div>
+                </div>
+            );
         };
-        updateTimer();
-        const interval = setInterval(updateTimer, 1000);
-        return () => clearInterval(interval);
-      }, [deadline]);
 
-      return (
-        <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 shadow-sm border ${isExpired ? 'bg-red-600 border-red-500' : 'bg-midnight text-white border-midnight-accent'}`}>
-          <i className={`fa-solid ${isExpired ? 'fa-triangle-exclamation fa-beat text-white' : 'fa-clock text-yellow-400'} text-[10px]`}></i>
-          <div className="flex flex-col text-left">
-            <span className="text-[8px] uppercase tracking-widest text-white/70 leading-none">Tenggat</span>
-            <span className="font-mono font-bold text-[11px] text-white leading-none mt-1">{timeLeft}</span>
-          </div>
-        </div>
-      );
-    });
-
-    // --- KOMPONEN: KARTU KEGIATAN ---
-    const GroupedTaskCard = memo(({ group, onClick }) => {
-      const percent = Math.min(Math.round((group.progress / group.target) * 100), 100);
-      const isDone = percent >= 100;
-      const borderColor = isDone ? 'border-status-selesai' : 'border-status-proses';
-      const progressBg = isDone ? 'bg-status-selesai' : 'bg-status-proses';
-      const percentColor = isDone ? 'text-status-selesai' : 'text-status-proses';
-      
-      return (
-        <button type="button" className={`card-btn bg-white rounded-3xl shadow-soft border-l-[6px] ${borderColor} overflow-hidden`} onClick={() => onClick(group.taskName)}>
-          <div className="p-5">
-            <div className="flex justify-between items-start gap-3 mb-4">
-              <div className="flex-1">
-                <h5 className="font-black text-midnight text-lg leading-tight mb-2">{group.taskName}</h5>
-                <span className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 text-slate-500 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide">
-                  <i className="fa-regular fa-calendar-check"></i> {formatDateId(group.deadline)}
-                </span>
-              </div>
-              <LiveCountdown deadline={group.deadline} />
-            </div>
-
-            <div className="mb-4">
-              <div className="flex justify-between text-xs font-bold mb-1.5">
-                <span className="text-slate-500">Progress ({group.progress}/{group.target})</span>
-                <span className={`font-black text-sm ${percentColor}`}>{percent}%</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2.5 shadow-inner">
-                <div className={`${progressBg} h-2.5 rounded-full transition-all duration-1000 ease-out`} style={{ width: `${percent}%` }}></div>
-              </div>
-            </div>
+        function App() {
+            const [activeTab, setActiveTab] = useState('upload'); 
+            const [isNavOpen, setIsNavOpen] = useState(false);
             
-            <div className="flex justify-between items-center pt-4 border-t border-slate-100/80">
-              <div className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
-                <i className="fa-solid fa-users text-slate-400"></i> {group.assignees.length} Pelaksana
-              </div>
-              <div className="text-xs font-black text-white bg-midnight px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5">
-                <i className="fa-solid fa-check-double text-blue-400"></i> Selesai: {group.assignees.filter(a => a.progress >= a.target).length}
-              </div>
-            </div>
-          </div>
-        </button>
-      );
-    });
+            const [showSettings, setShowSettings] = useState(false);
+            const [backendUrl, setBackendUrl] = useState(localStorage.getItem('VERIFDIGI_BACKEND_URL') || GAS_WEB_APP_URL);
+            const [tempUrl, setTempUrl] = useState(backendUrl);
 
-    // --- MENU 1: DASHBOARD ---
-    const Dashboard = ({ groupedTasks, votings, setActiveTab, setSelectedTaskName, setSelectedVoteId }) => {
-      const totalTasks = groupedTasks.length;
-      const completedTasks = groupedTasks.filter(g => g.status === 'Selesai').length;
-      const activeGroups = groupedTasks.filter(g => g.status === 'On Progress');
-      
-      return (
-        <div className="animate-slide-up space-y-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-2xl font-black text-midnight tracking-tight">Beranda</h3>
-              <p className="text-slate-500 text-sm font-bold mt-0.5">Ringkasan Evaluasi Kinerja</p>
-            </div>
-            <span className="bg-white border border-slate-200 text-midnight font-bold px-3 py-1.5 rounded-full shadow-sm text-xs flex items-center gap-1.5">
-              <i className="fa-solid fa-wifi fa-fade text-status-selesai"></i> Online
-            </span>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-gradient-to-br from-midnight to-midnight-light rounded-3xl shadow-glossy p-5 text-white relative overflow-hidden flex items-center justify-between">
-              <i className="fa-solid fa-chart-column absolute -right-4 -bottom-4 text-7xl opacity-20"></i>
-              <div className="relative z-10">
-                <h6 className="text-[10px] text-white/70 uppercase tracking-widest font-bold mb-1">Semua Kegiatan</h6>
-                <h2 className="text-4xl font-black">{totalTasks}</h2>
-              </div>
-              <div className="bg-white/10 p-3 rounded-2xl backdrop-blur-sm relative z-10 border border-white/10">
-                <i className="fa-solid fa-list-check text-xl"></i>
-              </div>
-            </div>
+            const [isAdmin, setIsAdmin] = useState(false);
+            const [editModal, setEditModal] = useState(null);
+
+            const [uploadState, setUploadState] = useState('idle'); 
+            const [processedFiles, setProcessedFiles] = useState([]); 
+            const [extractedData, setExtractedData] = useState({ sekolah: '', bulan: '', tahun: '', siswa: [] });
             
-            <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 flex flex-col justify-center items-center text-center">
-              <div className="bg-status-selesai/10 text-status-selesai w-12 h-12 rounded-full flex items-center justify-center mb-3">
-                <i className="fa-solid fa-check-circle text-2xl"></i>
-              </div>
-              <h2 className="text-3xl font-black text-midnight mb-1">{completedTasks}</h2>
-              <h6 className="text-xs text-slate-500 font-bold uppercase tracking-wider">Telah Selesai</h6>
-            </div>
+            const [records, setRecords] = useState([]);
+            const [loadingData, setLoadingData] = useState(false);
+            const [toast, setToast] = useState(null);
             
-            <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 flex flex-col justify-center items-center text-center">
-              <div className="bg-status-proses/10 text-status-proses w-12 h-12 rounded-full flex items-center justify-center mb-3">
-                <i className="fa-solid fa-person-digging text-2xl"></i>
-              </div>
-              <h2 className="text-3xl font-black text-midnight mb-1">{totalTasks - completedTasks}</h2>
-              <h6 className="text-xs text-slate-500 font-bold uppercase tracking-wider">Sedang Proses</h6>
-            </div>
-          </div>
+            const [filterPendamping, setFilterPendamping] = useState('');
+            const [filterBentuk, setFilterBentuk] = useState('');
+            const [filterTingkat, setFilterTingkat] = useState('');
+            const [searchQuery, setSearchQuery] = useState('');
+            const [searchArsip, setSearchArsip] = useState('');
 
-          {/* VOTING AKTIF DI DASHBOARD */}
-          {votings && votings.length > 0 && (
-            <div className="mt-8 animate-slide-up">
-              <h5 className="font-bold text-midnight mb-4 flex items-center gap-2">
-                <i className="fa-solid fa-check-to-slot text-blue-500 text-lg"></i> Acara Voting
-              </h5>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {votings.map(v => {
-                  const totalVoters = v.voters ? v.voters.length : 0;
-                  const totalVotes = v.votes ? Object.keys(v.votes).length : 0;
-                  return (
-                    <button key={v.id} onClick={() => { setSelectedVoteId(v.id); setActiveTab('voting'); }} className="card-btn bg-white rounded-3xl shadow-soft border border-slate-100 p-5 relative overflow-hidden">
-                      <div className="flex items-start justify-between mb-3">
-                        <h5 className="font-black text-midnight text-lg w-3/4 leading-tight">{v.title}</h5>
-                        <span className="bg-blue-50 text-status-selesai text-[10px] font-black px-2 py-1 rounded-md border border-blue-100 uppercase">{v.isMulti ? 'Multi' : 'Single'}</span>
-                      </div>
-                      <div className="text-[10px] font-bold text-slate-500 mb-3 bg-slate-50 border border-slate-100 px-2 py-1 rounded-md w-max"><i className="fa-solid fa-calendar-day mr-1"></i> {formatDateId(v.createdAt)}</div>
-                      <div className="w-full bg-slate-100 rounded-full h-1.5 mb-2"><div className="bg-status-selesai h-1.5 rounded-full" style={{width: `${totalVoters===0?0:(totalVotes/totalVoters)*100}%`}}></div></div>
-                      <div className="text-[10px] font-black text-slate-400 flex justify-between"><span>SUARA MASUK</span> <span className="text-midnight">{totalVotes} / {totalVoters} Org</span></div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
+            const fileInputRef = useRef(null);
+            const showToast = (message, type = 'success') => setToast({ message, type });
 
-          <div className="mt-8">
-            <h5 className="font-bold text-midnight mb-4 flex items-center gap-2">
-              <i className="fa-solid fa-fire-flame-curved text-red-500 text-lg"></i> Mendesak (Tenggat Terdekat)
-            </h5>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {activeGroups.sort((a, b) => new Date(a.deadline) - new Date(b.deadline)).slice(0, 4).map(group => (
-                <GroupedTaskCard key={group.taskName} group={group} onClick={(name) => { setSelectedTaskName(name); setActiveTab('kegiatan'); }} />
-              ))}
-              {activeGroups.length === 0 && (
-                <div className="col-span-full bg-white rounded-3xl shadow-soft border border-slate-100 text-center py-10">
-                  <i className="fa-solid fa-mug-hot d-block text-5xl mb-4 text-slate-300"></i> 
-                  <h5 className="font-black text-midnight text-lg mb-1">Pekerjaan Tuntas!</h5>
-                  <p className="text-slate-500 text-sm font-medium">Tidak ada kegiatan yang berjalan saat ini.</p>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="text-center text-[10px] text-slate-400 mt-10 mb-4 font-bold uppercase tracking-widest opacity-60">
-            Developed by M. Zaen Syachrullah
-          </div>
-        </div>
-      );
-    };
+            const fetchGAS = async (payload) => {
+                const res = await fetch(backendUrl, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' } });
+                const text = await res.text();
+                try { return JSON.parse(text); } catch (e) { throw new Error("Server Error:\n" + text.substring(0, 100)); }
+            };
 
-    // --- MENU 2: KEGIATAN & EVALUASI DETAIL ---
-    const DaftarKegiatan = ({ groupedTasks, selectedTaskName, setSelectedTaskName, isAdminLogged }) => {
-      const [toast, setToast] = useState(null);
-      const activeGroup = groupedTasks.find(g => g.taskName === selectedTaskName);
+            const fetchData = async () => {
+                if (!backendUrl) return;
+                setLoadingData(true);
+                try {
+                    const result = await fetchGAS({ action: 'getRecords' });
+                    if (result.status === 'success') { setRecords(Array.isArray(result.data) ? result.data : []); } 
+                    else throw new Error(result.message);
+                } catch (error) { showToast("Gagal memuat database: " + error.message, 'error'); } 
+                finally { setLoadingData(false); }
+            };
 
-      const showToast = (type) => {
-        setToast(type);
-        setTimeout(() => setToast(null), 3000);
-      };
+            useEffect(() => { if (activeTab !== 'upload' && records.length === 0) fetchData(); }, [activeTab]);
 
-      const handleExportExcel = () => {
-        if(!activeGroup) return;
-        try {
-          const exportData = activeGroup.assignees.map((a, i) => ({
-            "No": i + 1,
-            "Nama Kegiatan": a.taskName,
-            "Nama Pegawai": a.picId,
-            "Mulai Mengerjakan": a.startDate ? a.startDate : "-",
-            "Jumlah Target": a.target,
-            "Capaian Progres": a.progress,
-            "Belum Selesai (Sisa)": Math.max(0, a.target - a.progress),
-            "Status": a.status,
-            "Tanggal Selesai": a.status === 'Selesai' && a.completedAt ? a.completedAt : "Belum Selesai"
-          }));
-          const ws = window.XLSX.utils.json_to_sheet(exportData);
-          const wb = window.XLSX.utils.book_new();
-          window.XLSX.utils.book_append_sheet(wb, ws, "Evaluasi Data");
-          window.XLSX.writeFile(wb, `Evaluasi_${activeGroup.taskName.replace(/\s+/g, '_')}.xlsx`);
-          showToast('success');
-        } catch (err) { showToast('error'); }
-      };
+            const changeTab = (tab) => { setActiveTab(tab); setIsNavOpen(false); };
 
-      // FUNGSI SHARE LIVE LINK DENGAN DOUBLE FALLBACK AGAR PASTI BERHASIL
-      const handleShareLivePreview = () => {
-        const url = `${window.location.origin}${window.location.pathname}?preview=${encodeURIComponent(activeGroup.taskName)}`;
-        
-        if (navigator.clipboard && window.isSecureContext) {
-          navigator.clipboard.writeText(url).then(() => {
-            showToast('success');
-            alert('Berhasil! Link Live Preview telah disalin.\n\nSilakan Paste di WhatsApp:\n' + url);
-          }).catch(() => {
-            window.prompt("Salin link Live Preview berikut manual:", url);
-          });
-        } else {
-          const textArea = document.createElement("textarea");
-          textArea.value = url;
-          textArea.style.position = "fixed";
-          textArea.style.left = "-999999px";
-          document.body.appendChild(textArea);
-          textArea.focus();
-          textArea.select();
-          try {
-            document.execCommand('copy');
-            showToast('success');
-            alert('Berhasil! Link Live Preview telah disalin.\n\nSilakan Paste di WhatsApp:\n' + url);
-          } catch (err) {
-            window.prompt("Salin link Live Preview berikut manual:", url);
-          }
-          document.body.removeChild(textArea);
-        }
-      };
-
-      if (activeGroup) {
-        const totalPelaksana = activeGroup.assignees.length;
-        const selesaiCount = activeGroup.assignees.filter(a => a.progress >= a.target).length;
-        const belumCount = totalPelaksana - selesaiCount;
-        const today = new Date().toISOString().split('T')[0];
-
-        return (
-          <div className="animate-slide-up space-y-5">
-            
-            {/* COMPACT TOAST NOTIFICATION */}
-            {toast && (
-              <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-slide-up">
-                <div className={`px-5 py-2 rounded-full shadow-lg font-black text-xs flex items-center gap-2 text-white ${toast === 'success' ? 'bg-status-selesai' : 'bg-red-500'}`}>
-                  <i className={`fa-solid ${toast === 'success' ? 'fa-check-circle' : 'fa-xmark-circle'} text-lg`}></i> 
-                  {toast === 'success' ? 'BERHASIL' : 'GAGAL'}
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-2 justify-between items-center mb-2">
-              <button onClick={() => setSelectedTaskName(null)} className="bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-4 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 transition-colors outline-none">
-                <i className="fa-solid fa-arrow-left-long text-status-selesai"></i> Kembali
-              </button>
-              
-              {/* TOMBOL RAHASIA ADMIN */}
-              {isAdminLogged && (
-                <div className="flex gap-2">
-                  <button onClick={handleShareLivePreview} className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md rounded-full font-black px-3 py-2 text-[10px] sm:text-xs flex items-center gap-1.5 hover:scale-95 transition-transform outline-none">
-                    <i className="fa-solid fa-share-nodes"></i> Share Live
-                  </button>
-                  <button onClick={handleExportExcel} className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white shadow-md rounded-full font-black px-3 py-2 text-[10px] sm:text-xs flex items-center gap-1.5 hover:scale-95 transition-transform outline-none">
-                    <i className="fa-solid fa-file-export"></i> Excel
-                  </button>
-                </div>
-              )}
-            </div>
-            
-            <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-midnight to-midnight-light p-6 text-white relative">
-                <div className="absolute top-0 right-0 p-4 opacity-10"><i className="fa-solid fa-chart-column text-8xl"></i></div>
-                <span className={`inline-flex items-center gap-1.5 ${activeGroup.status === 'Selesai' ? 'bg-status-selesai' : 'bg-white text-status-proses'} text-xs font-black px-3 py-1.5 rounded-lg mb-4 shadow-sm uppercase tracking-wider`}>
-                  <i className={`fa-solid ${activeGroup.status === 'Selesai' ? 'fa-check-double text-white' : 'fa-spinner fa-spin'}`}></i> {activeGroup.status}
-                </span>
-                <h3 className="text-2xl font-black mb-2 relative z-10 leading-tight">{activeGroup.taskName}</h3>
-                <p className="text-white/80 font-bold text-sm m-0 flex items-center gap-2 relative z-10">
-                  <i className="fa-solid fa-calendar-day text-blue-300"></i> Tenggat: {formatDateId(activeGroup.deadline)}
-                </p>
-              </div>
-              
-              <div className="p-6">
-                <div className="grid grid-cols-3 gap-3 mb-6">
-                  <div className="bg-slate-50 rounded-2xl border border-slate-100 p-3 text-center flex flex-col justify-center shadow-sm">
-                    <h2 className="text-2xl font-black text-midnight mb-0.5">{totalPelaksana}</h2>
-                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Pelaksana</span>
-                  </div>
-                  <div className="bg-status-selesai/10 rounded-2xl border border-status-selesai/20 p-3 text-center flex flex-col justify-center shadow-sm">
-                    <h2 className="text-2xl font-black text-status-selesai mb-0.5">{selesaiCount}</h2>
-                    <span className="text-[10px] text-status-selesai font-bold uppercase tracking-wider">Selesai</span>
-                  </div>
-                  <div className="bg-status-proses/10 rounded-2xl border border-status-proses/20 p-3 text-center flex flex-col justify-center shadow-sm">
-                    <h2 className="text-2xl font-black text-status-proses mb-0.5">{belumCount}</h2>
-                    <span className="text-[10px] text-status-proses font-bold uppercase tracking-wider">Proses</span>
-                  </div>
-                </div>
-
-                <h6 className="font-black text-midnight mb-4 flex items-center gap-2 text-sm uppercase tracking-wider border-b border-slate-100 pb-3">
-                  <i className="fa-solid fa-list-check text-slate-400"></i> Rincian & Waktu Selesai
-                </h6>
-                <div className="space-y-3">
-                  {activeGroup.assignees.map((a, idx) => {
-                    const isDone = a.progress >= a.target;
-                    const badgeBg = isDone ? 'bg-status-selesai border-status-selesai text-white' : 'bg-white border-status-proses border-2 text-status-proses';
-                    const iconClass = isDone ? 'fa-solid fa-circle-check text-white' : 'fa-solid fa-spinner fa-spin text-status-proses';
-                    const progresHariIni = (a.daily && a.daily[today]) ? a.daily[today] : 0;
-
-                    return (
-                      <div key={idx} className="flex flex-col bg-slate-50 rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                        <div className="flex justify-between items-center p-4">
-                          <div>
-                            <div className="font-bold text-midnight text-sm mb-1">{a.picId}</div>
-                            <div className="text-[10px] text-slate-500 font-bold">
-                              Trg: <span className="text-midnight">{a.target}</span> | Capaian: <span className="text-status-selesai">{a.progress}</span> 
-                              {progresHariIni > 0 && <span className="text-yellow-600 ml-1 bg-yellow-50 px-1 rounded border border-yellow-100">(+{progresHariIni} hari ini)</span>}
-                            </div>
-                          </div>
-                          <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm ${badgeBg}`}>
-                            <i className={iconClass}></i> {isDone ? 'Selesai' : 'Proses'}
-                          </span>
-                        </div>
-                        {/* RECORD TANGGAL SELESAI */}
-                        <div className={`px-4 py-2 text-[10px] font-bold tracking-wider ${isDone ? 'bg-status-selesai/10 text-status-selesai' : 'bg-slate-100 text-slate-400'}`}>
-                           {isDone ? <><i className="fa-solid fa-flag-checkered mr-1"></i> Tuntas pada: {formatDateId(a.completedAt)}</> : <><i className="fa-solid fa-hourglass-start mr-1"></i> Mulai dikerjakan: {formatDateId(a.startDate)}</>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      return (
-        <div className="animate-slide-up space-y-6">
-          <div>
-            <h3 className="text-2xl font-black text-midnight tracking-tight">Seluruh Kegiatan</h3>
-            <p className="text-slate-500 text-sm font-bold mt-0.5"><i className="fa-solid fa-hand-pointer text-status-selesai mr-1"></i> Klik kartu untuk evaluasi mendalam.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {groupedTasks.length === 0 && (
-              <div className="col-span-full bg-white rounded-3xl shadow-soft border border-slate-100 text-center py-12">
-                <i className="fa-solid fa-box-open d-block text-5xl mb-4 text-slate-300"></i>
-                <p className="font-black text-slate-500">Belum ada kegiatan terdaftar.</p>
-              </div>
-            )}
-            {groupedTasks.map(group => <GroupedTaskCard key={group.taskName} group={group} onClick={setSelectedTaskName} />)}
-          </div>
-        </div>
-      );
-    };
-
-    // --- MENU KHUSUS: LIVE PREVIEW PUBLIK ---
-    const LivePreviewView = ({ taskName, groupedTasks }) => {
-      const activeGroup = groupedTasks.find(g => g.taskName === taskName);
-
-      if (!activeGroup) {
-        return (
-          <div className="min-h-screen flex flex-col gap-4 items-center justify-center bg-slate-50 p-6 text-center">
-            <i className="fa-solid fa-circle-exclamation text-slate-400 text-6xl"></i>
-            <h2 className="text-2xl font-black text-midnight">Kegiatan Tidak Ditemukan</h2>
-            <p className="text-slate-500 font-bold text-sm">Mungkin kegiatan ini sudah dihapus atau namanya salah.</p>
-          </div>
-        );
-      }
-
-      const totalPelaksana = activeGroup.assignees.length;
-      const selesaiCount = activeGroup.assignees.filter(a => a.progress >= a.target).length;
-      const belumCount = totalPelaksana - selesaiCount;
-      const totalProgressGroup = activeGroup.assignees.reduce((sum, a) => sum + a.progress, 0);
-      const totalTargetGroup = activeGroup.assignees.reduce((sum, a) => sum + a.target, 0);
-      const overallPercent = totalTargetGroup === 0 ? 0 : Math.min(Math.round((totalProgressGroup / totalTargetGroup) * 100), 100);
-      const today = new Date().toISOString().split('T')[0];
-
-      return (
-        <div className="min-h-screen bg-midnight text-white pb-10">
-          <div className="bg-gradient-to-r from-midnight-light to-midnight shadow-nav sticky top-0 z-50 border-b border-white/10">
-            <div className="px-5 py-4 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="bg-white/10 border border-white/20 text-white rounded-xl p-2 flex items-center justify-center shadow-inner" style={{width: '45px', height: '45px'}}>
-                  <i className="fa-solid fa-chart-line text-yellow-400 text-xl"></i>
-                </div>
-                <div>
-                  <h1 className="font-black text-lg leading-tight tracking-tight">Live Preview</h1>
-                  <p className="text-[10px] text-white/50 uppercase tracking-widest font-bold">MonitorSDMPKHTapin</p>
-                </div>
-              </div>
-              <span className="bg-red-500 text-white rounded-full px-3 py-1.5 shadow-glossy text-[10px] font-black uppercase tracking-wider flex items-center shadow-red-500/50">
-                <i className="fa-solid fa-circle text-[8px] fa-fade mr-1.5"></i> Live
-              </span>
-            </div>
-          </div>
-
-          <div className="p-5 space-y-6 max-w-[800px] mx-auto animate-fade-in mt-4">
-            
-            <div className="text-center space-y-2 mb-8">
-              <span className={`inline-flex items-center gap-1.5 ${activeGroup.status === 'Selesai' ? 'bg-status-selesai text-white' : 'bg-status-proses text-white'} text-xs font-black px-4 py-2 rounded-full shadow-glossy uppercase tracking-wider`}>
-                <i className={`fa-solid ${activeGroup.status === 'Selesai' ? 'fa-check-double' : 'fa-spinner fa-spin'}`}></i> {activeGroup.status}
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-black leading-tight mt-3 mb-1">{activeGroup.taskName}</h2>
-              <p className="text-white/60 font-bold text-sm"><i className="fa-solid fa-calendar-day text-blue-400"></i> Tenggat: {formatDateId(activeGroup.deadline)}</p>
-            </div>
-
-            <div className="bg-midnight-light rounded-3xl p-6 shadow-glossy border border-white/10">
-              <div className="flex justify-between items-end mb-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-white/50 font-bold mb-1">Capaian Keseluruhan</p>
-                  <div className="text-xl font-black text-white">{totalProgressGroup} <span className="text-sm text-white/50">/ {totalTargetGroup} Dokumen</span></div>
-                </div>
-                <h1 className="text-4xl font-black text-status-selesai">{overallPercent}%</h1>
-              </div>
-              <div className="w-full bg-midnight rounded-full h-4 shadow-inner border border-white/5">
-                <div className={`${overallPercent >= 100 ? 'bg-status-selesai' : 'bg-status-proses'} h-4 rounded-full transition-all duration-1000 relative overflow-hidden`} style={{ width: `${overallPercent}%` }}>
-                  <div className="absolute inset-0 bg-white/20" style={{backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%, transparent)', backgroundSize: '1rem 1rem', animation: 'progress-stripes 1s linear infinite'}}></div>
-                </div>
-              </div>
-            </div>
-            
-            <style>{`@keyframes progress-stripes { from { background-position: 1rem 0; } to { background-position: 0 0; } }`}</style>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-midnight-light rounded-2xl p-4 text-center border border-white/5 shadow-soft">
-                <h2 className="text-2xl font-black text-white mb-1">{totalPelaksana}</h2>
-                <span className="text-[10px] text-white/50 font-bold uppercase tracking-wider">Pelaksana</span>
-              </div>
-              <div className="bg-status-selesai/20 rounded-2xl p-4 text-center border border-status-selesai/30 shadow-soft">
-                <h2 className="text-2xl font-black text-status-selesai mb-1">{selesaiCount}</h2>
-                <span className="text-[10px] text-status-selesai font-bold uppercase tracking-wider">Selesai</span>
-              </div>
-              <div className="bg-status-proses/20 rounded-2xl p-4 text-center border border-status-proses/30 shadow-soft">
-                <h2 className="text-2xl font-black text-status-proses mb-1">{belumCount}</h2>
-                <span className="text-[10px] text-status-proses font-bold uppercase tracking-wider">Proses</span>
-              </div>
-            </div>
-
-            <div className="pt-4">
-              <h6 className="font-black text-white mb-4 flex items-center gap-2 text-sm uppercase tracking-wider border-b border-white/10 pb-3">
-                <i className="fa-solid fa-list-check text-white/50"></i> Daftar Pelaksana Secara Live
-              </h6>
-              <div className="space-y-3">
-                {activeGroup.assignees.map((a, idx) => {
-                  const isDone = a.progress >= a.target;
-                  const p = Math.min(Math.round((a.progress / a.target) * 100), 100);
-                  const progresHariIni = (a.daily && a.daily[today]) ? a.daily[today] : 0;
-                  
-                  return (
-                    <div key={idx} className="bg-midnight-light rounded-2xl border border-white/5 shadow-soft p-4 relative overflow-hidden">
-                      <div className="flex justify-between items-center relative z-10 mb-3">
-                        <div className="font-black text-white text-sm">{a.picId}</div>
-                        <div className={`text-xs font-black ${isDone ? 'text-status-selesai' : 'text-status-proses'}`}>{p}%</div>
-                      </div>
-                      
-                      <div className="w-full bg-midnight rounded-full h-2 shadow-inner border border-white/5 relative z-10 mb-3">
-                        <div className={`${isDone ? 'bg-status-selesai' : 'bg-status-proses'} h-2 rounded-full transition-all duration-1000`} style={{ width: `${p}%` }}></div>
-                      </div>
-
-                      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider relative z-10">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-white/50">Capaian: <span className="text-white">{a.progress}</span> / {a.target}</span>
-                          {progresHariIni > 0 && <span className="text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-2 py-0.5 rounded w-max"><i className="fa-solid fa-arrow-trend-up"></i> Hari Ini: +{progresHariIni}</span>}
-                        </div>
-                        <span className={isDone ? 'text-status-selesai' : 'text-status-proses'}>
-                          <i className={`fa-solid ${isDone ? 'fa-check-circle' : 'fa-spinner fa-spin'} mr-1`}></i> {isDone ? 'Selesai' : 'Proses'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            
-            <div className="text-center text-[10px] text-white/30 mt-10 mb-4 font-bold uppercase tracking-widest">
-              Live Preview • MonitorSDMPKHTapin
-            </div>
-
-          </div>
-        </div>
-      );
-    };
-
-    // --- MENU 3: LEADERBOARD (RANK PER KEGIATAN SPESIFIK) ---
-    const Leaderboard = ({ groupedTasks }) => {
-      const [selectedRankTask, setSelectedRankTask] = useState(null);
-
-      if (selectedRankTask) {
-        const activeGroup = groupedTasks.find(g => g.taskName === selectedRankTask);
-        if (!activeGroup) {
-          setSelectedRankTask(null);
-          return null;
-        }
-
-        const stats = activeGroup.assignees.map(a => {
-           const percent = a.target === 0 ? 0 : Math.min(Math.round((a.progress / a.target) * 100), 100);
-           return { ...a, percent };
-        }).sort((a, b) => b.percent - a.percent);
-
-        return (
-          <div className="animate-slide-up space-y-6 pb-10">
-            <div className="flex flex-col gap-2">
-              <button onClick={() => setSelectedRankTask(null)} className="w-max bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-4 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 outline-none cursor-pointer">
-                <i className="fa-solid fa-arrow-left-long text-status-selesai"></i> Kembali
-              </button>
-              <div>
-                <h3 className="text-2xl font-black text-midnight tracking-tight">Leaderboard Spesifik</h3>
-                <p className="text-slate-500 text-sm font-bold mt-0.5">Ranking kinerja untuk kegiatan <span className="text-status-selesai">"{selectedRankTask}"</span></p>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider font-bold border-b border-slate-200">
-                      <th className="p-4 text-center">#</th>
-                      <th className="p-4">Pegawai</th>
-                      <th className="p-4 text-center">Capaian / Target</th>
-                      <th className="p-4">Kinerja (%)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {stats.length === 0 && <tr><td colSpan="4" className="text-center py-10 text-slate-400 font-bold">Belum ada data pegawai</td></tr>}
-                    {stats.map((stat, index) => (
-                      <tr key={stat.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-4 text-center">
-                          {index === 0 ? <span className="bg-gradient-to-br from-yellow-300 to-yellow-500 text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto shadow-sm text-sm"><i className="fa-solid fa-crown"></i></span> : 
-                           index === 1 ? <span className="bg-slate-800 text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto shadow-sm text-sm font-bold">2</span> : 
-                           index === 2 ? <span className="bg-slate-600 text-white w-8 h-8 rounded-full flex items-center justify-center mx-auto shadow-sm text-sm font-bold">3</span> : 
-                           <span className="text-slate-400 font-bold text-sm">{index + 1}</span>}
-                        </td>
-                        <td className="p-4 font-black text-midnight text-sm">{stat.picId}</td>
-                        <td className="p-4 text-center">
-                          <span className="bg-slate-100 text-slate-600 border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold">{stat.progress} / {stat.target}</span>
-                        </td>
-                        <td className="p-4 min-w-[120px]">
-                          <div className="flex items-center gap-3">
-                            <div className="w-full bg-slate-100 rounded-full h-2.5 shadow-inner">
-                              <div className={`${stat.percent >= 100 ? 'bg-status-selesai' : 'bg-status-proses'} h-2.5 rounded-full`} style={{ width: `${stat.percent}%` }}></div>
-                            </div>
-                            <span className="text-xs font-black text-midnight">{stat.percent}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      return (
-        <div className="animate-slide-up space-y-6">
-          <div>
-            <h3 className="text-2xl font-black text-midnight tracking-tight">Leaderboard</h3>
-            <p className="text-slate-500 text-sm font-bold mt-0.5"><i className="fa-solid fa-hand-pointer text-status-selesai mr-1"></i> Klik kegiatan untuk melihat ranking pegawai.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {groupedTasks.length === 0 && (
-              <div className="col-span-full bg-white rounded-3xl shadow-soft border border-slate-100 text-center py-12">
-                <i className="fa-solid fa-box-open d-block text-5xl mb-4 text-slate-300"></i>
-                <p className="font-black text-slate-500">Belum ada kegiatan terdaftar.</p>
-              </div>
-            )}
-            {groupedTasks.map(group => <GroupedTaskCard key={group.taskName} group={group} onClick={setSelectedRankTask} />)}
-          </div>
-        </div>
-      );
-    };
-
-    // --- MENU 4: INPUT PROGRES (Hanya Icon Notifikasi + Daily Progress) ---
-    const ProgressForm = ({ tasks, employees, db }) => {
-      const [selectedEmp, setSelectedEmp] = useState('');
-      const [selectedTask, setSelectedTask] = useState('');
-      const [amount, setAmount] = useState('');
-      const [toast, setToast] = useState(null);
-      const [isSyncing, setIsSyncing] = useState(false);
-
-      const availableTasks = tasks.filter(t => String(t.picId) === String(selectedEmp) && t.status === 'On Progress');
-
-      const showToast = (type) => {
-        setToast(type);
-        setTimeout(() => setToast(null), 3000);
-      };
-
-      const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!selectedEmp || !selectedTask || !amount || parseInt(amount) <= 0) {
-          showToast('error'); return;
-        }
-        if (!db) { showToast('error'); return; }
-        
-        setIsSyncing(true);
-        try {
-          const task = tasks.find(t => String(t.id) === String(selectedTask));
-          if(!task) { showToast('error'); setIsSyncing(false); return; }
-
-          const amountInt = parseInt(amount);
-          const newProgress = Math.min(task.progress + amountInt, task.target);
-          const isDone = newProgress >= task.target;
-          const today = new Date().toISOString().split('T')[0];
-
-          // Hitung progres khusus hari ini
-          const currentDaily = (task.daily && task.daily[today]) ? parseInt(task.daily[today]) : 0;
-          
-          const updates = { 
-            progress: newProgress, 
-            status: isDone ? 'Selesai' : 'On Progress'
-          };
-          updates[`daily/${today}`] = currentDaily + amountInt;
-          
-          if (isDone && task.status !== 'Selesai') updates.completedAt = today;
-          else if (!isDone) updates.completedAt = null;
-          else updates.completedAt = task.completedAt || null;
-
-          await db.ref(`artifacts/${APP_ID}/public/data/tasks/${task.id}`).update(updates);
-
-          setAmount('');
-          showToast('success');
-        } catch (err) { showToast('error'); }
-        setIsSyncing(false);
-      };
-
-      return (
-        <div className="animate-slide-up max-w-lg mx-auto space-y-6 relative">
-          
-          {toast && (
-            <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-slide-up">
-              <div className={`px-5 py-2 rounded-full shadow-lg font-black text-xs flex items-center gap-2 text-white ${toast === 'success' ? 'bg-status-selesai' : 'bg-red-500'}`}>
-                <i className={`fa-solid ${toast === 'success' ? 'fa-check-circle' : 'fa-xmark-circle'} text-lg`}></i> 
-                {toast === 'success' ? 'BERHASIL' : 'GAGAL'}
-              </div>
-            </div>
-          )}
-
-          <div className="text-center mt-4">
-            <div className="bg-gradient-to-br from-midnight to-midnight-light text-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-glossy">
-               <i className="fa-solid fa-pen-to-square text-3xl"></i>
-            </div>
-            <h3 className="text-2xl font-black text-midnight tracking-tight">Lapor Progres</h3>
-            <p className="text-slate-500 text-sm font-bold mt-1">Kirim hasil pekerjaan harian Anda.</p>
-          </div>
-          
-          <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-6 md:p-8">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-user-tag text-slate-400 mr-2"></i>Pilih Identitas</label>
-                <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight outline-none cursor-pointer" value={selectedEmp} onChange={(e) => { setSelectedEmp(e.target.value); setSelectedTask(''); }}>
-                  <option value="">-- Ketuk untuk memilih --</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
-                </select>
-              </div>
-              
-              {selectedEmp && (
-                <div className="animate-slide-up">
-                  <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-list-check text-slate-400 mr-2"></i>Pilih Pekerjaan Aktif</label>
-                  <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight outline-none cursor-pointer" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
-                    <option value="">-- Pilih Pekerjaan --</option>
-                    {availableTasks.map(t => <option key={t.id} value={t.id}>{t.taskName} (Sisa target: {t.target - t.progress})</option>)}
-                  </select>
-                </div>
-              )}
-              
-              {selectedTask && (
-                <div className="animate-slide-up">
-                  <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-arrow-up-9-1 text-slate-400 mr-2"></i>Jumlah Diselesaikan Hari Ini</label>
-                  <input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-3xl text-center font-black text-status-selesai outline-none placeholder:text-slate-300" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
-                </div>
-              )}
-              
-              <button type="submit" disabled={isSyncing} className="w-full bg-gradient-to-r from-midnight to-midnight-light text-white font-bold py-4 rounded-xl shadow-glossy hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-2 mt-2 outline-none cursor-pointer">
-                {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin text-white"></i> Memproses...</> : <><i className="fa-solid fa-paper-plane text-status-selesai"></i> Kirim Laporan</>}
-              </button>
-            </form>
-          </div>
-        </div>
-      );
-    };
-
-    // --- MENU 5: VOTING PEMILIHAN ---
-    const MenuVoting = ({ votings, db, employees, isAdminLogged, selectedVoteId, setSelectedVoteId }) => {
-      const [activeTab, setActiveTab] = useState('statistik'); 
-      const [voteEmp, setVoteEmp] = useState('');
-      const [selectedOptions, setSelectedOptions] = useState([]);
-      const [isSyncing, setIsSyncing] = useState(false);
-      const [toast, setToast] = useState(null);
-
-      const activeVote = votings.find(v => String(v.id) === String(selectedVoteId));
-
-      const showToast = (type) => {
-        setToast(type);
-        setTimeout(() => setToast(null), 3000);
-      };
-
-      const handleCastVote = async (e) => {
-        e.preventDefault();
-        if(!db || !voteEmp || selectedOptions.length === 0) { showToast('error'); return; }
-        setIsSyncing(true);
-        try {
-           const safeKey = btoa(unescape(encodeURIComponent(voteEmp))).replace(/[.#$/\[\]]/g, '_');
-           await db.ref(`artifacts/${APP_ID}/public/data/votings/${activeVote.id}/votes/${safeKey}`).set({
-             name: voteEmp,
-             options: selectedOptions
-           });
-           showToast('success');
-           setVoteEmp(''); setSelectedOptions([]); setActiveTab('statistik');
-        } catch (err) { showToast('error'); }
-        setIsSyncing(false);
-      };
-
-      const toggleOption = (opt) => {
-        if (!activeVote.isMulti) { setSelectedOptions([opt]); return; }
-        if (selectedOptions.includes(opt)) setSelectedOptions(selectedOptions.filter(o => o !== opt));
-        else setSelectedOptions([...selectedOptions, opt]);
-      };
-
-      if (!selectedVoteId) {
-        return (
-          <div className="animate-slide-up space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="text-2xl font-black text-midnight tracking-tight">Kotak Suara</h3>
-                <p className="text-slate-500 text-sm font-bold mt-0.5">Pemilihan & Voting Bersama</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4">
-              {votings.length === 0 && (
-                <div className="bg-white rounded-3xl shadow-soft border border-slate-100 text-center py-12">
-                  <i className="fa-solid fa-check-to-slot d-block text-5xl mb-4 text-slate-300"></i>
-                  <p className="font-black text-slate-500">Belum ada acara voting aktif.</p>
-                </div>
-              )}
-              {votings.map(v => {
-                const totalVoters = v.voters ? v.voters.length : 0;
-                const totalVotes = v.votes ? Object.keys(v.votes).length : 0;
-                return (
-                  <button type="button" key={v.id} onClick={() => setSelectedVoteId(v.id)} className="card-btn bg-white rounded-3xl shadow-soft border border-slate-100 p-5 relative overflow-hidden">
-                    <div className="flex items-start justify-between mb-3">
-                      <h5 className="font-black text-midnight text-lg w-3/4">{v.title}</h5>
-                      <span className="bg-blue-50 text-status-selesai text-[10px] font-black px-2 py-1 rounded-md border border-blue-100 uppercase">{v.isMulti ? 'Multi' : 'Single'}</span>
-                    </div>
-                    <div className="text-[10px] font-bold text-slate-500 mb-3 bg-slate-50 border border-slate-100 px-2 py-1 w-max rounded-md"><i className="fa-solid fa-calendar-day mr-1"></i> {formatDateId(v.createdAt)}</div>
-                    <div className="w-full bg-slate-100 rounded-full h-1.5 mb-1.5"><div className="bg-status-selesai h-1.5 rounded-full" style={{width: `${totalVoters===0?0:(totalVotes/totalVoters)*100}%`}}></div></div>
-                    <div className="text-[10px] font-black text-slate-400 flex justify-between"><span>SUARA MASUK</span> <span className="text-midnight">{totalVotes} / {totalVoters} Org</span></div>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        );
-      }
-
-      const votesObj = activeVote.votes || {};
-      const votesArray = Object.values(votesObj);
-      const sudahVoteNames = votesArray.map(v => v.name).sort((a,b) => a.localeCompare(b));
-      const voters = activeVote.voters || [];
-      const belumVoteNames = voters.filter(v => !sudahVoteNames.includes(v)).sort((a,b) => a.localeCompare(b));
-
-      const optionCounts = {};
-      activeVote.options.forEach(o => optionCounts[o] = 0);
-      let totalSuaraMasuk = 0;
-      votesArray.forEach(vote => {
-         if(vote.options && Array.isArray(vote.options)) {
-           vote.options.forEach(p => { if(optionCounts[p] !== undefined) optionCounts[p]++; totalSuaraMasuk++; });
-         }
-      });
-
-      return (
-        <div className="animate-slide-up space-y-4 relative pb-10">
-          {toast && (
-            <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-slide-up">
-              <div className={`px-5 py-2 rounded-full shadow-lg font-black text-xs flex items-center gap-2 text-white ${toast === 'success' ? 'bg-status-selesai' : 'bg-red-500'}`}>
-                <i className={`fa-solid ${toast === 'success' ? 'fa-check-circle' : 'fa-xmark-circle'} text-lg`}></i> 
-                {toast === 'success' ? 'BERHASIL' : 'GAGAL'}
-              </div>
-            </div>
-          )}
-
-          <button type="button" onClick={() => setSelectedVoteId(null)} className="bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-4 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 outline-none cursor-pointer">
-            <i className="fa-solid fa-arrow-left-long text-status-selesai"></i> Kembali
-          </button>
-
-          <div className="bg-gradient-to-br from-midnight to-midnight-light rounded-3xl p-6 text-white relative shadow-glossy">
-            <i className="fa-solid fa-check-to-slot absolute -right-4 -bottom-4 text-7xl opacity-10"></i>
-            <h3 className="text-2xl font-black mb-1 relative z-10 leading-tight">{activeVote.title}</h3>
-            <p className="text-white/60 font-bold text-xs relative z-10 uppercase tracking-widest">{activeVote.isMulti ? 'Bisa pilih lebih dari satu' : 'Hanya boleh pilih satu'}</p>
-          </div>
-
-          <div className="flex bg-white rounded-xl shadow-sm border border-slate-100 p-1">
-             <button type="button" onClick={()=>setActiveTab('statistik')} className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-colors outline-none cursor-pointer ${activeTab==='statistik' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>Statistik</button>
-             <button type="button" onClick={()=>setActiveTab('sudah')} className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-colors outline-none cursor-pointer ${activeTab==='sudah' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>Sudah ({sudahVoteNames.length})</button>
-             <button type="button" onClick={()=>setActiveTab('belum')} className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-colors outline-none cursor-pointer ${activeTab==='belum' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>Belum ({belumVoteNames.length})</button>
-             <button type="button" onClick={()=>setActiveTab('beri_suara')} className={`flex-1 py-2.5 text-xs font-black rounded-lg transition-colors outline-none cursor-pointer ${activeTab==='beri_suara' ? 'bg-status-selesai text-white shadow-md' : 'text-status-selesai hover:bg-blue-50'}`}>Vote!</button>
-          </div>
-
-          {activeTab === 'statistik' && (
-            <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 space-y-4 animate-fade-in">
-               {activeVote.options.map((opt, i) => {
-                  const count = optionCounts[opt];
-                  const pct = totalSuaraMasuk === 0 ? 0 : Math.round((count / totalSuaraMasuk) * 100);
-                  return (
-                    <div key={i} className="mb-2">
-                       <div className="flex justify-between text-xs font-bold text-midnight mb-1">
-                          <span>{opt}</span><span>{count} Suara ({pct}%)</span>
-                       </div>
-                       <div className="w-full bg-slate-100 rounded-full h-3">
-                          <div className="bg-status-selesai h-3 rounded-full" style={{width: `${pct}%`}}></div>
-                       </div>
-                    </div>
-                  )
-               })}
-            </div>
-          )}
-
-          {activeTab === 'sudah' && (
-            <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 space-y-3 animate-fade-in">
-               {votesArray.length === 0 && <p className="text-center text-xs font-bold text-slate-400 py-4">Belum ada suara masuk.</p>}
-               {votesArray.map(voteData => (
-                 <div key={voteData.name} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <span className="font-bold text-midnight text-xs">{voteData.name}</span>
-                    <div className="flex gap-1 flex-wrap justify-end max-w-[60%]">
-                      {voteData.options && voteData.options.map(opt => <span key={opt} className="bg-blue-50 border border-blue-100 text-status-selesai text-[9px] font-bold px-2 py-1 rounded-md truncate">{opt}</span>)}
-                    </div>
-                 </div>
-               ))}
-            </div>
-          )}
-
-          {activeTab === 'belum' && (
-            <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 space-y-2 animate-fade-in">
-               {belumVoteNames.length === 0 && <p className="text-center text-xs font-bold text-slate-400 py-4">Semua orang sudah memberikan suaranya!</p>}
-               {belumVoteNames.map(name => (
-                 <div key={name} className="bg-slate-50 p-3 rounded-xl border border-slate-100 font-bold text-slate-500 text-xs flex items-center gap-2">
-                    <i className="fa-solid fa-circle-exclamation text-orange-400"></i> {name}
-                 </div>
-               ))}
-            </div>
-          )}
-
-          {activeTab === 'beri_suara' && (
-            <form onSubmit={handleCastVote} className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 space-y-5 animate-fade-in">
-               <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Pilih Identitas Anda</label>
-                  <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none cursor-pointer" value={voteEmp} onChange={(e) => setVoteEmp(e.target.value)}>
-                    <option value="">-- Nama Anda --</option>
-                    {voters.map(v => <option key={v} value={v}>{v} {sudahVoteNames.includes(v) ? '(Ubah Pilihan)' : ''}</option>)}
-                  </select>
-               </div>
-               {voteEmp && (
-                 <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-2 uppercase">Pilihan Anda</label>
-                    <div className="space-y-2">
-                       {activeVote.options.map(opt => {
-                         const isSelected = selectedOptions.includes(opt);
-                         return (
-                           <button type="button" key={opt} onClick={() => toggleOption(opt)} className={`w-full flex items-center justify-between p-3 rounded-xl border text-sm font-bold transition-colors outline-none cursor-pointer ${isSelected ? 'bg-blue-50 border-status-selesai text-status-selesai' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                              <span>{opt}</span>
-                              {isSelected && <i className="fa-solid fa-circle-check"></i>}
-                           </button>
-                         )
-                       })}
-                    </div>
-                 </div>
-               )}
-               <button type="submit" disabled={isSyncing} className="w-full bg-status-selesai text-white font-bold py-3.5 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none mt-2 cursor-pointer">
-                  {isSyncing ? 'Mengirim...' : 'Kirim Suara'}
-               </button>
-            </form>
-          )}
-        </div>
-      );
-    };
-
-    // --- MENU 6: ADMIN PANEL (SUPER ADMIN CRUD) ---
-    const AdminPanel = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged, setIsAdminLogged }) => {
-      const [pwd, setPwd] = useState('');
-      const [toast, setToast] = useState(null);
-      const [isSyncing, setIsSyncing] = useState(false);
-      const fileInputRef = useRef(null);
-
-      const [newTask, setNewTask] = useState({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
-      const [editModal, setEditModal] = useState({ isOpen: false, type: '', data: {}, oldTaskName: '' });
-
-      const [voteTitle, setVoteTitle] = useState('');
-      const [voteOptions, setVoteOptions] = useState(['']);
-      const [isMulti, setIsMulti] = useState(false);
-      const [editVoteModal, setEditVoteModal] = useState({ isOpen: false, id: null, title: '', options: [''], isMulti: false });
-
-      const showToast = (type) => {
-        setToast(type);
-        setTimeout(() => setToast(null), 3000);
-      };
-
-      if (!isAdminLogged) {
-        return (
-          <div className="animate-slide-up text-center pt-10 px-4 max-w-sm mx-auto">
-            <div className="bg-white border border-slate-200 text-midnight rounded-3xl w-24 h-24 flex items-center justify-center mx-auto mb-6 shadow-soft">
-               <i className="fa-solid fa-user-shield text-5xl"></i>
-            </div>
-            <h3 className="text-2xl font-black text-midnight mb-2 tracking-tight">Super Admin</h3>
-            <p className="text-xs text-slate-500 font-bold mb-6">Database dilindungi enkripsi sistem.</p>
-            <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-6">
-              <form onSubmit={e => { 
-                e.preventDefault(); 
-                if(btoa(pwd) === 'YWRtaW4xMjM=') { setIsAdminLogged(true); sessionStorage.setItem('adminAuth', 'true'); } 
-                else { alert('Password Salah!'); setPwd(''); }
-              }}>
-                <input type="password" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-center text-lg font-black text-midnight tracking-widest mb-4 focus:ring-2 focus:ring-midnight outline-none transition-all shadow-inner" placeholder="PASSWORD" value={pwd} onChange={e=>setPwd(e.target.value)}/>
-                <button type="submit" className="w-full bg-midnight text-white font-bold py-3.5 rounded-xl shadow-glossy active:scale-95 transition-all flex justify-center items-center gap-2 outline-none cursor-pointer">
-                  <i className="fa-solid fa-lock-open text-status-selesai"></i> Buka Panel
-                </button>
-              </form>
-            </div>
-          </div>
-        );
-      }
-
-      const handleAddManual = async (e) => {
-        e.preventDefault();
-        if(!newTask.taskName || !newTask.picId || !newTask.deadline) { showToast('error'); return; }
-        setIsSyncing(true);
-        try {
-          const updates = {};
-          let addedCount = 0;
-          const baseId = Date.now();
-          const today = new Date().toISOString().split('T')[0];
-
-          if (newTask.picId === 'all') {
-             employees.forEach((emp, idx) => {
-                const tgt = parseInt(newTask.multiTargets[emp.id]);
-                if (tgt > 0) {
-                   const newId = baseId + idx;
-                   updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = {
-                      id: newId, taskName: newTask.taskName.trim(), picId: emp.name, target: tgt, progress: 0, deadline: newTask.deadline, status: 'On Progress', startDate: today
-                   };
-                   addedCount++;
+            const handleAdminToggle = () => {
+                if (isAdmin) { setIsAdmin(false); showToast('Admin Logout berhasil.', 'info'); } 
+                else {
+                    const password = window.prompt("Masukkan Password Akses Admin:");
+                    if (password === "admin123") { setIsAdmin(true); showToast('Login Admin Berhasil! Hak Penuh diaktifkan.', 'success'); } 
+                    else if (password !== null) { showToast('Password Salah!', 'error'); }
                 }
-             });
-          } else {
-             const newId = baseId;
-             updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = {
-                id: newId, taskName: newTask.taskName.trim(), picId: newTask.picId.toUpperCase().trim(), target: parseInt(newTask.target), progress: 0, deadline: newTask.deadline, status: 'On Progress', startDate: today
-             };
-             addedCount++;
-          }
+                setIsNavOpen(false);
+            };
 
-          if (addedCount > 0) {
-             await db.ref().update(updates);
-             showToast('success');
-             setNewTask({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
-          } else { showToast('error'); }
-        } catch (err) { showToast('error'); }
-        setIsSyncing(false);
-      };
+            const handleDelete = async (timestamp) => {
+                if (!window.confirm("Peringatan: Yakin menghapus data & File PDF secara permanen?")) return;
+                showToast("Menghapus data...", "info");
+                try {
+                    const resData = await fetchGAS({ action: 'delete', timestamp: timestamp });
+                    if (resData.status === 'success') { showToast(resData.message, 'success'); fetchData(); } 
+                    else throw new Error(resData.message);
+                } catch (e) { showToast("Gagal menghapus: " + e.message, "error"); }
+            };
 
-      const handleExcelUpload = (e) => {
-        const file = e.target.files[0];
-        if (!file || !db) return;
-        setIsSyncing(true);
-        const fileExt = file.name.toLowerCase().split('.').pop();
-        const reader = new FileReader();
+            const handleResetAll = async () => {
+                if (!window.confirm("PERINGATAN KERAS! Anda yakin ingin MENGHAPUS SEMUA ISI DATABASE DAN SEMUA FILE PDF SECARA PERMANEN?")) return;
+                if (!window.confirm("Tindakan ini tidak bisa dikembalikan. Lanjutkan Reset?")) return;
+                
+                showToast("Sedang mereset seluruh sistem...", "info");
+                try {
+                    const resData = await fetchGAS({ action: 'reset' });
+                    if (resData.status === 'success') { showToast(resData.message, 'success'); fetchData(); } 
+                    else throw new Error(resData.message);
+                } catch (e) { showToast("Gagal mereset: " + e.message, "error"); }
+            };
 
-        reader.onload = async (event) => {
-           try {
-             let excelData = [];
-             if (fileExt === 'csv') {
-               const text = event.target.result;
-               const workbook = window.XLSX.read(text, { type: 'string' });
-               excelData = window.XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
-             } else {
-               const data = new Uint8Array(event.target.result);
-               const workbook = window.XLSX.read(data, { type: 'array' });
-               excelData = window.XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
-             }
+            const handleUpdateSubmit = async (e) => {
+                e.preventDefault();
+                showToast("Menyimpan pembaruan...", "info");
+                try {
+                    const resData = await fetchGAS({ action: 'update', ...editModal });
+                    if (resData.status === 'success') { showToast(resData.message, 'success'); setEditModal(null); fetchData(); } 
+                    else throw new Error(resData.message);
+                } catch (e) { showToast("Gagal mengupdate: " + e.message, "error"); }
+            };
 
-             const updates = {};
-             let addedCount = 0;
-             const today = new Date().toISOString().split('T')[0];
+            const readFileAsBase64 = (file) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject; reader.readAsDataURL(file);
+                });
+            };
 
-             for(let i = 1; i < excelData.length; i++) {
-               const row = excelData[i];
-               if (!row || row.length === 0) continue; 
-               const taskName = String(row[0] || "").trim();
-               const picIndicator = String(row[1] || "").trim(); 
-               const target = parseInt(row[2]);
-               
-               if (!taskName || !picIndicator || isNaN(target)) continue;
+            const processSingleImage = (file) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            try {
+                                const canvas = document.createElement('canvas');
+                                const ctx = canvas.getContext('2d');
+                                const maxWidth = 1000; let width = img.width, height = img.height;
+                                if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+                                canvas.width = width; canvas.height = height;
+                                ctx.filter = 'grayscale(100%) contrast(150%) brightness(105%)'; 
+                                ctx.drawImage(img, 0, 0, width, height);
+                                resolve(canvas.toDataURL('image/jpeg', 0.5)); 
+                            } catch (e) { reject(e); }
+                        };
+                        img.onerror = reject; img.src = event.target.result;
+                    };
+                    reader.onerror = reject; reader.readAsDataURL(file);
+                });
+            };
 
-               let finalDeadline = new Date().toISOString().split('T')[0];
-               const rawDeadline = row[3];
-               if (rawDeadline) {
-                 if (typeof rawDeadline === 'number') {
-                   const dateObj = new Date((rawDeadline - (25567 + 2)) * 86400 * 1000);
-                   if(!isNaN(dateObj.getTime())) finalDeadline = dateObj.toISOString().split('T')[0];
-                 } else {
-                   const strDate = String(rawDeadline).trim();
-                   const parts = strDate.split(/[-/]/);
-                   if (parts.length === 3) {
-                      if (parts[0].length <= 2 && parts[2].length === 4) finalDeadline = `${parts[2]}-${parts[1]}-${parts[0]}`; 
-                      else { const d = new Date(strDate); if(!isNaN(d.getTime())) finalDeadline = d.toISOString().split('T')[0]; }
-                   }
-                 }
-               }
+            const handleFileChange = async (e) => {
+                try {
+                    const files = Array.from(e.target.files || []);
+                    if (files.length === 0) return;
+                    if (!backendUrl) return showToast('Masukkan URL Google Apps Script!', 'error');
+                    
+                    setUploadState('processing_image');
+                    const fileArray = [];
 
-               const newId = Date.now() + Math.floor(Math.random() * 10000) + i;
-               updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = {
-                 id: newId, taskName: taskName, picId: picIndicator.toUpperCase(), 
-                 target: target, progress: 0, deadline: finalDeadline, status: 'On Progress', startDate: today
-               };
-               addedCount++;
-             }
+                    for (let file of files) {
+                        const fileExt = file.name.toLowerCase();
+                        if (fileExt.endsWith('.pdf') || file.type === 'application/pdf') {
+                            const base64 = await readFileAsBase64(file);
+                            fileArray.push({ mimeType: 'application/pdf', data: base64.split(',')[1] });
+                        } else {
+                            const base64 = await processSingleImage(file);
+                            fileArray.push({ mimeType: 'image/jpeg', data: base64.split(',')[1] });
+                        }
+                    }
 
-             if (addedCount > 0) {
-               await db.ref().update(updates); 
-               showToast('success');
-             } else { showToast('error'); }
-           } catch (error) { showToast('error'); 
-           } finally { setIsSyncing(false); if(fileInputRef.current) fileInputRef.current.value = ''; }
-        };
-        reader.onerror = () => { showToast('error'); setIsSyncing(false); };
-        if (fileExt === 'csv') reader.readAsText(file); else reader.readAsArrayBuffer(file);
-      };
+                    if (fileArray.length === 0) throw new Error("Format file tidak didukung");
+                    setProcessedFiles(fileArray);
+                    extractTextFromFiles(fileArray);
+                } catch (error) { setUploadState('idle'); showToast('Gagal memproses file: ' + error.message, 'error'); }
+            };
 
-      const handleSaveEdit = async (e) => {
-        e.preventDefault();
-        setIsSyncing(true);
-        try {
-          const updates = {};
-          if (editModal.type === 'group') {
-             const groupTasks = tasks.filter(t => t.taskName === editModal.oldTaskName);
-             groupTasks.forEach(t => {
-                updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/taskName`] = editModal.data.taskName.trim();
-                updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/deadline`] = editModal.data.deadline;
-             });
-          } else {
-             const target = parseInt(editModal.data.target);
-             const progress = parseInt(editModal.data.progress);
-             const isDone = progress >= target;
-             const today = new Date().toISOString().split('T')[0];
+            const extractTextFromFiles = async (fileArray) => {
+                setUploadState('extracting');
+                try {
+                    const data = await fetchGAS({ action: 'extract_multiple', files: fileArray.map(f => ({ mimeType: f.mimeType, data: f.data })) });
+                    if (data.status === 'success') {
+                        const siswaArray = Array.isArray(data.data?.siswa) ? data.data.siswa : [];
+                        if (siswaArray.length === 0) throw new Error("File kosong atau tidak ada tabel ditemukan.");
 
-             const oldTask = tasks.find(t => t.id === editModal.data.id);
-             let completedAt = oldTask.completedAt;
-             if (isDone && oldTask.status !== 'Selesai') completedAt = today;
-             else if (!isDone) completedAt = null;
-             else completedAt = oldTask.completedAt || null;
+                        const first = siswaArray[0];
+                        const isMultiBulan = siswaArray.some(s => s.bulan !== first.bulan || s.tahun !== first.tahun);
+                        const isMultiSekolah = siswaArray.some(s => s.sekolah !== first.sekolah);
 
-             updates[`artifacts/${APP_ID}/public/data/tasks/${editModal.data.id}`] = {
-                ...oldTask,
-                taskName: editModal.data.taskName.trim(),
-                picId: editModal.data.picId.toUpperCase().trim(),
-                target: target,
-                progress: progress,
-                deadline: editModal.data.deadline,
-                status: isDone ? 'Selesai' : 'On Progress',
-                completedAt: completedAt
-             };
-          }
-          await db.ref().update(updates);
-          showToast('success');
-          setEditModal({ isOpen: false, type: '', data: {}, oldTaskName: '' });
-        } catch (err) { showToast('error'); }
-        setIsSyncing(false);
-      };
+                        const safeData = {
+                            sekolah: isMultiSekolah ? 'Multi-Sekolah (Lihat Baris)' : (first.sekolah || 'Tidak Terdeteksi'),
+                            bulan: isMultiBulan ? 'Multi-Periode (Lihat Baris)' : (first.bulan || '-'),
+                            tahun: isMultiBulan ? '-' : (first.tahun || '-'),
+                            siswa: siswaArray 
+                        };
+                        
+                        setExtractedData(safeData); setUploadState('form');
+                        showToast(`Berhasil mengekstrak ${siswaArray.length} baris data utuh!`, 'success');
+                    } else throw new Error(data.message || "Error dari AI");
+                } catch (err) { showToast('Gagal: ' + err.message, 'error'); setUploadState('idle'); }
+            };
 
-      const handleDeleteGroup = async (taskName) => {
-        if(!window.confirm(`Hapus seluruh kegiatan "${taskName}" ?`)) return;
-        setIsSyncing(true);
-        try {
-          const updates = {};
-          const groupTasks = tasks.filter(t => t.taskName === taskName);
-          groupTasks.forEach(t => { updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}`] = null; });
-          await db.ref().update(updates);
-          showToast('success');
-        } catch (e) { showToast('error'); }
-        setIsSyncing(false);
-      };
+            const handleSave = async (e) => {
+                e.preventDefault();
+                if (extractedData.siswa.length === 0) return showToast("Tidak ada data untuk disimpan.", "error");
+                setUploadState('saving');
 
-      const handleResetGroupProgress = async (taskName) => {
-        if(!window.confirm(`Reset progress "${taskName}" ke 0?`)) return;
-        setIsSyncing(true);
-        try {
-          const updates = {};
-          const groupTasks = tasks.filter(t => t.taskName === taskName);
-          groupTasks.forEach(t => {
-             updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/progress`] = 0;
-             updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/status`] = 'On Progress';
-             updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/completedAt`] = null;
-          });
-          await db.ref().update(updates);
-          showToast('success');
-        } catch (e) { showToast('error'); }
-        setIsSyncing(false);
-      };
+                try {
+                    let finalPdfBase64 = "";
+                    const hasPdf = processedFiles.some(f => f.mimeType === 'application/pdf');
 
-      const handleResetIndividualProgress = async (id) => {
-        if(!window.confirm(`Reset progress pegawai ke 0?`)) return;
-        setIsSyncing(true);
-        try {
-          await db.ref(`artifacts/${APP_ID}/public/data/tasks/${id}`).update({
-             progress: 0, status: 'On Progress', completedAt: null
-          });
-          showToast('success');
-        } catch (e) { showToast('error'); }
-        setIsSyncing(false);
-      };
+                    if (hasPdf) {
+                        const pdfFile = processedFiles.find(f => f.mimeType === 'application/pdf');
+                        finalPdfBase64 = pdfFile.data;
+                    } else {
+                        if (!window.jspdf || !window.jspdf.jsPDF) throw new Error("Library PDF gagal dimuat.");
+                        const doc = new window.jspdf.jsPDF('p', 'mm', 'a4');
+                        processedFiles.forEach((f, index) => {
+                            if (index > 0) doc.addPage();
+                            const imgProps = doc.getImageProperties('data:image/jpeg;base64,' + f.data);
+                            const pdfWidth = doc.internal.pageSize.getWidth();
+                            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                            doc.addImage('data:image/jpeg;base64,' + f.data, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+                        });
+                        finalPdfBase64 = doc.output('datauristring').split(',')[1];
+                    }
 
-      const handleDeletePerson = async (id) => {
-        if(!window.confirm(`Hapus pegawai dari kegiatan ini?`)) return;
-        setIsSyncing(true);
-        try { await db.ref(`artifacts/${APP_ID}/public/data/tasks/${id}`).remove(); showToast('success'); } 
-        catch (e) { showToast('error'); }
-        setIsSyncing(false);
-      };
+                    const payload = { action: 'save', pdfBase64: finalPdfBase64, siswa: extractedData.siswa || [] };
+                    const resData = await fetchGAS(payload);
+                    if (resData.status !== 'success') throw new Error(resData.message);
+                    
+                    fetchData(); setUploadState('success');
+                    if (resData.message) showToast(resData.message, 'success');
+                } catch (err) { showToast('Gagal menyimpan: ' + err.message, 'error'); setUploadState('form'); }
+            };
 
-      const handleCreateVoting = async (e) => {
-        e.preventDefault();
-        if(!db || employees.length === 0) { showToast('error'); return; }
-        const cleanOptions = voteOptions.map(o => o.trim()).filter(o => o !== '');
-        if(cleanOptions.length < 2) { showToast('error'); return; }
+            const resetForm = () => { setUploadState('idle'); setExtractedData({ sekolah: '', bulan: '', tahun: '', siswa: [] }); setProcessedFiles([]); };
+            const saveSettings = () => { localStorage.setItem('VERIFDIGI_BACKEND_URL', tempUrl); setBackendUrl(tempUrl); setShowSettings(false); showToast('URL API berhasil disimpan!', 'success'); };
 
-        setIsSyncing(true);
-        try {
-          const newId = Date.now();
-          const today = new Date().toISOString().split('T')[0];
-          const votersList = employees.map(e => e.name).sort((a, b) => a.localeCompare(b)); 
-          
-          await db.ref(`artifacts/${APP_ID}/public/data/votings/${newId}`).set({
-             id: newId, title: voteTitle, options: cleanOptions, isMulti: isMulti, voters: votersList, createdAt: today, status: 'Active'
-          });
+            // ==========================================
+            // FILTERING DATA DATABASE (SEMUA DATA)
+            // ==========================================
+            const currentRecords = Array.isArray(records) ? records : [];
+            const optionsPendamping = [...new Set(currentRecords.map(r => r?.pendamping))].filter(Boolean);
+            const optionsBentuk = [...new Set(currentRecords.map(r => r?.bentuk))].filter(Boolean);
+            const optionsTingkat = [...new Set(currentRecords.map(r => r?.tingkat))].filter(Boolean);
 
-          showToast('success');
-          setVoteTitle(''); setVoteOptions(['']); setIsMulti(false);
-        } catch (err) { showToast('error'); }
-        setIsSyncing(false);
-      };
+            const filteredKomponen = currentRecords.filter(item => {
+                if (!item) return false;
+                const matchSearch = Object.values(item).some(val => String(val || '').toLowerCase().includes(searchQuery.toLowerCase()));
+                return matchSearch && (filterPendamping ? item.pendamping === filterPendamping : true) && (filterBentuk ? item.bentuk === filterBentuk : true) && (filterTingkat ? item.tingkat === filterTingkat : true);
+            });
 
-      const handleSaveEditVote = async (e) => {
-        e.preventDefault();
-        const cleanOptions = editVoteModal.options.map(o => o.trim()).filter(o => o !== '');
-        if(cleanOptions.length < 2) { showToast('error'); return; }
-        setIsSyncing(true);
-        try {
-          await db.ref(`artifacts/${APP_ID}/public/data/votings/${editVoteModal.id}`).update({
-             title: editVoteModal.title,
-             options: cleanOptions,
-             isMulti: editVoteModal.isMulti
-          });
-          showToast('success');
-          setEditVoteModal({ isOpen: false, id: null, title: '', options: [''], isMulti: false });
-        } catch (err) { showToast('error'); }
-        setIsSyncing(false);
-      };
-
-      const handleDeleteVoting = async (voteId) => {
-        if(!window.confirm(`Hapus acara voting ini?`)) return;
-        setIsSyncing(true);
-        try { await db.ref(`artifacts/${APP_ID}/public/data/votings/${voteId}`).remove(); showToast('success'); } 
-        catch (e) { showToast('error'); }
-        setIsSyncing(false);
-      };
-
-      const handleResetVoting = async (voteId) => {
-        if(!window.confirm(`Hapus semua suara di voting ini?`)) return;
-        setIsSyncing(true);
-        try { await db.ref(`artifacts/${APP_ID}/public/data/votings/${voteId}/votes`).remove(); showToast('success'); } 
-        catch (e) { showToast('error'); }
-        setIsSyncing(false);
-      };
-
-      const handleResetAll = async () => {
-        if(!window.confirm("Yakin hapus SELURUH DATABASE?")) return;
-        setIsSyncing(true);
-        try {
-          await db.ref(`artifacts/${APP_ID}/public/data/tasks`).remove();
-          await db.ref(`artifacts/${APP_ID}/public/data/votings`).remove();
-          showToast('success');
-        } catch (e) { showToast('error'); }
-        setIsSyncing(false);
-      };
-
-      const handleDownloadTemplate = () => {
-        try {
-          const templateData = [ ["Nama Kegiatan", "ID PIC / NAMA", "Target", "Deadline"], ["Review Laporan", "BUDI SANTOSO", 10, "2026-12-31"] ];
-          const worksheet = window.XLSX.utils.aoa_to_sheet(templateData);
-          const workbook = window.XLSX.utils.book_new();
-          window.XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
-          window.XLSX.writeFile(workbook, "Template_MonitorSDMPKHTapin.xlsx");
-        } catch (err) { showToast('error'); }
-      };
-
-      return (
-        <div className="animate-slide-up space-y-6 pb-10 relative">
-          
-          {toast && (
-            <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] animate-slide-up">
-              <div className={`px-5 py-2 rounded-full shadow-lg font-black text-xs flex items-center gap-2 text-white ${toast === 'success' ? 'bg-status-selesai' : 'bg-red-500'}`}>
-                <i className={`fa-solid ${toast === 'success' ? 'fa-check-circle' : 'fa-xmark-circle'} text-lg`}></i> 
-                {toast === 'success' ? 'BERHASIL' : 'GAGAL'}
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-between items-center">
-            <h3 className="text-2xl font-black text-midnight tracking-tight">Super Admin</h3>
-            <button onClick={() => { setIsAdminLogged(false); sessionStorage.removeItem('adminAuth'); }} className="bg-white border border-slate-200 text-red-500 font-bold px-4 py-1.5 rounded-full shadow-sm text-xs flex items-center gap-1.5 hover:bg-slate-50 transition-colors outline-none cursor-pointer">
-              <i className="fa-solid fa-power-off"></i> Keluar
-            </button>
-          </div>
-          
-          {/* SECTION: BUAT VOTING BARU */}
-          <div className="bg-gradient-to-br from-indigo-600 to-blue-800 rounded-3xl shadow-soft p-5 text-white relative overflow-hidden">
-            <i className="fa-solid fa-check-to-slot absolute -right-4 -bottom-4 text-8xl opacity-10"></i>
-            <div className="relative z-10">
-              <h4 className="font-black text-lg mb-4 flex items-center gap-2"><i className="fa-solid fa-plus-circle text-yellow-400"></i> Buat Acara Voting</h4>
-              <form onSubmit={handleCreateVoting} className="space-y-4">
-                 <div>
-                    <label className="block text-[10px] font-bold text-white/70 mb-1 uppercase">Topik / Nama Voting</label>
-                    <input type="text" required className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 text-sm font-bold text-white outline-none placeholder:text-white/30" value={voteTitle} onChange={e => setVoteTitle(e.target.value)} placeholder="Contoh: Menu Makan Siang" />
-                 </div>
-                 <div>
-                    <label className="block text-[10px] font-bold text-white/70 mb-1 uppercase">Opsi Pilihan</label>
-                    {voteOptions.map((opt, idx) => (
-                      <div key={idx} className="flex gap-2 mb-2">
-                        <input type="text" required className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-sm font-bold text-white outline-none placeholder:text-white/30" value={opt} onChange={e => { const newArr = [...voteOptions]; newArr[idx] = e.target.value; setVoteOptions(newArr); }} placeholder={`Opsi ${idx+1}`} />
-                        {voteOptions.length > 1 && <button type="button" onClick={() => setVoteOptions(voteOptions.filter((_, i) => i !== idx))} className="bg-red-500/20 text-red-200 border border-red-500/30 w-10 rounded-xl flex items-center justify-center outline-none cursor-pointer"><i className="fa-solid fa-trash text-xs"></i></button>}
-                      </div>
-                    ))}
-                    <button type="button" onClick={() => setVoteOptions([...voteOptions, ''])} className="text-xs font-bold text-yellow-300 mt-1 outline-none cursor-pointer"><i className="fa-solid fa-plus mr-1"></i> Tambah Opsi</button>
-                 </div>
-                 <div className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/10 mt-2">
-                    <input type="checkbox" id="multiVote" checked={isMulti} onChange={e => setIsMulti(e.target.checked)} className="w-4 h-4 accent-blue-500 rounded outline-none cursor-pointer" />
-                    <label htmlFor="multiVote" className="text-xs font-bold text-white cursor-pointer select-none">Boleh pilih lebih dari satu opsi (Multi Vote)</label>
-                 </div>
-                 <button type="submit" disabled={isSyncing} className="w-full bg-white text-blue-900 font-black py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none mt-2 cursor-pointer">
-                    {isSyncing ? 'Membuat...' : 'Terbitkan Voting'}
-                 </button>
-              </form>
-            </div>
-          </div>
-
-          {/* SECTION: UPLOAD & TAMBAH TUGAS */}
-          <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
-            <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
-              <i className="fa-solid fa-square-plus text-status-selesai"></i> <span className="font-black text-midnight text-sm uppercase tracking-wider">Tambah Tugas Baru</span>
-            </div>
-            <div className="p-5 space-y-6">
-               <form onSubmit={handleAddManual} className="space-y-4">
-                  <h6 className="font-bold text-midnight text-xs uppercase tracking-wider border-b border-slate-100 pb-2">Input Manual & Multi-Target</h6>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Kegiatan</label>
-                    <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:border-midnight focus:ring-1 focus:ring-midnight shadow-inner" value={newTask.taskName} onChange={e => setNewTask({...newTask, taskName: e.target.value})} placeholder="Contoh: Entry Data PKH" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Tugaskan Ke</label>
-                    <input list="emp-list" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:border-midnight focus:ring-1 focus:ring-midnight shadow-inner cursor-pointer" value={newTask.picId} onChange={e => setNewTask({...newTask, picId: e.target.value})} placeholder="Ketik nama atau pilih opsi..." />
-                    <datalist id="emp-list">
-                      <option value="all">🚀 SEMUA PEGAWAI SEKALIGUS</option>
-                      {employees.map(emp => <option key={emp.id} value={emp.name} />)}
-                    </datalist>
-                  </div>
-                  
-                  {newTask.picId === 'all' ? (
-                    <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3">
-                      <label className="block text-[10px] font-bold text-blue-800 uppercase">Set Target Beban Masing-Masing</label>
-                      {employees.map(emp => (
-                        <div key={emp.id} className="flex justify-between items-center gap-3 bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
-                          <span className="text-xs font-bold text-midnight pl-1 truncate w-24">{emp.name}</span>
-                          <input type="number" min="0" placeholder="Target Angka" className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 w-full text-xs font-bold outline-none text-center" value={newTask.multiTargets[emp.id] || ''} onChange={e => setNewTask({...newTask, multiTargets: {...newTask.multiTargets, [emp.id]: e.target.value}})} />
-                        </div>
-                      ))}
-                      <div className="pt-2">
-                        <label className="block text-[10px] font-bold text-blue-800 uppercase mb-1">Tenggat Waktu Bersama</label>
-                        <input type="date" required className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none cursor-pointer" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Target Angka</label>
-                        <input type="number" required min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none text-center shadow-inner" value={newTask.target} onChange={e => setNewTask({...newTask, target: e.target.value})} placeholder="0" />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Tenggat</label>
-                        <input type="date" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none shadow-inner cursor-pointer" value={newTask.deadline} onChange={e => setNewTask({...newTask, deadline: e.target.value})} />
-                      </div>
-                    </div>
-                  )}
-                  <button type="submit" disabled={isSyncing || !db} className="w-full bg-midnight text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none flex justify-center items-center gap-2 cursor-pointer">
-                    {isSyncing ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-plus"></i>} Simpan Tugas Baru
-                  </button>
-               </form>
-
-               <div className="border-t border-slate-100 pt-6">
-                 <h6 className="font-bold text-midnight text-xs uppercase tracking-wider border-b border-slate-100 pb-2 mb-3">Upload Massal via Excel</h6>
-                 <div className="bg-gradient-to-br from-midnight to-midnight-light rounded-2xl p-5 text-white relative overflow-hidden shadow-glossy">
-                   <i className="fa-solid fa-cloud-arrow-up absolute -right-6 -bottom-6 text-7xl opacity-10 text-white"></i>
-                   <div className="relative z-10">
-                     <p className="text-white/60 text-[10px] font-bold mb-3 uppercase tracking-wide">Format: .xlsx atau .csv (Kolom A-D)</p>
-                     <div className="flex gap-2">
-                       <button onClick={() => {fileInputRef.current.value = ''; handleDownloadTemplate();}} className="flex-1 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 backdrop-blur-md outline-none cursor-pointer">
-                         <i className="fa-solid fa-download"></i> Template
-                       </button>
-                       <input type="file" accept=".xlsx, .csv" ref={fileInputRef} onChange={handleExcelUpload} className="hidden" />
-                       <button onClick={() => fileInputRef.current.click()} disabled={isSyncing || !db} className="flex-[2] bg-white text-midnight font-black py-2.5 rounded-xl shadow-soft hover:bg-slate-50 transition-colors flex justify-center items-center gap-2 text-xs outline-none cursor-pointer">
-                          {isSyncing ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-file-excel text-emerald-500"></i>} Upload File
-                       </button>
-                     </div>
-                   </div>
-                 </div>
-               </div>
-            </div>
-          </div>
-
-          {/* SECTION: KELOLA TUGAS (CRUD) */}
-          <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
-            <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
-              <i className="fa-solid fa-pen-ruler text-status-proses"></i> <span className="font-black text-midnight text-sm uppercase tracking-wider">Kelola Data Tugas</span>
-            </div>
-            <div className="p-5 space-y-4">
-               {groupedTasks.length === 0 && <p className="text-center py-6 text-slate-400 font-bold text-sm bg-slate-50 rounded-xl">Database tugas kosong.</p>}
-               <div className="space-y-3">
-                 {groupedTasks.map(g => (
-                   <details key={g.taskName} className="group bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden [&_summary::-webkit-details-marker]:hidden">
-                     <summary className="p-4 font-bold text-midnight flex justify-between items-center cursor-pointer select-none outline-none">
-                       <span className="flex items-center gap-3">
-                         <i className="fa-solid fa-folder text-status-selesai group-open:text-status-proses transition-colors text-lg"></i> 
-                         <span className="truncate max-w-[130px] sm:max-w-xs">{g.taskName}</span>
-                         <span className="bg-midnight text-white text-[10px] px-2 py-0.5 rounded-md">{g.assignees.length}</span>
-                       </span>
-                       <div className="flex gap-1.5">
-                         <button onClick={(e) => { e.preventDefault(); handleResetGroupProgress(g.taskName); }} className="bg-white border border-slate-200 text-orange-500 hover:bg-orange-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Reset Semua Capaian ke 0"><i className="fa-solid fa-rotate-left"></i></button>
-                         <button onClick={(e) => { e.preventDefault(); setEditModal({ isOpen: true, type: 'group', oldTaskName: g.taskName, data: { taskName: g.taskName, deadline: g.deadline } }); }} className="bg-white border border-slate-200 text-status-selesai hover:bg-blue-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Edit Grup"><i className="fa-solid fa-pen"></i></button>
-                         <button onClick={(e) => { e.preventDefault(); handleDeleteGroup(g.taskName); }} className="bg-white border border-red-200 text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Hapus Grup"><i className="fa-solid fa-trash"></i></button>
-                       </div>
-                     </summary>
-                     <div className="px-4 pb-4 pt-1 space-y-2 border-t border-slate-200/60 mt-1">
-                       {g.assignees.map(a => {
-                         const today = new Date().toISOString().split('T')[0];
-                         const progresHariIni = (a.daily && a.daily[today]) ? a.daily[today] : 0;
-                         return (
-                         <div key={a.id} className="flex justify-between items-center bg-white border border-slate-100 p-3 rounded-xl shadow-sm">
-                           <div className="flex-1">
-                             <div className="text-xs font-bold text-midnight flex items-center gap-2"><i className="fa-solid fa-user-tag text-slate-300"></i> {a.picId}</div>
-                             <div className="text-[10px] text-slate-400 font-bold mt-1">
-                               Trg: <span className="text-midnight">{a.target}</span> | Capaian: <span className="text-status-selesai">{a.progress}</span>
-                               {progresHariIni > 0 && <span className="text-yellow-600 ml-1 bg-yellow-50 px-1 rounded border border-yellow-100">(+{progresHariIni} hari ini)</span>}
-                             </div>
-                           </div>
-                           <div className="flex gap-1.5">
-                             <button onClick={(e) => { e.preventDefault(); handleResetIndividualProgress(a.id); }} className="bg-orange-50 text-orange-500 border border-orange-200 w-8 h-8 rounded-full flex items-center justify-center hover:bg-orange-100 transition-colors outline-none cursor-pointer" title="Reset 0"><i className="fa-solid fa-rotate-left text-[10px]"></i></button>
-                             <button onClick={() => setEditModal({ isOpen: true, type: 'individual', data: { id: a.id, taskName: a.taskName, picId: a.picId, target: a.target, progress: a.progress, deadline: a.deadline } })} className="bg-slate-50 text-status-selesai border border-slate-200 w-8 h-8 rounded-full flex items-center justify-center hover:bg-blue-50 transition-colors outline-none cursor-pointer" title="Edit Bebas"><i className="fa-solid fa-pen text-[10px]"></i></button>
-                             <button onClick={() => handleDeletePerson(a.id)} className="bg-red-50 text-red-500 border border-red-100 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-100 transition-colors outline-none cursor-pointer" title="Hapus Pegawai"><i className="fa-solid fa-xmark text-sm"></i></button>
-                           </div>
-                         </div>
-                       )})}
-                     </div>
-                   </details>
-                 ))}
-               </div>
-            </div>
-          </div>
-
-          {/* SECTION: KELOLA VOTING (CRUD FULL ADMIN) */}
-          <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
-            <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
-              <i className="fa-solid fa-check-to-slot text-status-proses"></i> <span className="font-black text-midnight text-sm uppercase tracking-wider">Kelola Kotak Suara</span>
-            </div>
-            <div className="p-5 space-y-4">
-               {(!votings || votings.length === 0) && <p className="text-center py-6 text-slate-400 font-bold text-sm bg-slate-50 rounded-xl">Belum ada acara voting.</p>}
-               
-               <div className="space-y-3">
-                 {votings && votings.map(v => (
-                   <div key={v.id} className="flex justify-between items-center bg-slate-50 border border-slate-200 p-4 rounded-2xl shadow-sm">
-                     <div>
-                       <h5 className="font-bold text-midnight text-sm">{v.title}</h5>
-                       <div className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wider">
-                         {v.isMulti ? 'Multi Vote' : 'Single Vote'} • {v.votes ? Object.keys(v.votes).length : 0} Suara
-                       </div>
-                     </div>
-                     <div className="flex gap-1.5">
-                       <button onClick={(e) => { e.preventDefault(); handleResetVoting(v.id); }} className="bg-white border border-slate-200 text-orange-500 hover:bg-orange-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Reset Semua Suara ke 0"><i className="fa-solid fa-rotate-left"></i></button>
-                       <button onClick={(e) => { e.preventDefault(); setEditVoteModal({ isOpen: true, id: v.id, title: v.title, options: v.options, isMulti: v.isMulti }); }} className="bg-white border border-slate-200 text-status-selesai hover:bg-blue-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Edit Voting"><i className="fa-solid fa-pen"></i></button>
-                       <button onClick={(e) => { e.preventDefault(); handleDeleteVoting(v.id); }} className="bg-white border border-red-200 text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg flex justify-center items-center transition-colors shadow-sm outline-none cursor-pointer" title="Hapus Voting"><i className="fa-solid fa-trash"></i></button>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-
-               <div className="border-t border-slate-200 pt-5 mt-5">
-                 <button onClick={handleResetAll} disabled={isSyncing || !db} className="w-full bg-red-50 text-red-600 border border-red-200 font-black py-3.5 rounded-xl shadow-sm hover:bg-red-100 transition-colors flex justify-center items-center gap-2 outline-none cursor-pointer">
-                   <i className="fa-solid fa-skull-crossbones"></i> FORMAT KOSONG DATABASE
-                 </button>
-               </div>
-            </div>
+            // ==========================================
+            // PERBAIKAN: AGREGASI DATA KOMPONEN (1 NISN = 1 NAMA)
+            // ==========================================
+            const uniqueMap = new Map();
+            currentRecords.forEach(r => {
+                // Kunci Komponen Unik: NISN + NAMA SISWA
+                const key = (String(r.nisn || '').trim() + "_" + String(r.nama_siswa || '').trim()).toLowerCase();
+                if (key !== "_" && !uniqueMap.has(key)) { 
+                    uniqueMap.set(key, r); 
+                }
+            });
+            const uniqueStudents = Array.from(uniqueMap.values());
             
-            <div className="text-center text-[10px] text-slate-400 mt-4 mb-6 font-bold uppercase tracking-widest opacity-60">
-              Developed by M. Zaen Syachrullah
-            </div>
-          </div>
-          
-          {/* MODAL EDIT TUGAS */}
-          {editModal.isOpen && (
-            <div className="fixed inset-0 z-[9999] bg-midnight/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-              <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-slide-up">
-                 <div className="bg-gradient-to-r from-midnight to-midnight-light p-4 px-5 flex justify-between items-center text-white">
-                    <h3 className="font-black text-sm uppercase tracking-wider"><i className="fa-solid fa-pen-to-square mr-2 text-status-selesai"></i> {editModal.type === 'group' ? 'Edit Grup Kegiatan' : 'Bypass Edit Data'}</h3>
-                    <button type="button" onClick={() => setEditModal({isOpen: false, type:'', data:{}, oldTaskName:''})} className="opacity-70 hover:opacity-100 outline-none cursor-pointer"><i className="fa-solid fa-xmark text-xl"></i></button>
-                 </div>
-                 <div className="p-6">
-                    <form onSubmit={handleSaveEdit} className="space-y-4">
-                       <div>
-                          <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Kegiatan</label>
-                          <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none" value={editModal.data.taskName} onChange={e => setEditModal({...editModal, data: {...editModal.data, taskName: e.target.value}})} />
-                       </div>
-                       
-                       {editModal.type === 'individual' && (
-                         <>
-                           <div>
-                              <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Pegawai / PIC</label>
-                              <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none" value={editModal.data.picId} onChange={e => setEditModal({...editModal, data: {...editModal.data, picId: e.target.value}})} />
-                           </div>
-                           <div className="grid grid-cols-2 gap-3">
-                             <div>
-                                <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Target Angka</label>
-                                <input type="number" required min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none text-center" value={editModal.data.target} onChange={e => setEditModal({...editModal, data: {...editModal.data, target: e.target.value}})} />
-                             </div>
-                             <div>
-                                <label className="flex justify-between items-center text-[10px] font-bold text-slate-500 mb-1 uppercase">
-                                  <span>Capaian</span>
-                                  <button type="button" onClick={() => setEditModal({...editModal, data: {...editModal.data, progress: 0}})} className="text-orange-500 hover:text-orange-600 outline-none cursor-pointer">Reset 0</button>
-                                </label>
-                                <input type="number" required min="0" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-black text-status-selesai outline-none text-center shadow-inner" value={editModal.data.progress} onChange={e => setEditModal({...editModal, data: {...editModal.data, progress: e.target.value}})} />
-                             </div>
-                           </div>
-                         </>
-                       )}
-                       
-                       <div>
-                          <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Tenggat Waktu</label>
-                          <input type="date" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none cursor-pointer" value={editModal.data.deadline} onChange={e => setEditModal({...editModal, data: {...editModal.data, deadline: e.target.value}})} />
-                       </div>
-                       
-                       <div className="pt-2">
-                         <button type="submit" disabled={isSyncing} className="w-full bg-status-selesai text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none flex justify-center items-center gap-2 cursor-pointer">
-                           {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...</> : <><i className="fa-solid fa-floppy-disk"></i> Simpan Perubahan</>}
-                         </button>
-                       </div>
-                    </form>
-                 </div>
-              </div>
-            </div>
-          )}
+            const filteredUnique = uniqueStudents.filter(item => {
+                if (!item) return false;
+                const matchSearch = Object.values(item).some(val => String(val || '').toLowerCase().includes(searchQuery.toLowerCase()));
+                return matchSearch && (filterPendamping ? item.pendamping === filterPendamping : true) && (filterBentuk ? item.bentuk === filterBentuk : true) && (filterTingkat ? item.tingkat === filterTingkat : true);
+            });
 
-          {/* MODAL EDIT VOTING */}
-          {editVoteModal.isOpen && (
-            <div className="fixed inset-0 z-[9999] bg-midnight/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-              <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-slide-up">
-                 <div className="bg-gradient-to-r from-midnight to-midnight-light p-4 px-5 flex justify-between items-center text-white">
-                    <h3 className="font-black text-sm uppercase tracking-wider"><i className="fa-solid fa-pen-to-square mr-2 text-status-selesai"></i> Edit Kotak Suara</h3>
-                    <button type="button" onClick={() => setEditVoteModal({isOpen: false, id:null, title:'', options:[''], isMulti:false})} className="opacity-70 hover:opacity-100 outline-none cursor-pointer"><i className="fa-solid fa-xmark text-xl"></i></button>
-                 </div>
-                 <div className="p-6">
-                    <form onSubmit={handleSaveEditVote} className="space-y-4">
-                       <div>
-                          <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Topik / Nama Voting</label>
-                          <input required type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none" value={editVoteModal.title} onChange={e => setEditVoteModal({...editVoteModal, title: e.target.value})} />
-                       </div>
-                       <div>
-                          <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Opsi Pilihan</label>
-                          {editVoteModal.options.map((opt, idx) => (
-                            <div key={idx} className="flex gap-2 mb-2">
-                              <input required type="text" className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-midnight outline-none" value={opt} onChange={e => { const newArr = [...editVoteModal.options]; newArr[idx] = e.target.value; setEditVoteModal({...editVoteModal, options: newArr}); }} />
-                              {editVoteModal.options.length > 1 && <button type="button" onClick={() => setEditVoteModal({...editVoteModal, options: editVoteModal.options.filter((_, i) => i !== idx)})} className="bg-red-50 text-red-500 border border-red-200 w-10 rounded-xl flex items-center justify-center outline-none cursor-pointer"><i className="fa-solid fa-trash text-xs"></i></button>}
+            const aggregatePendamping = filteredKomponen.reduce((acc, curr) => { const p = curr.pendamping || 'Tanpa Nama'; acc[p] = (acc[p] || 0) + 1; return acc; }, {});
+            const aggregateBentukTingkat = filteredKomponen.reduce((acc, curr) => {
+                const bentuk = curr.bentuk || 'Lainnya'; const tingkat = curr.tingkat || 'Lainnya';
+                if (!acc[bentuk]) acc[bentuk] = {}; acc[bentuk][tingkat] = (acc[bentuk][tingkat] || 0) + 1;
+                return acc;
+            }, {});
+
+            const arsipDokumen = currentRecords.reduce((acc, current) => {
+                if (!current) return acc;
+                const key = `${current.sekolah}-${current.bulan}-${current.tahun}-${current.pendamping}`;
+                if (!acc[key]) acc[key] = current; return acc;
+            }, {});
+            const arsipUnik = Object.values(arsipDokumen);
+            const filteredArsip = arsipUnik.filter(item => String(item.sekolah || '').toLowerCase().includes(searchArsip.toLowerCase()) || String(item.pendamping || '').toLowerCase().includes(searchArsip.toLowerCase()));
+
+            const totalSekolahUnik = new Set(arsipUnik.map(a => a.sekolah)).size;
+            const totalPendampingAktif = new Set(arsipUnik.map(a => a.pendamping)).size;
+
+            // ==========================================
+            // EXPORT EXCEL & PDF - DIPERBAIKI
+            // ==========================================
+            const exportToExcelDatabase = () => {
+                if (filteredKomponen.length === 0) return showToast("Tidak ada data untuk diekspor", 'error');
+                try {
+                    if (!window.XLSX) throw new Error("Library SheetJS belum ter-load sempurna. Tunggu beberapa detik.");
+                    const wsData = filteredKomponen.map((r, i) => ({ "No": i + 1, "Sekolah": r.sekolah, "Periode": `${r.bulan} ${r.tahun}`, "Pendamping": r.pendamping, "NIK Pengurus": r.nik_pengurus, "Nama Pengurus": r.nama_pengurus, "NIK Siswa": r.nik_siswa, "NISN": r.nisn, "Nama Siswa": r.nama_siswa, "Bentuk": r.bentuk, "Tingkat": r.tingkat }));
+                    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(wsData), "Database");
+                    XLSX.writeFile(wb, `Live_Database_${new Date().getTime()}.xlsx`);
+                    showToast("Berhasil mendownload Excel!", "success");
+                } catch (e) { console.error(e); showToast("Gagal mengekspor Excel: " + e.message, "error"); }
+            };
+
+            const exportToPDFDatabase = () => {
+                if (filteredKomponen.length === 0) return showToast("Tidak ada data untuk dicetak", 'error');
+                try {
+                    if (!window.jspdf || !window.jspdf.jsPDF) throw new Error("Library jsPDF belum ter-load sempurna.");
+                    const doc = new window.jspdf.jsPDF('l', 'mm', 'a4');
+                    if (typeof doc.autoTable !== 'function') throw new Error("Library AutoTable belum ter-load.");
+                    
+                    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text("Laporan Live Database", 14, 15);
+                    doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`Total Baris Data: ${filteredKomponen.length} (Bisa ada duplikat bulan)`, 14, 22);
+                    const tableData = filteredKomponen.map((r, i) => [ i + 1, r.sekolah, r.pendamping, r.nama_pengurus, r.nisn, r.nama_siswa, r.bentuk, r.tingkat ]);
+                    doc.autoTable({ head: [['No', 'Sekolah', 'Pendamping', 'Pengurus', 'NISN', 'Siswa', 'Bentuk', 'Kelas']], body: tableData, startY: 28, theme: 'grid', styles: { fontSize: 8 }, headStyles: { fillColor: [37, 99, 235] }});
+                    doc.save(`Laporan_Database_${new Date().getTime()}.pdf`);
+                    showToast("Berhasil mendownload PDF!", "success");
+                } catch (e) { console.error(e); showToast("Gagal mencetak PDF: " + e.message, "error"); }
+            };
+
+            const exportToExcelUnik = () => {
+                if (filteredUnique.length === 0) return showToast("Tidak ada data unik untuk diekspor", 'error');
+                try {
+                    if (!window.XLSX) throw new Error("Library SheetJS belum ter-load sempurna.");
+                    const wsData = filteredUnique.map((r, i) => ({ "No": i + 1, "Nama Siswa": r.nama_siswa, "NISN": r.nisn, "NIK Siswa": r.nik_siswa, "Nama Pengurus": r.nama_pengurus, "NIK Pengurus": r.nik_pengurus, "Sekolah": r.sekolah, "Bentuk": r.bentuk, "Tingkat": r.tingkat, "Pendamping": r.pendamping }));
+                    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(wsData), "Data Unik");
+                    XLSX.writeFile(wb, `Data_Komponen_Unik_${new Date().getTime()}.xlsx`);
+                    showToast("Berhasil mendownload Excel Data Komponen!", "success");
+                } catch (e) { console.error(e); showToast("Gagal mengekspor Excel: " + e.message, "error"); }
+            };
+
+            const exportToPDFUnik = () => {
+                if (filteredUnique.length === 0) return showToast("Tidak ada data unik untuk dicetak", 'error');
+                try {
+                    if (!window.jspdf || !window.jspdf.jsPDF) throw new Error("Library jsPDF belum ter-load sempurna.");
+                    const doc = new window.jspdf.jsPDF('l', 'mm', 'a4');
+                    if (typeof doc.autoTable !== 'function') throw new Error("Library AutoTable belum ter-load.");
+                    
+                    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text("Laporan Data Komponen (Siswa Unik)", 14, 15);
+                    doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`Total Siswa Tervalidasi: ${filteredUnique.length} (1 NISN = 1 Data)`, 14, 22);
+                    const tableData = filteredUnique.map((r, i) => [ i + 1, r.nama_siswa, r.nisn, r.nama_pengurus, r.sekolah, r.bentuk, r.tingkat, r.pendamping ]);
+                    doc.autoTable({ head: [['No', 'Nama Siswa', 'NISN', 'Nama Pengurus', 'Sekolah', 'Bentuk', 'Kelas', 'Pendamping']], body: tableData, startY: 28, theme: 'grid', styles: { fontSize: 8 }, headStyles: { fillColor: [13, 148, 136] }});
+                    doc.save(`Laporan_Unik_${new Date().getTime()}.pdf`);
+                    showToast("Berhasil mendownload PDF Data Komponen!", "success");
+                } catch (e) { console.error(e); showToast("Gagal mencetak PDF: " + e.message, "error"); }
+            };
+
+            return (
+                <div>
+                    <div className="toast-container">
+                        {toast && <ToastMessage message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+                    </div>
+
+                    {editModal && (
+                        <div className="modal d-block fade-in" style={{backgroundColor: 'rgba(0,0,0,0.8)'}} tabIndex="-1">
+                            <div className="modal-dialog modal-lg modal-dialog-centered">
+                                <div className="modal-content card-custom border-warning">
+                                    <div className="modal-header border-secondary border-opacity-50 pb-3">
+                                        <h5 className="modal-title fw-bold text-warning"><i className="fas fa-edit me-2"></i> Edit Data Admin</h5>
+                                    </div>
+                                    <form onSubmit={handleUpdateSubmit}>
+                                        <div className="modal-body py-4 row g-3">
+                                            <div className="col-md-6"><label className="form-label text-secondary small">Nama Siswa</label><input type="text" className="form-control" value={editModal.nama_siswa} onChange={e => setEditModal({...editModal, nama_siswa: e.target.value})} required/></div>
+                                            <div className="col-md-6"><label className="form-label text-secondary small">NISN</label><input type="text" className="form-control" value={editModal.nisn} onChange={e => setEditModal({...editModal, nisn: e.target.value})} /></div>
+                                            <div className="col-md-6"><label className="form-label text-secondary small">Nama Pengurus</label><input type="text" className="form-control" value={editModal.nama_pengurus} onChange={e => setEditModal({...editModal, nama_pengurus: e.target.value})} /></div>
+                                            <div className="col-md-6"><label className="form-label text-secondary small">Pendamping</label><input type="text" className="form-control" value={editModal.pendamping} onChange={e => setEditModal({...editModal, pendamping: e.target.value})} /></div>
+                                            <div className="col-md-8"><label className="form-label text-secondary small">Asal Sekolah</label><input type="text" className="form-control" value={editModal.sekolah} onChange={e => setEditModal({...editModal, sekolah: e.target.value})} /></div>
+                                            <div className="col-md-2"><label className="form-label text-secondary small">Bentuk</label><input type="text" className="form-control" value={editModal.bentuk} onChange={e => setEditModal({...editModal, bentuk: e.target.value})} /></div>
+                                            <div className="col-md-2"><label className="form-label text-secondary small">Tingkat</label><input type="text" className="form-control" value={editModal.tingkat} onChange={e => setEditModal({...editModal, tingkat: e.target.value})} /></div>
+                                        </div>
+                                        <div className="modal-footer border-0 pt-0">
+                                            <button type="button" className="btn btn-light-custom" onClick={() => setEditModal(null)}>Batal</button>
+                                            <button type="submit" className="btn btn-warning fw-bold">Simpan Perubahan</button>
+                                        </div>
+                                    </form>
+                                </div>
                             </div>
-                          ))}
-                          <button type="button" onClick={() => setEditVoteModal({...editVoteModal, options: [...editVoteModal.options, '']})} className="text-xs font-bold text-status-selesai mt-1 outline-none cursor-pointer"><i className="fa-solid fa-plus mr-1"></i> Tambah Opsi</button>
-                       </div>
-                       <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2">
-                          <input type="checkbox" id="editMultiVote" checked={editVoteModal.isMulti} onChange={e => setEditVoteModal({...editVoteModal, isMulti: e.target.checked})} className="w-4 h-4 accent-blue-500 rounded outline-none cursor-pointer" />
-                          <label htmlFor="editMultiVote" className="text-xs font-bold text-midnight cursor-pointer select-none">Multi Vote (Bisa Pilih > 1)</label>
-                       </div>
-                       <div className="pt-2">
-                         <button type="submit" disabled={isSyncing} className="w-full bg-status-selesai text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none flex justify-center items-center gap-2 cursor-pointer">
-                           {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...</> : <><i className="fa-solid fa-floppy-disk"></i> Simpan Perubahan</>}
-                         </button>
-                       </div>
-                    </form>
-                 </div>
-              </div>
-            </div>
-          )}
+                        </div>
+                    )}
 
-        </div>
-      );
-    };
+                    {showSettings && (
+                        <div className="modal d-block fade-in" style={{backgroundColor: 'rgba(0,0,0,0.8)'}} tabIndex="-1">
+                            <div className="modal-dialog modal-dialog-centered">
+                                <div className="modal-content card-custom">
+                                    <div className="modal-header border-secondary border-opacity-50 pb-3">
+                                        <h5 className="modal-title fw-bold text-white"><i className="fas fa-server text-primary me-2"></i> Pengaturan API</h5>
+                                    </div>
+                                    <div className="modal-body py-4">
+                                        <label className="form-label text-secondary fw-bold small">URL Google Apps Script</label>
+                                        <input type="text" className="form-control form-control-lg bg-dark text-white border-secondary border-opacity-50" value={tempUrl} onChange={e => setTempUrl(e.target.value)} placeholder="https://script.google.com/..." />
+                                    </div>
+                                    <div className="modal-footer border-0 pt-0">
+                                        <button type="button" className="btn btn-light-custom" onClick={() => setShowSettings(false)}>Batal</button>
+                                        <button type="button" className="btn btn-brand" onClick={saveSettings}>Simpan URL</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
-    // --- APP CORE (FIREBASE DIRECT CONNECT) ---
-    function App() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const previewParam = urlParams.get('preview');
+                    <nav className="navbar navbar-expand-lg glass-header sticky-top py-3">
+                        <div className="container-fluid px-4 px-lg-5">
+                            <a className="navbar-brand fw-black text-white fs-4 d-flex align-items-center gap-2" href="#" onClick={(e)=>{e.preventDefault(); changeTab('upload');}}>
+                                <div className="bg-primary text-white rounded p-2 d-flex align-items-center justify-content-center shadow" style={{width:'36px', height:'36px'}}><i className="fas fa-expand"></i></div>
+                                <span>Verif<span className="text-secondary">Digi Pro</span></span>
+                            </a>
+                            
+                            <button className="navbar-toggler border-0 text-white" type="button" onClick={() => setIsNavOpen(!isNavOpen)}><i className="fas fa-bars fs-3"></i></button>
 
-      const [activeTab, setActiveTab] = useState('dashboard');
-      const [employees, setEmployees] = useState([]);
-      const [tasks, setTasks] = useState([]);
-      const [votings, setVotings] = useState([]); 
-      const [isLoading, setIsLoading] = useState(true);
-      const [globalError, setGlobalError] = useState(null);
-      const [selectedTaskName, setSelectedTaskName] = useState(null);
-      const [selectedVoteId, setSelectedVoteId] = useState(null);
-      const [db, setDb] = useState(null);
-      
-      const [isAdminLogged, setIsAdminLogged] = useState(() => sessionStorage.getItem('adminAuth') === 'true'); 
+                            <div className={`mobile-menu-collapse ${isNavOpen ? 'show' : ''} justify-content-end w-100 flex-lg-grow-1 d-lg-flex`}>
+                                <ul className="nav nav-pills mt-3 mt-lg-0 gap-2 d-flex flex-column flex-lg-row align-items-lg-center w-100 justify-content-lg-end">
+                                    <li className="nav-item"><button onClick={() => changeTab('upload')} className={`nav-link w-100 text-start ${activeTab === 'upload' ? 'active' : ''}`}><i className="fas fa-upload me-2"></i> Scan File</button></li>
+                                    <li className="nav-item"><button onClick={() => changeTab('dashboard_komponen')} className={`nav-link w-100 text-start ${activeTab === 'dashboard_komponen' ? 'active' : ''}`}><i className="fas fa-chart-pie me-2"></i> Statistik</button></li>
+                                    
+                                    {/* MENU BARU: DATA KOMPONEN */}
+                                    <li className="nav-item"><button onClick={() => changeTab('komponen_unik')} className={`nav-link w-100 text-start ${activeTab === 'komponen_unik' ? 'active' : ''}`}><i className="fas fa-users me-2"></i> Data Komponen</button></li>
+                                    
+                                    <li className="nav-item"><button onClick={() => changeTab('data_komponen')} className={`nav-link w-100 text-start ${activeTab === 'data_komponen' ? 'active' : ''}`}><i className="fas fa-database me-2"></i> Live Database</button></li>
+                                    <li className="nav-item"><button onClick={() => changeTab('dashboard_arsip')} className={`nav-link w-100 text-start ${activeTab === 'dashboard_arsip' ? 'active' : ''}`}><i className="fas fa-folder-open me-2"></i> Dash Arsip</button></li>
+                                    <li className="nav-item"><button onClick={() => changeTab('arsip_pdf')} className={`nav-link w-100 text-start ${activeTab === 'arsip_pdf' ? 'active' : ''}`}><i className="fas fa-file-pdf me-2"></i> Arsip PDF</button></li>
+                                    <li className="nav-item ms-lg-3 border-start border-secondary border-opacity-50 ps-lg-3 mt-2 mt-lg-0">
+                                        <button onClick={handleAdminToggle} className={`btn btn-sm w-100 fw-bold ${isAdmin ? 'btn-warning' : 'btn-outline-secondary rounded-pill'}`}><i className={`fas ${isAdmin ? 'fa-unlock' : 'fa-lock'} me-2`}></i> {isAdmin ? 'Admin' : 'Admin'}</button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </nav>
 
-      useEffect(() => {
-        try {
-          if (!window.firebase) { console.error("Firebase tidak termuat"); return; }
-          if (!window.firebase.apps.length) { window.firebase.initializeApp(firebaseConfig); }
-          const database = window.firebase.database();
-          setDb(database);
-        } catch (e) {
-          console.error(e);
-          setIsLoading(false);
-        }
-      }, []);
+                    <main className="container-fluid px-4 px-lg-5 py-5 flex-grow-1">
+                        {/* 1. UPLOAD VIEW */}
+                        {activeTab === 'upload' && (
+                            <div className="row justify-content-center fade-in">
+                                <div className="col-12 col-lg-8 col-xl-7">
+                                    {uploadState === 'idle' && (
+                                        <div className="card-custom p-5 text-center">
+                                            <div className="mx-auto bg-dark text-primary rounded-circle d-flex align-items-center justify-content-center mb-4 border border-secondary border-opacity-50" style={{width:'90px', height:'90px'}}><i className="fas fa-file-invoice fs-1"></i></div>
+                                            <h1 className="fw-bold text-white mb-3">Multi-File AI Scanner</h1>
+                                            <p className="text-secondary fs-5 mb-5">Sistem Anti-Duplikasi Mutlak (1 NISN & Nama). Pilih PDF atau Foto. PDF terkompresi maks ~450kb.</p>
+                                            <input type="file" multiple accept="image/*,.pdf" className="d-none" ref={fileInputRef} onChange={handleFileChange} />
+                                            <button onClick={() => fileInputRef.current.click()} className="btn btn-brand btn-lg px-5 py-3 fs-5 rounded-pill shadow"><i className="fas fa-upload me-2"></i> Pilih Dokumen (PDF/Foto)</button>
+                                        </div>
+                                    )}
 
-      // LISTENER REALTIME FIREBASE (Tasks & Votings)
-      useEffect(() => {
-        if (!db) return;
-        const loader = document.getElementById('native-loader');
-        if (loader) loader.style.display = 'none';
+                                    {(uploadState === 'processing_image' || uploadState === 'extracting' || uploadState === 'saving') && (
+                                        <div className="card-custom p-5 text-center">
+                                            <div className="spinner-border text-primary mb-4" role="status"></div>
+                                            <h2 className="fw-bold text-white mb-3">{uploadState === 'processing_image' ? `Memproses Dokumen & Mengompres...` : uploadState === 'extracting' ? 'AI Menyisir Baris Tabel Secara Utuh...' : 'Menyimpan Data...'}</h2>
+                                        </div>
+                                    )}
 
-        const tasksRef = db.ref(`artifacts/${APP_ID}/public/data/tasks`);
-        const votingsRef = db.ref(`artifacts/${APP_ID}/public/data/votings`);
-        
-        const taskListener = tasksRef.on('value', (snapshot) => {
-            const loadedTasks = [];
-            snapshot.forEach(child => { loadedTasks.push({ id: child.key, ...child.val() }); });
-            setTasks(loadedTasks);
-            
-            // Susun Abjad A-Z untuk dropdown list Pegawai
-            const uniquePics = [...new Set(loadedTasks.map(t => t.picId))].sort((a, b) => a.localeCompare(b));
-            setEmployees(uniquePics.map(pic => ({ id: pic, name: pic })));
-            setIsLoading(false);
-            setGlobalError(null);
-        }, (error) => {
-            setGlobalError("Gagal terhubung ke database Tasks");
-            setIsLoading(false);
-        });
+                                    {uploadState === 'form' && (
+                                        <div className="card-custom overflow-hidden fade-in">
+                                            <div className="bg-dark p-4 border-bottom border-secondary border-opacity-50 d-flex justify-content-between align-items-center">
+                                                <h3 className="text-white fw-bold m-0"><i className="fas fa-check-double text-primary me-2"></i> Verifikasi Data AI</h3>
+                                                <span className="badge bg-primary fs-6 py-2 px-3 rounded-pill">{(extractedData.siswa || []).length} Baris Terbaca</span>
+                                            </div>
+                                            <form onSubmit={handleSave} className="p-4 p-md-5">
+                                                <div className="row g-4 bg-dark bg-opacity-50 p-4 rounded-4 border border-secondary border-opacity-25 mb-4">
+                                                    <div className="col-12 col-md-6"><label className="form-label text-secondary fw-bold small text-uppercase">Nama Sekolah (Global)</label><div className="form-control bg-dark text-white fw-bold fs-5 py-3">{extractedData.sekolah || '-'}</div></div>
+                                                    <div className="col-12 col-md-6"><label className="form-label text-secondary fw-bold small text-uppercase">Periode Global</label><div className="form-control bg-dark text-white fw-bold fs-5 py-3">{extractedData.bulan} {extractedData.tahun}</div></div>
+                                                </div>
+                                                <h5 className="text-white fw-bold mb-3 border-bottom border-secondary border-opacity-50 pb-2">Tabel Data Siswa (Sesuai Halaman)</h5>
+                                                <div className="overflow-auto custom-scrollbar pe-2 mb-4" style={{maxHeight: '400px'}}>
+                                                    {(extractedData.siswa || []).map((s, i) => (
+                                                        <div key={i} className="bg-dark bg-opacity-50 p-4 rounded-4 border border-secondary border-opacity-25 mb-3">
+                                                            <div className="row align-items-center g-3">
+                                                                <div className="col-12 col-lg-7"><div className="d-flex align-items-start gap-3"><span className="badge bg-secondary rounded-pill py-2 px-3 mt-1">{i+1}</span><div><h5 className="text-white fw-bold mb-1">{s.nama_siswa}</h5><div className="text-secondary small mb-2">NISN: <span className="text-white">{s.nisn}</span> | NIK: <span className="text-white">{s.nik_siswa}</span></div><div className="badge bg-primary bg-opacity-25 text-primary border border-primary border-opacity-50 p-2"><i className="fas fa-user me-1"></i> PENDAMPING: {s.pendamping}</div></div></div></div>
+                                                                <div className="col-12 col-lg-5 text-lg-end">
+                                                                    <div className="badge bg-secondary text-white py-2 px-3 rounded-pill mb-2 text-wrap lh-base">{s.bentuk} &bull; {s.tingkat} &bull; <span className="text-warning">{s.bulan} {s.tahun}</span></div>
+                                                                    <br/><div className="text-secondary small bg-dark p-2 rounded border border-secondary border-opacity-25 d-inline-block mt-2 mt-lg-0">Wali: <strong className="text-white">{s.nama_pengurus}</strong></div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {(extractedData.siswa || []).length === 0 && <div className="text-center text-secondary py-5">Tidak ada data.</div>}
+                                                </div>
+                                                <div className="d-flex flex-column flex-sm-row gap-3 pt-4 border-top border-secondary border-opacity-50">
+                                                    <button type="button" onClick={resetForm} className="btn btn-light-custom btn-lg w-100">Batal</button>
+                                                    <button type="submit" className="btn btn-brand btn-lg w-100"><i className="fas fa-cloud-upload-alt me-2"></i> Simpan ke Server</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    )}
 
-        const votingListener = votingsRef.on('value', (snapshot) => {
-            const loadedVotings = [];
-            snapshot.forEach(child => { loadedVotings.push({ id: child.key, ...child.val() }); });
-            setVotings(loadedVotings);
-        });
+                                    {uploadState === 'success' && (
+                                        <div className="card-custom p-5 text-center border-top border-success border-4 fade-in">
+                                            <i className="fas fa-check-circle text-success mx-auto mb-4" style={{fontSize: '5rem'}}></i>
+                                            <h2 className="text-white fw-bold mb-3">Berhasil!</h2>
+                                            <p className="text-secondary mb-5 fs-5">Data diverifikasi. File PDF disimpan (dikompres maks ~450kb). Cek notifikasi untuk info duplikat.</p>
+                                            <div className="d-flex flex-column flex-sm-row justify-content-center gap-3">
+                                                <button onClick={resetForm} className="btn btn-light-custom btn-lg px-4">Upload Lain</button>
+                                                <button onClick={() => setActiveTab('komponen_unik')} className="btn btn-brand btn-lg px-4">Lihat Data Komponen</button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
-        return () => { tasksRef.off('value', taskListener); votingsRef.off('value', votingListener); };
-      }, [db]);
+                        {/* FILTER BAR GLOBAL (Hanya muncul di tab yang butuh data) */}
+                        {(() => {
+                            if(activeTab === 'dashboard_komponen' || activeTab === 'data_komponen' || activeTab === 'komponen_unik') {
+                                return (
+                                    <div className="card-custom p-4 mb-5 fade-in">
+                                        <div className="row g-3">
+                                            <div className="col-12 col-md-3"><div className="input-group"><span className="input-group-text bg-dark border-secondary text-secondary"><i className="fas fa-search"></i></span><input type="text" className="form-control" placeholder="Cari nama, NISN..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} /></div></div>
+                                            <div className="col-12 col-md-3"><select className="form-select" value={filterPendamping} onChange={e=>setFilterPendamping(e.target.value)}><option value="">Semua Pendamping</option>{optionsPendamping.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}</select></div>
+                                            <div className="col-12 col-md-3"><select className="form-select" value={filterBentuk} onChange={e=>setFilterBentuk(e.target.value)}><option value="">Semua Jenjang</option>{optionsBentuk.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}</select></div>
+                                            <div className="col-12 col-md-3"><select className="form-select" value={filterTingkat} onChange={e=>setFilterTingkat(e.target.value)}><option value="">Semua Kelas</option>{optionsTingkat.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}</select></div>
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            return null;
+                        })()}
 
-      const groupedTasks = useMemo(() => {
-        const groups = {};
-        tasks.forEach(t => {
-          if (!groups[t.taskName]) groups[t.taskName] = { taskName: t.taskName, deadline: t.deadline, target: 0, progress: 0, assignees: [], status: 'Selesai' };
-          groups[t.taskName].target += t.target;
-          groups[t.taskName].progress += t.progress;
-          groups[t.taskName].assignees.push(t);
-          if (groups[t.taskName].progress < groups[t.taskName].target) groups[t.taskName].status = 'On Progress';
-        });
-        
-        // Susun Abjad Assignees per Kegiatan
-        Object.values(groups).forEach(g => {
-           g.assignees.sort((a, b) => a.picId.localeCompare(b.picId));
-        });
+                        {/* 2. STATISTIK */}
+                        {activeTab === 'dashboard_komponen' && (
+                            <div className="fade-in">
+                                <div className="d-flex align-items-center gap-3 mb-4 border-bottom border-secondary border-opacity-50 pb-3">
+                                    <div className="bg-primary text-white p-3 rounded-4"><i className="fas fa-chart-bar fs-4"></i></div>
+                                    <div><h2 className="text-white fw-bold m-0">Statistik Data</h2></div>
+                                </div>
+                                <div className="row g-4">
+                                    <div className="col-12 col-lg-4 d-flex flex-column gap-4">
+                                        <div className="card card-stats p-4 rounded-4 shadow h-100 justify-content-center">
+                                            <div className="text-white-50 fw-bold text-uppercase mb-2">Total Seluruh Data</div>
+                                            <div className="display-3 fw-bold">{filteredKomponen.length}</div>
+                                            <i className="fas fa-users position-absolute opacity-25" style={{fontSize:'8rem', right:'-20px', bottom:'-20px'}}></i>
+                                        </div>
+                                        <div className="card card-custom p-4 rounded-4 shadow h-100">
+                                            <h5 className="text-white fw-bold mb-4 border-bottom border-secondary border-opacity-50 pb-2">Top Surveyor</h5>
+                                            <div className="overflow-auto custom-scrollbar pe-2" style={{maxHeight:'250px'}}>
+                                                {Object.entries(aggregatePendamping).sort((a,b)=>b[1]-a[1]).map(([k,v], i) => (
+                                                    <div key={k} className="d-flex justify-content-between align-items-center bg-dark p-3 rounded-3 mb-2 border border-secondary border-opacity-25">
+                                                        <span className="text-white text-truncate me-2"><span className="text-secondary me-2">{i+1}.</span>{k}</span>
+                                                        <span className="badge bg-primary rounded-pill py-2 px-3">{v}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="col-12 col-lg-8">
+                                        <div className="card card-custom p-4 p-md-5 rounded-4 shadow h-100">
+                                            <h4 className="text-white fw-bold mb-4 border-bottom border-secondary border-opacity-50 pb-3">Distribusi Jenjang & Kelas</h4>
+                                            <div className="row g-4">
+                                                {Object.entries(aggregateBentukTingkat).map(([bentuk, data]) => (
+                                                    <div key={bentuk} className="col-12 col-md-6">
+                                                        <div className="bg-dark p-4 rounded-4 border border-secondary border-opacity-25 h-100">
+                                                            <div className="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary border-opacity-25 pb-3">
+                                                                <h2 className="text-primary fw-bold m-0">{bentuk}</h2>
+                                                                <span className="badge bg-secondary border border-secondary">{Object.values(data).reduce((a,b)=>a+b,0)} Total</span>
+                                                            </div>
+                                                            {Object.entries(data).map(([t, c]) => (
+                                                                <div key={t} className="d-flex justify-content-between align-items-center bg-black bg-opacity-25 p-3 rounded-3 mb-2">
+                                                                    <span className="text-secondary fw-bold">{t}</span>
+                                                                    <span className="text-white fw-bold bg-dark px-3 py-1 rounded">{c}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
-        return Object.values(groups).sort((a, b) => a.taskName.localeCompare(b.taskName));
-      }, [tasks]);
+                        {/* MENU BARU: DATA KOMPONEN (UNIK PER NISN) */}
+                        {activeTab === 'komponen_unik' && (
+                            <div className="fade-in d-flex flex-column" style={{height:'75vh'}}>
+                                <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 border-bottom border-secondary border-opacity-50 pb-3">
+                                    <div className="d-flex align-items-center gap-3">
+                                        <div className="bg-info text-white p-3 rounded-4"><i className="fas fa-users fs-4"></i></div>
+                                        <div>
+                                            <h2 className="text-white fw-bold m-0">Data Komponen</h2>
+                                            <div className="text-info small fw-bold mt-1">1 Siswa (NISN) = 1 Baris (Tanpa duplikat periode)</div>
+                                        </div>
+                                    </div>
+                                    <div className="d-flex gap-2">
+                                        <button onClick={exportToExcelUnik} className="btn btn-outline-success fw-bold"><i className="fas fa-file-excel me-2"></i> Excel</button>
+                                        <button onClick={exportToPDFUnik} className="btn btn-outline-danger fw-bold"><i className="fas fa-file-pdf me-2"></i> PDF</button>
+                                    </div>
+                                </div>
 
-      if (globalError) {
-        return (
-          <div className="min-h-screen flex flex-col gap-5 items-center justify-center bg-slate-50 p-6 text-center">
-            <i className="fa-solid fa-triangle-exclamation text-red-500 text-7xl drop-shadow-md"></i>
-            <h2 className="text-2xl font-black text-midnight">Koneksi Terhambat</h2>
-            <p className="text-slate-600 font-bold bg-white border border-red-100 p-5 rounded-2xl shadow-soft text-sm max-w-sm"><span className="text-red-500 block mb-2">{globalError}</span></p>
-            <button onClick={() => window.location.reload()} className="bg-midnight text-white px-8 py-3.5 rounded-full font-bold shadow-glossy mt-2 active:scale-95 transition-all outline-none cursor-pointer">Muat Ulang Layar</button>
-          </div>
-        );
-      }
+                                <div className="card-custom rounded-4 flex-grow-1 overflow-hidden d-flex flex-column shadow">
+                                    <div className="table-responsive flex-grow-1 custom-scrollbar">
+                                        <table className="table table-dark table-hover mb-0">
+                                            <thead className="sticky-top" style={{zIndex:10}}>
+                                                <tr>
+                                                    <th className="p-4">Identitas Siswa</th>
+                                                    <th className="p-4">Pendidikan</th>
+                                                    <th className="p-4">Sekolah</th>
+                                                    <th className="p-4">Penanggung Jawab</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {loadingData ? <tr><td colSpan="4" className="text-center py-5"><div className="spinner-border text-info"></div></td></tr> :
+                                                 filteredUnique.length===0 ? <tr><td colSpan="4" className="text-center text-secondary py-5">Kosong</td></tr> :
+                                                 filteredUnique.map((r,i) => (
+                                                    <tr key={i}>
+                                                        <td className="p-4">
+                                                            <div className="fw-bold text-white fs-6">{r.nama_siswa}</div>
+                                                            <div className="text-secondary small mt-1">NISN: <span className="text-white fw-bold">{r.nisn}</span> | NIK: <span className="text-white fw-bold">{r.nik_siswa}</span></div>
+                                                        </td>
+                                                        <td className="p-4"><span className="badge bg-secondary text-white py-2 px-3 border border-secondary border-opacity-50">{r.bentuk} &bull; {r.tingkat}</span></td>
+                                                        <td className="p-4"><div className="text-white fw-bold">{r.sekolah}</div></td>
+                                                        <td className="p-4">
+                                                            <div className="text-secondary small mb-2"><i className="fas fa-user-tie me-1"></i> Wali: {r.nama_pengurus}</div>
+                                                            <div className="badge bg-primary bg-opacity-25 text-primary border border-primary border-opacity-50 py-1 px-2"><i className="fas fa-user me-1"></i> {r.pendamping}</div>
+                                                        </td>
+                                                    </tr>
+                                                 ))
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div className="bg-dark p-3 border-top border-secondary border-opacity-25 d-flex justify-content-between text-secondary small fw-bold">
+                                        <span>Total Data Unik: {filteredUnique.length} Siswa (Telah Difilter)</span>
+                                        <span>Data Komponen Bersih</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
-      if (isLoading) return <div className="min-h-screen flex flex-col gap-5 items-center justify-center bg-slate-50"><i className="fa-solid fa-circle-notch fa-spin text-status-selesai text-5xl drop-shadow-sm"></i><h5 className="font-black text-midnight text-sm uppercase tracking-widest">Menghubungkan ke Server...</h5></div>;
+                        {/* 3. LIVE DATABASE (SEMUA DATA MENTAH) */}
+                        {activeTab === 'data_komponen' && (
+                            <div className="fade-in d-flex flex-column" style={{height:'75vh'}}>
+                                <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 border-bottom border-secondary border-opacity-50 pb-3">
+                                    <div className="d-flex align-items-center gap-3">
+                                        <div className="bg-success text-white p-3 rounded-4"><i className="fas fa-database fs-4"></i></div>
+                                        <div>
+                                            <h2 className="text-white fw-bold m-0">Live Database</h2>
+                                            <div className="text-success small fw-bold mt-1">Data Raw Keseluruhan</div>
+                                        </div>
+                                    </div>
+                                    <div className="d-flex flex-wrap gap-2">
+                                        <button onClick={exportToExcelDatabase} className="btn btn-outline-success fw-bold"><i className="fas fa-file-excel me-2"></i> Excel</button>
+                                        <button onClick={exportToPDFDatabase} className="btn btn-outline-danger fw-bold"><i className="fas fa-file-pdf me-2"></i> PDF</button>
+                                        {isAdmin && <button onClick={handleResetAll} className="btn btn-danger fw-bold"><i className="fas fa-trash-alt me-2"></i> Reset System</button>}
+                                    </div>
+                                </div>
 
-      // === ROUTING UNTUK LIVE PREVIEW EKSKLUSIF ===
-      if (previewParam) {
-        return <LivePreviewView taskName={previewParam} groupedTasks={groupedTasks} />;
-      }
+                                <div className="card-custom rounded-4 flex-grow-1 overflow-hidden d-flex flex-column shadow">
+                                    <div className="table-responsive flex-grow-1 custom-scrollbar">
+                                        <table className="table table-dark table-hover mb-0">
+                                            <thead className="sticky-top" style={{zIndex:10}}>
+                                                <tr>
+                                                    <th className="p-4">Siswa (NISN)</th>
+                                                    <th className="p-4">Kelas</th>
+                                                    <th className="p-4">Sekolah</th>
+                                                    <th className="p-4">Berkas</th>
+                                                    {isAdmin && <th className="p-4 text-warning"><i className="fas fa-crown me-1"></i> Admin</th>}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {loadingData ? <tr><td colSpan={isAdmin ? "5" : "4"} className="text-center py-5"><div className="spinner-border text-success"></div></td></tr> :
+                                                 filteredKomponen.length===0 ? <tr><td colSpan={isAdmin ? "5" : "4"} className="text-center text-secondary py-5">Kosong</td></tr> :
+                                                 filteredKomponen.map((r,i) => (
+                                                    <tr key={i}>
+                                                        <td className="p-4"><div className="fw-bold text-white fs-6">{r.nama_siswa}</div><div className="text-secondary small mt-1"><span className="bg-dark px-2 py-1 rounded border border-secondary border-opacity-25">NISN: {r.nisn}</span></div></td>
+                                                        <td className="p-4"><span className="badge bg-secondary text-white py-2 px-3 border border-secondary border-opacity-50">{r.bentuk} &bull; {r.tingkat}</span></td>
+                                                        <td className="p-4">
+                                                            <div className="text-white fw-bold mb-1">{r.sekolah} <span className="text-secondary fw-normal">({r.bulan} {r.tahun})</span></div>
+                                                            <div className="text-secondary small"><i className="fas fa-user-tie me-1"></i> {r.nama_pengurus}</div>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <div className="badge bg-primary bg-opacity-25 text-primary border border-primary border-opacity-50 py-1 px-2 d-inline-block mb-2"><i className="fas fa-user me-1"></i> {r.pendamping}</div><br/>
+                                                            {r.url!=='#' ? <a href={r.url} target="_blank" className="btn btn-sm btn-outline-danger fw-bold"><i className="fas fa-file-pdf me-1"></i> Buka</a> : <span className="badge bg-dark text-secondary">No File</span>}
+                                                        </td>
+                                                        {isAdmin && (
+                                                            <td className="p-4">
+                                                                <div className="d-flex gap-2">
+                                                                    <button onClick={() => setEditModal(r)} className="btn btn-sm btn-outline-warning" title="Edit"><i className="fas fa-edit"></i></button>
+                                                                    <button onClick={() => handleDelete(r.timestamp)} className="btn btn-sm btn-outline-danger" title="Hapus Permanen"><i className="fas fa-trash-alt"></i></button>
+                                                                </div>
+                                                            </td>
+                                                        )}
+                                                    </tr>
+                                                 ))
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div className="bg-dark p-3 border-top border-secondary border-opacity-25 d-flex justify-content-between text-secondary small fw-bold">
+                                        <span>Total: {filteredKomponen.length} Data {isAdmin && <span className="text-warning ms-2">(Admin Mode)</span>}</span>
+                                        <span>Synced <i className="fas fa-cloud text-success"></i></span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
-      return (
-        <div className="app-container">
-          <header className="bg-gradient-to-r from-midnight to-midnight-light text-white shadow-nav sticky top-0 z-50">
-            <div className="px-4 sm:px-5 py-4 flex flex-row items-center justify-between">
-              <a className="text-decoration-none font-black text-white flex items-center text-[16px] sm:text-xl tracking-tight" href="#">
-                <div className="bg-white/10 border border-white/20 text-white rounded-xl p-1.5 mr-2 sm:mr-3 flex items-center justify-center shadow-inner backdrop-blur-sm" style={{width: '35px', height: '35px'}}>
-                  <i className="fa-solid fa-chart-line text-yellow-400 text-base sm:text-lg"></i>
+                        {/* 4. DASHBOARD ARSIP */}
+                        {activeTab === 'dashboard_arsip' && (
+                            <div className="fade-in">
+                                <div className="d-flex align-items-center gap-3 mb-5 border-bottom border-secondary border-opacity-50 pb-3">
+                                    <div className="bg-danger text-white p-3 rounded-4"><i className="fas fa-folder-open fs-4"></i></div>
+                                    <h2 className="text-white fw-bold m-0">Dashboard Arsip</h2>
+                                </div>
+                                <div className="row g-4">
+                                    <div className="col-12 col-md-4">
+                                        <div className="card-custom p-4 p-lg-5 rounded-4 shadow text-center border-top border-danger border-4">
+                                            <i className="fas fa-file-pdf text-danger fs-1 mb-3"></i>
+                                            <div className="text-secondary fw-bold text-uppercase mb-2">Total Dokumen PDF</div>
+                                            <div className="display-4 fw-bold text-white">{arsipUnik.length}</div>
+                                        </div>
+                                    </div>
+                                    <div className="col-12 col-md-4">
+                                        <div className="card-custom p-4 p-lg-5 rounded-4 shadow text-center border-top border-primary border-4">
+                                            <i className="fas fa-school text-primary fs-1 mb-3"></i>
+                                            <div className="text-secondary fw-bold text-uppercase mb-2">Sekolah Tervalidasi</div>
+                                            <div className="display-4 fw-bold text-white">{totalSekolahUnik}</div>
+                                        </div>
+                                    </div>
+                                    <div className="col-12 col-md-4">
+                                        <div className="card-custom p-4 p-lg-5 rounded-4 shadow text-center border-top border-success border-4">
+                                            <i className="fas fa-id-badge text-success fs-1 mb-3"></i>
+                                            <div className="text-secondary fw-bold text-uppercase mb-2">Petugas Terlibat</div>
+                                            <div className="display-4 fw-bold text-white">{totalPendampingAktif}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 5. ARSIP PDF DIGITAL */}
+                        {activeTab === 'arsip_pdf' && (
+                            <div className="fade-in">
+                                <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-4 mb-5 border-bottom border-secondary border-opacity-50 pb-4">
+                                    <div className="d-flex align-items-center gap-3">
+                                        <div className="bg-secondary text-white p-3 rounded-4"><i className="fas fa-file-pdf fs-4"></i></div>
+                                        <h2 className="text-white fw-bold m-0">Arsip Scan Dokumen</h2>
+                                    </div>
+                                    <div className="input-group" style={{maxWidth: '400px'}}>
+                                        <span className="input-group-text bg-dark border-secondary border-opacity-50 text-secondary"><i className="fas fa-search"></i></span>
+                                        <input type="text" className="form-control" placeholder="Cari sekolah, petugas..." value={searchArsip} onChange={e=>setSearchArsip(e.target.value)} />
+                                    </div>
+                                </div>
+
+                                <div className="row g-4 pb-5">
+                                    {loadingData ? <div className="col-12 text-center py-5"><div className="spinner-border text-danger"></div></div> : 
+                                     filteredArsip.length===0 ? <div className="col-12 text-center py-5 text-secondary"><i className="fas fa-folder-open fs-1 mb-3"></i><h5>Arsip Kosong</h5></div> :
+                                     filteredArsip.map((item, i) => (
+                                        <div key={i} className="col-12 col-md-6 col-lg-4 col-xl-3">
+                                            <div className="card-custom p-4 rounded-4 shadow h-100 d-flex flex-column hover-shadow transition" style={{transition: 'transform 0.3s', cursor: 'pointer'}} onMouseOver={e=>e.currentTarget.style.transform='translateY(-5px)'} onMouseOut={e=>e.currentTarget.style.transform='translateY(0)'}>
+                                                <div className="d-flex justify-content-between align-items-start mb-4">
+                                                    <div className="bg-danger bg-opacity-10 p-3 rounded-3 border border-danger border-opacity-25 text-danger"><i className="fas fa-file-pdf fs-4"></i></div>
+                                                    <span className="badge bg-dark border border-secondary border-opacity-50 text-secondary py-2">{item.bulan} {item.tahun}</span>
+                                                </div>
+                                                <h5 className="text-white fw-bold mb-3 lh-base">{item.sekolah}</h5>
+                                                <div className="bg-dark p-2 rounded text-secondary small fw-bold mb-4 border border-secondary border-opacity-25"><i className="fas fa-user text-primary me-2"></i>{item.pendamping}</div>
+                                                <div className="mt-auto">
+                                                    {item.url!=='#' ? <a href={item.url} target="_blank" className="btn btn-outline-danger w-100 fw-bold"><i className="fas fa-external-link-alt me-2"></i> Buka PDF</a> : <button disabled className="btn btn-dark w-100 text-secondary">Offline</button>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                     ))
+                                    }
+                                </div>
+                            </div>
+                        )}
+                    </main>
                 </div>
-                MonitorSDMPKHTapin
-              </a>
-              <span className="bg-white/10 border border-white/20 text-white rounded-full px-3 py-1.5 shadow-sm text-[9px] sm:text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm flex items-center"><i className="fa-solid fa-cloud-arrow-up fa-fade mr-1.5 text-status-selesai"></i> Sync</span>
-            </div>
-          </header>
+            );
+        }
 
-          <main className="p-5">
-            {activeTab === 'dashboard' && <Dashboard groupedTasks={groupedTasks} votings={votings} setActiveTab={setActiveTab} setSelectedTaskName={setSelectedTaskName} setSelectedVoteId={setSelectedVoteId} />}
-            {activeTab === 'kegiatan' && <DaftarKegiatan groupedTasks={groupedTasks} selectedTaskName={selectedTaskName} setSelectedTaskName={setSelectedTaskName} isAdminLogged={isAdminLogged} />}
-            {activeTab === 'peringkat' && <Leaderboard groupedTasks={groupedTasks} />}
-            {activeTab === 'input' && <ProgressForm tasks={tasks} employees={employees} db={db} />}
-            {activeTab === 'voting' && <MenuVoting votings={votings} db={db} employees={employees} isAdminLogged={isAdminLogged} selectedVoteId={selectedVoteId} setSelectedVoteId={setSelectedVoteId} />}
-            {activeTab === 'admin' && <AdminPanel db={db} tasks={tasks} groupedTasks={groupedTasks} votings={votings} employees={employees} isAdminLogged={isAdminLogged} setIsAdminLogged={setIsAdminLogged} />}
-          </main>
-
-          <nav className="fixed bottom-0 w-full max-w-[600px] left-1/2 -translate-x-1/2 bg-white rounded-t-[30px] shadow-[0_-10px_40px_rgba(11,19,43,0.08)] z-50 flex justify-around items-center px-1 sm:px-2 py-3 border-t border-slate-100">
-            {[
-              { id: 'dashboard', icon: 'fa-house', label: 'Home' },
-              { id: 'kegiatan', icon: 'fa-list-check', label: 'Tugas' },
-              { id: 'peringkat', icon: 'fa-ranking-star', label: 'Rank' },
-              { id: 'input', icon: 'fa-pen-to-square', label: 'Lapor' },
-              { id: 'voting', icon: 'fa-check-to-slot', label: 'Voting' },
-              { id: 'admin', icon: 'fa-shield', label: 'Admin' }
-            ].map(item => (
-              <button type="button" key={item.id} onClick={() => { setActiveTab(item.id); setSelectedTaskName(null); setSelectedVoteId(null); }} 
-                className={`flex flex-col items-center justify-center flex-1 min-w-[50px] gap-1.5 transition-all duration-300 outline-none cursor-pointer ${activeTab === item.id ? 'text-midnight scale-110' : 'text-slate-400 hover:text-slate-600'}`}>
-                <i className={`fa-solid ${item.icon} text-[18px] sm:text-xl transition-transform ${activeTab === item.id ? 'drop-shadow-md text-status-selesai' : ''}`}></i>
-                <span className="text-[8px] font-black uppercase tracking-wider">{item.label}</span>
-              </button>
-            ))}
-          </nav>
-        </div>
-      );
-    }
-
-    const initApp = () => {
-      const rootElement = document.getElementById('root');
-      if (rootElement) {
-        const root = ReactDOM.createRoot(rootElement);
-        root.render(<ErrorBoundary><App /></ErrorBoundary>);
-      }
-    };
-    
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', initApp);
-    } else {
-      initApp();
-    }
-  </script>
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
 </body>
 </html>
