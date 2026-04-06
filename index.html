@@ -13,8 +13,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.3/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
         body { background-color: #0b1120; color: #e2e8f0; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
@@ -68,7 +68,7 @@
         // -----------------------------------------------------------------------------------------
         // GANTI URL DI BAWAH INI DENGAN URL WEB APP BARU ANDA (YANG AKHIRANNYA /exec)
         // -----------------------------------------------------------------------------------------
-        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwEpoHeafLplDRTMtgYzzEezALGxifiKC0GdreUyfbSlQcFion9CD9dpYKFpUiQeLfw/exec"; 
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw-Ez4pHMQ7aZycAoF9-Pz-p9bEmSBc0LSQuAQwdvFMntdwQ24_5rRSZ0KQVUgQbFzF/exec"; 
 
         const { useState, useEffect, useRef } = React;
 
@@ -311,14 +311,27 @@
             });
 
             // ==========================================
-            // PERBAIKAN: AGREGASI DATA KOMPONEN (1 NISN = 1 NAMA)
+            // PERBAIKAN MUTLAK: AGREGASI DATA KOMPONEN (1 NISN = 1 NAMA ANTI GANDA)
             // ==========================================
             const uniqueMap = new Map();
+            const seenNisn = new Set();
+            const seenNama = new Set();
+            
             currentRecords.forEach(r => {
-                // Kunci Komponen Unik: NISN + NAMA SISWA
-                const key = (String(r.nisn || '').trim() + "_" + String(r.nama_siswa || '').trim()).toLowerCase();
-                if (key !== "_" && !uniqueMap.has(key)) { 
-                    uniqueMap.set(key, r); 
+                const nisnClean = String(r.nisn || '').replace(/[^0-9]/g, '');
+                const namaClean = String(r.nama_siswa || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                
+                const isValidNisn = nisnClean.length > 3; 
+                const isValidNama = namaClean.length > 2;
+
+                let isDuplicate = false;
+                if (isValidNisn && seenNisn.has(nisnClean)) isDuplicate = true;
+                if (!isValidNisn && isValidNama && seenNama.has(namaClean)) isDuplicate = true;
+
+                if (!isDuplicate && (isValidNisn || isValidNama)) {
+                    uniqueMap.set(nisnClean + "_" + namaClean, r);
+                    if (isValidNisn) seenNisn.add(nisnClean);
+                    if (isValidNama) seenNama.add(namaClean);
                 }
             });
             const uniqueStudents = Array.from(uniqueMap.values());
@@ -348,60 +361,52 @@
             const totalPendampingAktif = new Set(arsipUnik.map(a => a.pendamping)).size;
 
             // ==========================================
-            // EXPORT EXCEL & PDF - DIPERBAIKI
+            // EXPORT EXCEL & PDF - DIPERBAIKI MUTLAK
             // ==========================================
             const exportToExcelDatabase = () => {
                 if (filteredKomponen.length === 0) return showToast("Tidak ada data untuk diekspor", 'error');
                 try {
-                    if (!window.XLSX) throw new Error("Library SheetJS belum ter-load sempurna. Tunggu beberapa detik.");
                     const wsData = filteredKomponen.map((r, i) => ({ "No": i + 1, "Sekolah": r.sekolah, "Periode": `${r.bulan} ${r.tahun}`, "Pendamping": r.pendamping, "NIK Pengurus": r.nik_pengurus, "Nama Pengurus": r.nama_pengurus, "NIK Siswa": r.nik_siswa, "NISN": r.nisn, "Nama Siswa": r.nama_siswa, "Bentuk": r.bentuk, "Tingkat": r.tingkat }));
                     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(wsData), "Database");
                     XLSX.writeFile(wb, `Live_Database_${new Date().getTime()}.xlsx`);
                     showToast("Berhasil mendownload Excel!", "success");
-                } catch (e) { console.error(e); showToast("Gagal mengekspor Excel: " + e.message, "error"); }
+                } catch (e) { console.error(e); showToast("Gagal mengekspor Excel: Pastikan koneksi stabil", "error"); }
             };
 
             const exportToPDFDatabase = () => {
                 if (filteredKomponen.length === 0) return showToast("Tidak ada data untuk dicetak", 'error');
                 try {
-                    if (!window.jspdf || !window.jspdf.jsPDF) throw new Error("Library jsPDF belum ter-load sempurna.");
                     const doc = new window.jspdf.jsPDF('l', 'mm', 'a4');
-                    if (typeof doc.autoTable !== 'function') throw new Error("Library AutoTable belum ter-load.");
-                    
                     doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text("Laporan Live Database", 14, 15);
                     doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`Total Baris Data: ${filteredKomponen.length} (Bisa ada duplikat bulan)`, 14, 22);
                     const tableData = filteredKomponen.map((r, i) => [ i + 1, r.sekolah, r.pendamping, r.nama_pengurus, r.nisn, r.nama_siswa, r.bentuk, r.tingkat ]);
                     doc.autoTable({ head: [['No', 'Sekolah', 'Pendamping', 'Pengurus', 'NISN', 'Siswa', 'Bentuk', 'Kelas']], body: tableData, startY: 28, theme: 'grid', styles: { fontSize: 8 }, headStyles: { fillColor: [37, 99, 235] }});
                     doc.save(`Laporan_Database_${new Date().getTime()}.pdf`);
                     showToast("Berhasil mendownload PDF!", "success");
-                } catch (e) { console.error(e); showToast("Gagal mencetak PDF: " + e.message, "error"); }
+                } catch (e) { console.error(e); showToast("Gagal mencetak PDF: Tunggu loading sebentar", "error"); }
             };
 
             const exportToExcelUnik = () => {
                 if (filteredUnique.length === 0) return showToast("Tidak ada data unik untuk diekspor", 'error');
                 try {
-                    if (!window.XLSX) throw new Error("Library SheetJS belum ter-load sempurna.");
                     const wsData = filteredUnique.map((r, i) => ({ "No": i + 1, "Nama Siswa": r.nama_siswa, "NISN": r.nisn, "NIK Siswa": r.nik_siswa, "Nama Pengurus": r.nama_pengurus, "NIK Pengurus": r.nik_pengurus, "Sekolah": r.sekolah, "Bentuk": r.bentuk, "Tingkat": r.tingkat, "Pendamping": r.pendamping }));
                     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(wsData), "Data Unik");
                     XLSX.writeFile(wb, `Data_Komponen_Unik_${new Date().getTime()}.xlsx`);
                     showToast("Berhasil mendownload Excel Data Komponen!", "success");
-                } catch (e) { console.error(e); showToast("Gagal mengekspor Excel: " + e.message, "error"); }
+                } catch (e) { console.error(e); showToast("Gagal mengekspor Excel: Pastikan koneksi stabil", "error"); }
             };
 
             const exportToPDFUnik = () => {
                 if (filteredUnique.length === 0) return showToast("Tidak ada data unik untuk dicetak", 'error');
                 try {
-                    if (!window.jspdf || !window.jspdf.jsPDF) throw new Error("Library jsPDF belum ter-load sempurna.");
                     const doc = new window.jspdf.jsPDF('l', 'mm', 'a4');
-                    if (typeof doc.autoTable !== 'function') throw new Error("Library AutoTable belum ter-load.");
-                    
                     doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text("Laporan Data Komponen (Siswa Unik)", 14, 15);
                     doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`Total Siswa Tervalidasi: ${filteredUnique.length} (1 NISN = 1 Data)`, 14, 22);
                     const tableData = filteredUnique.map((r, i) => [ i + 1, r.nama_siswa, r.nisn, r.nama_pengurus, r.sekolah, r.bentuk, r.tingkat, r.pendamping ]);
                     doc.autoTable({ head: [['No', 'Nama Siswa', 'NISN', 'Nama Pengurus', 'Sekolah', 'Bentuk', 'Kelas', 'Pendamping']], body: tableData, startY: 28, theme: 'grid', styles: { fontSize: 8 }, headStyles: { fillColor: [13, 148, 136] }});
                     doc.save(`Laporan_Unik_${new Date().getTime()}.pdf`);
                     showToast("Berhasil mendownload PDF Data Komponen!", "success");
-                } catch (e) { console.error(e); showToast("Gagal mencetak PDF: " + e.message, "error"); }
+                } catch (e) { console.error(e); showToast("Gagal mencetak PDF: Tunggu loading sebentar", "error"); }
             };
 
             return (
