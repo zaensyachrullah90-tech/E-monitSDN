@@ -252,7 +252,7 @@
           {votings && votings.length > 0 && (
             <div className="mt-8 animate-slide-up">
               <h5 className="font-bold text-midnight mb-4 flex items-center gap-2">
-                <i className="fa-solid fa-check-to-slot text-blue-500 text-lg"></i> Acara Voting
+                <i className="fa-solid fa-check-to-slot text-blue-500 text-lg"></i>  Voting
               </h5>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {votings.map(v => {
@@ -861,7 +861,7 @@
               {votings.length === 0 && (
                 <div className="bg-white rounded-3xl shadow-soft border border-slate-100 text-center py-12">
                   <i className="fa-solid fa-check-to-slot d-block text-5xl mb-4 text-slate-300"></i>
-                  <p className="font-black text-slate-500">Belum ada acara voting aktif.</p>
+                  <p className="font-black text-slate-500">Belum ada  voting aktif.</p>
                 </div>
               )}
               {votings.map(v => {
@@ -1286,7 +1286,7 @@
       };
 
       const handleDeleteVoting = async (voteId) => {
-        if(!window.confirm(`Hapus acara voting ini?`)) return;
+        if(!window.confirm(`Hapus  voting ini?`)) return;
         setIsSyncing(true);
         try { await db.ref(`artifacts/${APP_ID}/public/data/votings/${voteId}`).remove(); showToast('success'); } 
         catch (e) { showToast('error'); }
@@ -1345,7 +1345,7 @@
           <div className="bg-gradient-to-br from-indigo-600 to-blue-800 rounded-3xl shadow-soft p-5 text-white relative overflow-hidden">
             <i className="fa-solid fa-check-to-slot absolute -right-4 -bottom-4 text-8xl opacity-10"></i>
             <div className="relative z-10">
-              <h4 className="font-black text-lg mb-4 flex items-center gap-2"><i className="fa-solid fa-plus-circle text-yellow-400"></i> Buat Acara Voting</h4>
+              <h4 className="font-black text-lg mb-4 flex items-center gap-2"><i className="fa-solid fa-plus-circle text-yellow-400"></i> Buat  Voting</h4>
               <form onSubmit={handleCreateVoting} className="space-y-4">
                  <div>
                     <label className="block text-[10px] font-bold text-white/70 mb-1 uppercase">Topik / Nama Voting</label>
@@ -1500,7 +1500,7 @@
               <i className="fa-solid fa-check-to-slot text-status-proses"></i> <span className="font-black text-midnight text-sm uppercase tracking-wider">Kelola Kotak Suara</span>
             </div>
             <div className="p-5 space-y-4">
-               {(!votings || votings.length === 0) && <p className="text-center py-6 text-slate-400 font-bold text-sm bg-slate-50 rounded-xl">Belum ada acara voting.</p>}
+               {(!votings || votings.length === 0) && <p className="text-center py-6 text-slate-400 font-bold text-sm bg-slate-50 rounded-xl">Belum ada  voting.</p>}
                
                <div className="space-y-3">
                  {votings && votings.map(v => (
