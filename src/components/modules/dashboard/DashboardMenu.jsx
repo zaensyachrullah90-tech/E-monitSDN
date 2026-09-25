@@ -15,40 +15,40 @@ const DashboardMenu = ({
   const nowTime = new Date().getTime();
 
   // 1. AKUMULASI TUGAS
-  const totalTasks = groupedTasks ? groupedTasks.length : 0;
-  const completedTasks = groupedTasks ? groupedTasks.filter(g => {
-    const isStatusDone = String(g.status).toLowerCase() === 'selesai';
-    const isProgressDone = g.target > 0 && g.progress >= g.target;
+  const totalTasks = (groupedTasks || []).length;
+  const completedTasks = (groupedTasks || []).filter(g => {
+    const isStatusDone = String(g.status || '').toLowerCase() === 'selesai';
+    const isProgressDone = (g.target || 0) > 0 && (g.progress || 0) >= (g.target || 0);
     return isStatusDone || isProgressDone;
-  }).length : 0;
+  }).length;
   const inProgressTasks = totalTasks - completedTasks;
 
-  const activeGroups = groupedTasks ? groupedTasks.filter(g => {
-    const isStatusDone = String(g.status).toLowerCase() === 'selesai';
-    const isProgressDone = g.target > 0 && g.progress >= g.target;
+  const activeGroups = (groupedTasks || []).filter(g => {
+    const isStatusDone = String(g.status || '').toLowerCase() === 'selesai';
+    const isProgressDone = (g.target || 0) > 0 && (g.progress || 0) >= (g.target || 0);
     return !(isStatusDone || isProgressDone);
-  }) : [];
+  });
 
   // 2. AKUMULASI VOTING
-  const totalVotings = votings ? votings.length : 0;
-  const activeVotingsCount = votings ? votings.filter(v => {
+  const totalVotings = (votings || []).length;
+  const activeVotingsCount = (votings || []).filter(v => {
     if (!v.deadline) return true;
     return nowTime <= new Date(`${v.deadline}T23:59:59`).getTime();
-  }).length : 0;
+  }).length;
 
-  const totalVotesCount = votings ? votings.reduce((sum, v) => {
-    return sum + (v.votes ? Object.keys(v.votes).length : 0);
-  }, 0) : 0;
+  const totalVotesCount = (votings || []).reduce((sum, v) => {
+    return sum + (v.votes ? Object.keys(v.votes || {}).length : 0);
+  }, 0);
 
   // 3. AKUMULASI SDM / PEGAWAI
-  const totalEmployees = employees ? employees.length : 0;
+  const totalEmployees = (employees || []).length;
 
   // 4. AKUMULASI ABSENSI
-  const totalAttendanceEvents = attendanceEvents ? attendanceEvents.length : 0;
-  const activeAttendanceCount = attendanceEvents ? attendanceEvents.filter(ev => {
+  const totalAttendanceEvents = (attendanceEvents || []).length;
+  const activeAttendanceCount = (attendanceEvents || []).filter(ev => {
     const timeLimit = ev.timeLimit || '23:59';
-    return new Date() <= new Date(`${ev.date}T${timeLimit}`);
-  }).length : 0;
+    return new Date() <= new Date(`${ev.date || ''}T${timeLimit}`);
+  }).length;
 
   return (
     <div className="animate-slide-up space-y-6">
@@ -180,8 +180,8 @@ const DashboardMenu = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-          {attendanceEvents && attendanceEvents.slice(0, 3).map(ev => {
-            const isExpired = new Date() > new Date(`${ev.date}T${ev.timeLimit || '23:59'}`);
+          {(attendanceEvents || []).slice(0, 3).map(ev => {
+            const isExpired = new Date() > new Date(`${ev.date || ''}T${ev.timeLimit || '23:59'}`);
             return (
               <button 
                 key={ev.id} 
@@ -201,12 +201,12 @@ const DashboardMenu = ({
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Form Absensi</span>
                 </div>
 
-                <h4 className="font-black text-midnight text-base leading-tight mb-3 pr-16 truncate">{ev.title}</h4>
+                <h4 className="font-black text-midnight text-base leading-tight mb-3 pr-16 truncate">{ev.title || 'Tanpa Judul'}</h4>
                 
                 <div className="space-y-1.5 border-t border-slate-100 pt-3">
                   <div className="text-[10px] font-bold text-slate-500 flex items-center gap-2">
                     <i className="fa-regular fa-calendar-days text-amber-500 w-4"></i> 
-                    <span>{formatDateId(ev.date)} • Batas: {ev.timeLimit || '23:59'}</span>
+                    <span>{formatDateId(ev.date || new Date().toISOString())} • Batas: {ev.timeLimit || '23:59'}</span>
                   </div>
                   <div className="text-[10px] font-bold text-slate-500 flex items-center gap-2">
                     <i className="fa-solid fa-location-dot text-amber-500 w-4"></i> 
@@ -228,7 +228,7 @@ const DashboardMenu = ({
       </div>
 
       {/* SECTION 2: VOTING & PEMILIHAN TERBARU */}
-      {votings && votings.length > 0 && (
+      {(votings || []).length > 0 && (
         <div className="space-y-3 pt-2">
           <div className="flex justify-between items-center">
             <h5 className="font-bold text-midnight flex items-center gap-2 text-sm sm:text-base">
@@ -239,9 +239,9 @@ const DashboardMenu = ({
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-            {votings.slice(0, 3).map(v => {
-              const totalVoters = v.voters ? v.voters.length : 0;
-              const totalVotes = v.votes ? Object.keys(v.votes).length : 0;
+            {(votings || []).slice(0, 3).map(v => {
+              const totalVoters = v.voters ? (v.voters || []).length : 0;
+              const totalVotes = v.votes ? Object.keys(v.votes || {}).length : 0;
               const targetTime = v.deadline ? new Date(`${v.deadline}T23:59:59`).getTime() : 0;
               const isExpired = v.deadline && nowTime > targetTime;
               const diffDays = v.deadline ? Math.ceil((targetTime - nowTime) / (1000 * 60 * 60 * 24)) : 99;
@@ -265,7 +265,7 @@ const DashboardMenu = ({
                   )}
 
                   <div className="flex items-start justify-between mb-2 gap-2">
-                    <h5 className="font-black text-midnight text-base leading-tight truncate">{v.title}</h5>
+                    <h5 className="font-black text-midnight text-base leading-tight truncate">{v.title || 'Tanpa Judul'}</h5>
                     <span className="bg-blue-50 text-status-selesai text-[9px] font-black px-2 py-0.5 rounded border border-blue-100 uppercase shrink-0">
                       {v.isMulti ? 'Multi' : 'Single'}
                     </span>
@@ -273,7 +273,7 @@ const DashboardMenu = ({
                   
                   <div className="text-[10px] font-bold text-slate-500 mb-3 flex items-center gap-2 flex-wrap">
                     <span className="bg-slate-50 border border-slate-100 px-2 py-0.5 rounded">
-                      <i className="fa-solid fa-calendar-day mr-1"></i> {formatDateId(v.createdAt)}
+                      <i className="fa-solid fa-calendar-day mr-1"></i> {formatDateId(v.createdAt || new Date().toISOString())}
                     </span>
                     {v.deadline && <LiveCountdown deadline={v.deadline} />}
                     {isExpired && <span className="bg-red-500 text-white px-1.5 py-0.5 rounded text-[8px] font-black uppercase">Ditutup</span>}
@@ -304,10 +304,10 @@ const DashboardMenu = ({
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
-          {activeGroups.sort((a, b) => new Date(a.deadline) - new Date(b.deadline)).slice(0, 6).map(group => (
+          {(activeGroups || []).sort((a, b) => new Date(a.deadline || 0) - new Date(b.deadline || 0)).slice(0, 6).map(group => (
             <GroupedTaskCard key={group.taskName} group={group} onClick={(name) => { setSelectedTaskName(name); setActiveTab('kegiatan'); }} />
           ))}
-          {activeGroups.length === 0 && (
+          {(!activeGroups || activeGroups.length === 0) && (
             <div className="col-span-full bg-white rounded-3xl shadow-soft border border-slate-100 text-center py-8 sm:py-10">
               <i className="fa-solid fa-mug-hot text-4xl sm:text-5xl mb-3 text-slate-300 block"></i>
               <h5 className="font-black text-midnight text-base sm:text-lg mb-1">Pekerjaan Tuntas!</h5>
