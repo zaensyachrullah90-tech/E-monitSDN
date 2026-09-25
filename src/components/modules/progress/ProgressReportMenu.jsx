@@ -8,7 +8,12 @@ const ProgressReportMenu = ({ tasks, employees, db }) => {
   const [toast, setToast] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const availableTasks = tasks.filter(t => String(t.picId) === String(selectedEmp) && t.status === 'On Progress');
+  // PROTEKSI UTAMA: Mengabaikan huruf besar/kecil & spasi agar tidak meleset saat mencari tugas
+  const availableTasks = (tasks || []).filter(t => {
+    const matchPic = String(t.picId || '').trim().toUpperCase() === String(selectedEmp || '').trim().toUpperCase();
+    const matchStatus = String(t.status || '').toLowerCase() !== 'selesai'; // Ambil semua yang belum selesai
+    return matchPic && matchStatus;
+  });
 
   const showToast = (type) => {
     setToast(type);
@@ -24,12 +29,12 @@ const ProgressReportMenu = ({ tasks, employees, db }) => {
     
     setIsSyncing(true);
     try {
-      const task = tasks.find(t => String(t.id) === String(selectedTask));
+      const task = (tasks || []).find(t => String(t.id) === String(selectedTask));
       if (!task) { showToast('error'); setIsSyncing(false); return; }
 
       const amountInt = parseInt(amount);
-      const newProgress = Math.min(task.progress + amountInt, task.target);
-      const isDone = newProgress >= task.target;
+      const newProgress = Math.min((task.progress || 0) + amountInt, (task.target || 1));
+      const isDone = newProgress >= (task.target || 1);
       const today = new Date().toISOString().split('T')[0];
 
       const currentDaily = (task.daily && task.daily[today]) ? parseInt(task.daily[today]) : 0;
@@ -40,7 +45,7 @@ const ProgressReportMenu = ({ tasks, employees, db }) => {
       };
       updates[`daily/${today}`] = currentDaily + amountInt;
       
-      if (isDone && task.status !== 'Selesai') updates.completedAt = today;
+      if (isDone && String(task.status || '').toLowerCase() !== 'selesai') updates.completedAt = today;
       else if (!isDone) updates.completedAt = null;
       else updates.completedAt = task.completedAt || null;
 
@@ -77,7 +82,7 @@ const ProgressReportMenu = ({ tasks, employees, db }) => {
             <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-user-tag text-slate-400 mr-2"></i>Pilih Identitas</label>
             <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight outline-none cursor-pointer" value={selectedEmp} onChange={(e) => { setSelectedEmp(e.target.value); setSelectedTask(''); }}>
               <option value="">-- Ketuk untuk memilih --</option>
-              {employees.map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
+              {(employees || []).map(emp => <option key={emp.id} value={emp.name}>{emp.name}</option>)}
             </select>
           </div>
           
@@ -86,7 +91,7 @@ const ProgressReportMenu = ({ tasks, employees, db }) => {
               <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-list-check text-slate-400 mr-2"></i>Pilih Pekerjaan Aktif</label>
               <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight outline-none cursor-pointer" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
                 <option value="">-- Pilih Pekerjaan --</option>
-                {availableTasks.map(t => <option key={t.id} value={t.id}>{t.taskName} (Sisa target: {t.target - t.progress})</option>)}
+                {availableTasks.map(t => <option key={t.id} value={t.id}>{t.taskName} (Sisa target: {(t.target || 0) - (t.progress || 0)})</option>)}
               </select>
             </div>
           )}
