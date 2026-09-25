@@ -344,102 +344,89 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
   };
 
   // ================= LOGIKA TUGAS (TETAP UTUH) =================
-  const handleAddManual = async (e) => {
+ const handleAddManual = async (e) => {
     e.preventDefault();
-    if (!newTask.taskName || !newTask.picId || !newTask.deadline) { showToast('error'); return; }
+    
+    // 1. Validasi Input Dasar dengan Alert Spesifik
+    const { taskName, picId, deadline, target, multiTargets } = newTask;
+    if (!taskName || !picId || !deadline) { 
+      alert("⚠️ GAGAL: Harap lengkapi Nama Kegiatan, Tugaskan Ke, dan Tenggat Waktu!");
+      showToast('error'); 
+      return; 
+    }
+
     setIsSyncing(true);
     try {
       const updates = {};
       let addedCount = 0;
       const baseId = Date.now();
       const today = new Date().toISOString().split('T')[0];
+      const cleanTaskName = taskName.trim();
 
-      if (newTask.picId === 'all') {
+      if (picId === 'all') {
+         // 2. Logika Multi-Target: Loop aman dengan fallback parsing
          (employees || []).forEach((emp, idx) => {
-            const tgt = parseInt(newTask.multiTargets[emp.id]);
+            // Tangkap nilai dari state, pastikan terkonversi ke angka dengan aman (fallback ke 0)
+            const rawTarget = multiTargets[emp.id] || 0;
+            const tgt = parseInt(rawTarget) || 0;
+
             if (tgt > 0) {
                const newId = baseId + idx;
-               updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = { id: newId, taskName: newTask.taskName.trim(), picId: emp.name, target: tgt, progress: 0, deadline: newTask.deadline, status: 'On Progress', startDate: today };
+               updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = { 
+                 id: newId, 
+                 taskName: cleanTaskName, 
+                 picId: emp.name, 
+                 target: tgt, 
+                 progress: 0, 
+                 deadline: deadline, 
+                 status: 'On Progress', 
+                 startDate: today 
+               };
                addedCount++;
             }
          });
       } else {
+         // 3. Logika Single-Target: Keamanan tipe data angka
+         const singleTarget = parseInt(target) || 0;
+         
+         if (singleTarget <= 0) {
+             alert("⚠️ GAGAL: Target Angka harus lebih dari 0!");
+             setIsSyncing(false);
+             showToast('error');
+             return;
+         }
+
          const newId = baseId;
-         updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = { id: newId, taskName: newTask.taskName.trim(), picId: newTask.picId.toUpperCase().trim(), target: parseInt(newTask.target), progress: 0, deadline: newTask.deadline, status: 'On Progress', startDate: today };
+         updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = { 
+           id: newId, 
+           taskName: cleanTaskName, 
+           picId: picId.toUpperCase().trim(), 
+           target: singleTarget, 
+           progress: 0, 
+           deadline: deadline, 
+           status: 'On Progress', 
+           startDate: today 
+         };
          addedCount++;
       }
 
+      // 4. Finalisasi Sinkronisasi Database
       if (addedCount > 0) {
-         await db.ref().update(updates); showToast('success'); setNewTask({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
-      } else { showToast('error'); }
-    } catch (err) { showToast('error'); }
-    setIsSyncing(false);
-  };
-  const handleExcelUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file || !db) return;
-    setIsSyncing(true);
-    const fileExt = file.name.toLowerCase().split('.').pop();
-    const reader = new FileReader();
-
-    reader.onload = async (event) => {
-       try {
-         let excelData = [];
-         if (fileExt === 'csv') {
-           const workbook = XLSX.read(event.target.result, { type: 'string' });
-           excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
-         } else {
-           const workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
-           excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
-         }
-
-         const updates = {}; let addedCount = 0; const today = new Date().toISOString().split('T')[0];
-
-         for (let i = 1; i < excelData.length; i++) {
-           const row = excelData[i];
-           if (!row || row.length === 0) continue; 
-           const taskName = String(row[0] || "").trim(); const picIndicator = String(row[1] || "").trim(); const target = parseInt(row[2]);
-           if (!taskName || !picIndicator || isNaN(target)) continue;
-
-           let finalDeadline = new Date().toISOString().split('T')[0];
-           const rawDeadline = row[3];
-           if (rawDeadline) {
-             if (typeof rawDeadline === 'number') {
-               const dateObj = new Date((rawDeadline - (25567 + 2)) * 86400 * 1000);
-               if (!isNaN(dateObj.getTime())) finalDeadline = dateObj.toISOString().split('T')[0];
-             } else {
-               const parts = String(rawDeadline).trim().split(/[-/]/);
-               if (parts.length === 3) finalDeadline = parts[0].length <= 2 ? `${parts[2]}-${parts[1]}-${parts[0]}` : new Date(String(rawDeadline)).toISOString().split('T')[0];
-             }
-           }
-           const newId = Date.now() + Math.floor(Math.random() * 10000) + i;
-           updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = { id: newId, taskName: taskName, picId: picIndicator.toUpperCase(), target: target, progress: 0, deadline: finalDeadline, status: 'On Progress', startDate: today };
-           addedCount++;
-         }
-         if (addedCount > 0) { await db.ref().update(updates); showToast('success'); } else { showToast('error'); }
-       } catch (error) { showToast('error'); } finally { setIsSyncing(false); if(fileInputRef.current) fileInputRef.current.value = ''; }
-    };
-    if (fileExt === 'csv') reader.readAsText(file); else reader.readAsArrayBuffer(file);
-  };
-  const handleSaveEdit = async (e) => {
-    e.preventDefault();
-    setIsSyncing(true);
-    try {
-      const updates = {};
-      if (editModal.type === 'group') {
-         (tasks || []).filter(t => t.taskName === editModal.oldTaskName).forEach(t => { updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/taskName`] = editModal.data.taskName.trim(); updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/deadline`] = editModal.data.deadline; });
-      } else {
-         const target = parseInt(editModal.data.target); const progress = parseInt(editModal.data.progress); const isDone = progress >= target; const oldTask = (tasks || []).find(t => t.id === editModal.data.id);
-         updates[`artifacts/${APP_ID}/public/data/tasks/${editModal.data.id}`] = { ...oldTask, taskName: editModal.data.taskName.trim(), picId: editModal.data.picId.toUpperCase().trim(), target: target, progress: progress, deadline: editModal.data.deadline, status: isDone ? 'Selesai' : 'On Progress' };
+         await db.ref().update(updates); 
+         showToast('success'); 
+         // Reset state agar form bersih kembali
+         setNewTask({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
+      } else { 
+         alert("⚠️ GAGAL: Pastikan minimal ada 1 target angka yang diisi lebih dari 0.");
+         showToast('error'); 
       }
-      await db.ref().update(updates); showToast('success'); setEditModal({ isOpen: false, type: '', data: {}, oldTaskName: '' });
-    } catch (err) { showToast('error'); }
+    } catch (err) { 
+      console.error("Firebase Sync Error:", err);
+      alert("⚠️ GAGAL: Terjadi kesalahan koneksi database.");
+      showToast('error'); 
+    }
     setIsSyncing(false);
   };
-  const handleDeleteGroup = async (taskName) => { if (window.confirm(`Hapus kegiatan "${taskName}"?`)) { setIsSyncing(true); const updates = {}; (tasks || []).filter(t => t.taskName === taskName).forEach(t => { updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}`] = null; }); await db.ref().update(updates); showToast('success'); setIsSyncing(false); } };
-  const handleResetGroupProgress = async (taskName) => { if (window.confirm(`Reset progress "${taskName}" ke 0?`)) { setIsSyncing(true); const updates = {}; (tasks || []).filter(t => t.taskName === taskName).forEach(t => { updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/progress`] = 0; updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/status`] = 'On Progress'; }); await db.ref().update(updates); showToast('success'); setIsSyncing(false); } };
-  const handleResetIndividualProgress = async (id) => { if (window.confirm(`Reset progress pegawai ke 0?`)) { setIsSyncing(true); await db.ref(`artifacts/${APP_ID}/public/data/tasks/${id}`).update({ progress: 0, status: 'On Progress' }); showToast('success'); setIsSyncing(false); } };
-  const handleDeletePerson = async (id) => { if (window.confirm(`Hapus pegawai ini dari tugas?`)) { setIsSyncing(true); await db.ref(`artifacts/${APP_ID}/public/data/tasks/${id}`).remove(); showToast('success'); setIsSyncing(false); } };
   
   // ================= LOGIKA VOTING (TETAP UTUH) =================
   const handleCreateVoting = async (e) => {
