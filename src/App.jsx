@@ -16,12 +16,12 @@ export default function App() {
   const urlParams = new URLSearchParams(window.location.search);
   const previewParam = urlParams.get('preview');
 
-  // AMBIL DATA REALTIME TERMASUK attendanceEvents DENGAN FALLBACK ARRAY KOSONG
+  // PERBAIKAN: Berikan fallback = [] pada semua data array agar tidak "undefined" dan menyebabkan error 'length'
   const { 
-    tasks, 
-    groupedTasks, 
-    votings, 
-    employees, 
+    tasks = [], 
+    groupedTasks = [], 
+    votings = [], 
+    employees = [], 
     attendanceEvents = [], 
     db, 
     isLoading, 
