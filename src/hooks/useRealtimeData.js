@@ -22,7 +22,7 @@ export const useRealtimeData = () => {
       const tasksRef = db.ref(`artifacts/${APP_ID}/public/data/tasks`);
       tasksRef.on('value', (snapshot) => {
         if (snapshot.exists()) {
-          const rawData = snapshot.val();
+          const rawData = snapshot.val() || {}; // Proteksi null object
           const taskArray = Object.keys(rawData).map(key => ({ id: key, ...rawData[key] }));
           setTasks(taskArray);
 
@@ -37,7 +37,7 @@ export const useRealtimeData = () => {
                 target: task.target || 0,
                 progress: 0,
                 status: task.status || 'Proses',
-                items: []
+                items: [] // Inilah sumber datanya, jadi di card kita padukan items/assignees
               };
             }
             groups[name].items.push(task);
@@ -54,7 +54,7 @@ export const useRealtimeData = () => {
       const votingsRef = db.ref(`artifacts/${APP_ID}/public/data/votings`);
       votingsRef.on('value', (snapshot) => {
         if (snapshot.exists()) {
-          const rawVotings = snapshot.val();
+          const rawVotings = snapshot.val() || {}; // Proteksi null object
           const votingsArray = Object.keys(rawVotings).map(key => ({ id: key, ...rawVotings[key] }));
           setVotings(votingsArray.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
         } else {
@@ -66,7 +66,7 @@ export const useRealtimeData = () => {
       const empRef = db.ref(`artifacts/${APP_ID}/public/data/employees`);
       empRef.on('value', (snapshot) => {
         if (snapshot.exists()) {
-          const rawEmp = snapshot.val();
+          const rawEmp = snapshot.val() || {}; // Proteksi null object
           const empArray = Object.keys(rawEmp).map(key => ({ id: key, ...rawEmp[key] }));
           setEmployees(empArray);
         } else {
@@ -74,11 +74,11 @@ export const useRealtimeData = () => {
         }
       });
 
-      // 4. LISTEN KEGIATAN ABSENSI (DITAMBAHKAN AGAR DASHBOARD BISA MEMBACA DATA)
+      // 4. LISTEN KEGIATAN ABSENSI
       const attendanceRef = db.ref(`artifacts/${APP_ID}/public/data/attendance_events`);
       attendanceRef.on('value', (snapshot) => {
         if (snapshot.exists()) {
-          const rawAtt = snapshot.val();
+          const rawAtt = snapshot.val() || {}; // Proteksi null object
           const attArray = Object.keys(rawAtt).map(key => ({ id: key, ...rawAtt[key] }));
           setAttendanceEvents(attArray.sort((a, b) => b.createdAt?.localeCompare(a.createdAt || '') || 0));
         } else {
@@ -110,7 +110,7 @@ export const useRealtimeData = () => {
     groupedTasks, 
     votings, 
     employees, 
-    attendanceEvents, // <-- DIKIRIMKAN SECARA LENGKAP
+    attendanceEvents,
     db, 
     isLoading, 
     globalError 
