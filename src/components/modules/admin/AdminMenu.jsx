@@ -118,37 +118,47 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
     );
   }
 
-  // ================= LOGIKA TUGAS (DI PERBAIKI AGAR SYNC DB FIREBASE) =================
+  // ================= LOGIKA TUGAS (DI PERBAIKI TOTAL AGAR 100% SYNC FIREBASE) =================
   const handleAddManual = async (e) => {
     e.preventDefault();
     if (!newTask.taskName || !newTask.picId || !newTask.deadline) { showToast('error'); return; }
     setIsSyncing(true);
     try {
-      const taskUpdates = {};
       let addedCount = 0;
       const baseId = Date.now();
       const today = new Date().toISOString().split('T')[0];
 
       if (newTask.picId === 'all') {
-         (employees || []).forEach((emp, idx) => {
-            const tgt = parseInt(newTask.multiTargets[emp.id]);
+         const promises = (employees || []).map((emp, idx) => {
+            const rawTgt = parseInt(newTask.multiTargets[emp.id]);
+            const tgt = isNaN(rawTgt) ? 0 : rawTgt;
+            
             if (tgt > 0) {
-               const newId = baseId + idx;
-               taskUpdates[newId] = { id: newId, taskName: newTask.taskName.trim(), picId: emp.name, target: tgt, progress: 0, deadline: newTask.deadline, status: 'On Progress', startDate: today };
+               const newId = String(baseId + idx);
                addedCount++;
+               return db.ref(`artifacts/${APP_ID}/public/data/tasks/${newId}`).set({ 
+                 id: newId, taskName: newTask.taskName.trim(), picId: emp.name, target: tgt, progress: 0, deadline: newTask.deadline, status: 'On Progress', startDate: today 
+               });
             }
+            return Promise.resolve();
          });
+         await Promise.all(promises);
       } else {
-         const newId = baseId;
-         taskUpdates[newId] = { id: newId, taskName: newTask.taskName.trim(), picId: newTask.picId.toUpperCase().trim(), target: parseInt(newTask.target), progress: 0, deadline: newTask.deadline, status: 'On Progress', startDate: today };
-         addedCount++;
+         const newId = String(baseId);
+         const tgt = parseInt(newTask.target);
+         if (tgt > 0) {
+           await db.ref(`artifacts/${APP_ID}/public/data/tasks/${newId}`).set({ 
+             id: newId, taskName: newTask.taskName.trim(), picId: newTask.picId.toUpperCase().trim(), target: tgt, progress: 0, deadline: newTask.deadline, status: 'On Progress', startDate: today 
+           });
+           addedCount++;
+         }
       }
 
       if (addedCount > 0) {
-         await db.ref(`artifacts/${APP_ID}/public/data/tasks`).update(taskUpdates);
          showToast('success'); 
          setNewTask({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
       } else { 
+         alert("GAGAL: Pastikan Anda mengisi Target Angka minimal 1.");
          showToast('error'); 
       }
     } catch (err) { 
@@ -176,7 +186,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
            excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
          }
 
-         const taskUpdates = {}; 
+         const promises = [];
          let addedCount = 0; 
          const today = new Date().toISOString().split('T')[0];
 
@@ -184,7 +194,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
            const row = excelData[i];
            if (!row || row.length === 0) continue; 
            const taskName = String(row[0] || "").trim(); const picIndicator = String(row[1] || "").trim(); const target = parseInt(row[2]);
-           if (!taskName || !picIndicator || isNaN(target)) continue;
+           if (!taskName || !picIndicator || isNaN(target) || target <= 0) continue;
 
            let finalDeadline = new Date().toISOString().split('T')[0];
            const rawDeadline = row[3];
@@ -197,15 +207,18 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
                if (parts.length === 3) finalDeadline = parts[0].length <= 2 ? `${parts[2]}-${parts[1]}-${parts[0]}` : new Date(String(rawDeadline)).toISOString().split('T')[0];
              }
            }
-           const newId = Date.now() + Math.floor(Math.random() * 10000) + i;
-           taskUpdates[newId] = { id: newId, taskName: taskName, picId: picIndicator.toUpperCase(), target: target, progress: 0, deadline: finalDeadline, status: 'On Progress', startDate: today };
+           const newId = String(Date.now() + Math.floor(Math.random() * 10000) + i);
+           promises.push(db.ref(`artifacts/${APP_ID}/public/data/tasks/${newId}`).set({ 
+             id: newId, taskName: taskName, picId: picIndicator.toUpperCase(), target: target, progress: 0, deadline: finalDeadline, status: 'On Progress', startDate: today 
+           }));
            addedCount++;
          }
          
          if (addedCount > 0) { 
-           await db.ref(`artifacts/${APP_ID}/public/data/tasks`).update(taskUpdates); 
+           await Promise.all(promises);
            showToast('success'); 
          } else { 
+           alert("GAGAL: File Excel kosong atau format tidak sesuai.");
            showToast('error'); 
          }
        } catch (error) { showToast('error'); } 
@@ -218,21 +231,28 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
     e.preventDefault();
     setIsSyncing(true);
     try {
-      const taskUpdates = {};
       if (editModal.type === 'group') {
-         (tasks || []).filter(t => t.taskName === editModal.oldTaskName).forEach(t => { 
-            taskUpdates[`${t.id}/taskName`] = editModal.data.taskName.trim(); 
-            taskUpdates[`${t.id}/deadline`] = editModal.data.deadline; 
+         const promises = (tasks || []).filter(t => t.taskName === editModal.oldTaskName).map(t => { 
+            return db.ref(`artifacts/${APP_ID}/public/data/tasks/${t.id}`).update({
+               taskName: editModal.data.taskName.trim(), 
+               deadline: editModal.data.deadline
+            });
          });
+         await Promise.all(promises);
       } else {
          const target = parseInt(editModal.data.target); 
          const progress = parseInt(editModal.data.progress); 
          const isDone = progress >= target; 
-         const oldTask = (tasks || []).find(t => t.id === editModal.data.id);
          
-         taskUpdates[editModal.data.id] = { ...oldTask, taskName: editModal.data.taskName.trim(), picId: editModal.data.picId.toUpperCase().trim(), target: target, progress: progress, deadline: editModal.data.deadline, status: isDone ? 'Selesai' : 'On Progress' };
+         await db.ref(`artifacts/${APP_ID}/public/data/tasks/${editModal.data.id}`).update({ 
+           taskName: editModal.data.taskName.trim(), 
+           picId: editModal.data.picId.toUpperCase().trim(), 
+           target: target, 
+           progress: progress, 
+           deadline: editModal.data.deadline, 
+           status: isDone ? 'Selesai' : 'On Progress' 
+         });
       }
-      await db.ref(`artifacts/${APP_ID}/public/data/tasks`).update(taskUpdates); 
       showToast('success'); 
       setEditModal({ isOpen: false, type: '', data: {}, oldTaskName: '' });
     } catch (err) { showToast('error'); }
@@ -242,18 +262,16 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
   const handleDeleteGroup = async (taskName) => { 
     if (window.confirm(`Hapus kegiatan "${taskName}"?`)) { 
       setIsSyncing(true); 
-      const taskUpdates = {}; 
-      (tasks || []).filter(t => t.taskName === taskName).forEach(t => { taskUpdates[t.id] = null; }); 
-      await db.ref(`artifacts/${APP_ID}/public/data/tasks`).update(taskUpdates); 
+      const promises = (tasks || []).filter(t => t.taskName === taskName).map(t => db.ref(`artifacts/${APP_ID}/public/data/tasks/${t.id}`).remove()); 
+      await Promise.all(promises); 
       showToast('success'); setIsSyncing(false); 
     } 
   };
   const handleResetGroupProgress = async (taskName) => { 
     if (window.confirm(`Reset progress "${taskName}" ke 0?`)) { 
       setIsSyncing(true); 
-      const taskUpdates = {}; 
-      (tasks || []).filter(t => t.taskName === taskName).forEach(t => { taskUpdates[`${t.id}/progress`] = 0; taskUpdates[`${t.id}/status`] = 'On Progress'; }); 
-      await db.ref(`artifacts/${APP_ID}/public/data/tasks`).update(taskUpdates); 
+      const promises = (tasks || []).filter(t => t.taskName === taskName).map(t => db.ref(`artifacts/${APP_ID}/public/data/tasks/${t.id}`).update({ progress: 0, status: 'On Progress' })); 
+      await Promise.all(promises); 
       showToast('success'); setIsSyncing(false); 
     } 
   };
@@ -549,8 +567,10 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
     if(cleanOptions.length < 2) return showToast('error');
     setIsSyncing(true);
     try {
-      const newId = Date.now();
-      await db.ref(`artifacts/${APP_ID}/public/data/votings/${newId}`).set({ id: newId, title: voteTitle, deadline: voteDeadline || null, options: cleanOptions, isMulti: isMulti, voters: (employees || []).map(e => e.name), createdAt: new Date().toISOString().split('T')[0], status: 'Active' });
+      const newId = String(Date.now());
+      await db.ref(`artifacts/${APP_ID}/public/data/votings/${newId}`).set({ 
+        id: newId, title: voteTitle, deadline: voteDeadline || null, options: cleanOptions, isMulti: isMulti, voters: (employees || []).map(e => e.name), createdAt: new Date().toISOString().split('T')[0], status: 'Active' 
+      });
       showToast('success'); setVoteTitle(''); setVoteDeadline(''); setVoteOptions(['']); setIsMulti(false);
     } catch (err) { showToast('error'); }
     setIsSyncing(false);
@@ -615,7 +635,6 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
         <button onClick={() => setActiveSubTab('rekap')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap outline-none cursor-pointer ${activeSubTab === 'rekap' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
           <i className="fa-solid fa-chart-line text-emerald-400"></i> Rekap
         </button>
-        {/* Menu Data SDM dihapus dari navigasi dan digabung ke tab DB */}
         <button onClick={() => setActiveSubTab('sistem')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap outline-none cursor-pointer ${activeSubTab === 'sistem' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
           <i className="fa-solid fa-database text-blue-400"></i> DB
         </button>
@@ -719,7 +738,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
                   
                   {newTask.picId === 'all' ? (
                     <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 space-y-3">
-                      <label className="block text-[10px] font-bold text-blue-800 uppercase">Set Target Beban Masing-Masing</label>
+                      <label className="block text-[10px] font-bold text-blue-800 uppercase">Set Target Beban Masing-Masing (Wajib Isi Angka &gt; 0)</label>
                       {(employees || []).map(emp => (
                         <div key={emp.id} className="flex justify-between items-center gap-3 bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
                           <span className="text-xs font-bold text-midnight pl-1 truncate w-24">{emp.name}</span>
