@@ -11,10 +11,43 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
   const [toast, setToast] = useState(null);
 
   const activeVote = (votings || []).find(v => String(v.id) === String(selectedVoteId));
+  
+  // Deteksi status admin dari sesi yang aktif
+  const isAdminLogged = sessionStorage.getItem('adminAuth') === 'true'; 
 
   const showToast = (type) => {
     setToast(type);
     setTimeout(() => setToast(null), 3000);
+  };
+
+  // FITUR BARU: SHARE LINK MENGGUNAKAN JUDUL VOTE
+  const handleShareVote = (e, v) => {
+    if(e) e.stopPropagation();
+    const url = `${window.location.origin}${window.location.pathname}?vote=${encodeURIComponent(v.title)}`;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('success');
+        alert(`Berhasil! Link Voting telah disalin.\n\nSilakan Paste di Grup WhatsApp:\n${url}`);
+      }).catch(() => {
+        window.prompt("Salin link voting berikut manual:", url);
+      });
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = url;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        showToast('success');
+        alert(`Berhasil! Link Voting telah disalin.\n\nSilakan Paste di Grup WhatsApp:\n${url}`);
+      } catch (err) {
+        window.prompt("Salin link voting berikut manual:", url);
+      }
+      document.body.removeChild(textArea);
+    }
   };
 
   const handleCastVote = async (e) => {
@@ -71,30 +104,45 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
             const isExpired = v.deadline && new Date().getTime() > new Date(`${v.deadline}T23:59:59`).getTime();
 
             return (
-              <button type="button" key={v.id} onClick={() => setSelectedVoteId(v.id)} className="card-btn bg-white rounded-3xl shadow-soft border border-slate-100 p-5 relative overflow-hidden transition-all duration-300 hover:shadow-md hover:border-blue-300 w-full text-left outline-none cursor-pointer group">
-                <div className="flex items-start justify-between mb-3 gap-2">
-                  <h5 className="font-black text-midnight text-lg w-3/4 group-hover:text-status-selesai transition-colors">{v.title}</h5>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="bg-blue-50 text-status-selesai text-[10px] font-black px-2 py-1 rounded-md border border-blue-100 uppercase">{v.isMulti ? 'Multi' : 'Single'}</span>
-                    {isExpired && <span className="bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase shadow-sm">Ditutup</span>}
+              <div key={v.id} className="bg-white rounded-3xl shadow-soft border border-slate-100 relative overflow-hidden transition-all duration-300 hover:shadow-md hover:border-blue-300 group">
+                <button type="button" onClick={() => setSelectedVoteId(v.id)} className="w-full p-5 text-left outline-none cursor-pointer">
+                  <div className="flex items-start justify-between mb-3 gap-2">
+                    <h5 className="font-black text-midnight text-lg w-3/4 group-hover:text-status-selesai transition-colors">{v.title}</h5>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="bg-blue-50 text-status-selesai text-[10px] font-black px-2 py-1 rounded-md border border-blue-100 uppercase">{v.isMulti ? 'Multi' : 'Single'}</span>
+                      {isExpired && <span className="bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase shadow-sm">Ditutup</span>}
+                    </div>
                   </div>
-                </div>
-                
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="text-[10px] font-bold text-slate-500 bg-slate-50 border border-slate-100 px-2 py-1 rounded-md">
-                    <i className="fa-solid fa-calendar-day mr-1 text-slate-400"></i> {formatDateId(v.createdAt)}
+                  
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="text-[10px] font-bold text-slate-500 bg-slate-50 border border-slate-100 px-2 py-1 rounded-md">
+                      <i className="fa-solid fa-calendar-day mr-1 text-slate-400"></i> {formatDateId(v.createdAt)}
+                    </div>
+                    {v.deadline && <LiveCountdown deadline={v.deadline} />}
                   </div>
-                  {v.deadline && <LiveCountdown deadline={v.deadline} />}
-                </div>
 
-                <div className="w-full bg-slate-100 rounded-full h-1.5 mb-1.5 overflow-hidden">
-                  <div className="bg-status-selesai h-1.5 rounded-full transition-all duration-1000 ease-out" style={{ width: `${totalVoters === 0 ? 0 : (totalVotes / totalVoters) * 100}%` }}></div>
-                </div>
-                <div className="text-[10px] font-black text-slate-400 flex justify-between">
-                  <span>SUARA MASUK</span> 
-                  <span className="text-midnight">{totalVotes} / {totalVoters} SDM</span>
-                </div>
-              </button>
+                  <div className="w-full bg-slate-100 rounded-full h-1.5 mb-1.5 overflow-hidden">
+                    <div className="bg-status-selesai h-1.5 rounded-full transition-all duration-1000 ease-out" style={{ width: `${totalVoters === 0 ? 0 : (totalVotes / totalVoters) * 100}%` }}></div>
+                  </div>
+                  <div className="text-[10px] font-black text-slate-400 flex justify-between">
+                    <span>SUARA MASUK</span> 
+                    <span className="text-midnight">{totalVotes} / {totalVoters} SDM</span>
+                  </div>
+                </button>
+
+                {/* TOMBOL SHARE LINK KHUSUS ADMIN DI LUAR KARTU */}
+                {isAdminLogged && (
+                  <div className="px-5 pb-5 pt-0">
+                    <button 
+                      type="button"
+                      onClick={(e) => handleShareVote(e, v)}
+                      className="w-full bg-blue-50 text-status-selesai border border-blue-200 font-black py-2.5 rounded-xl text-[10px] sm:text-xs hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 outline-none cursor-pointer shadow-sm"
+                    >
+                      <i className="fa-solid fa-share-nodes"></i> Salin Link ({v.title})
+                    </button>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
@@ -130,7 +178,6 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
 
   // Urutkan opsi berdasarkan suara terbanyak
   const sortedOptions = activeVote.options.sort((a, b) => optionData[b].count - optionData[a].count);
-
   const isExpired = activeVote.deadline && new Date().getTime() > new Date(`${activeVote.deadline}T23:59:59`).getTime();
 
   return (
@@ -144,9 +191,22 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
         </div>
       )}
 
-      <button type="button" onClick={() => setSelectedVoteId(null)} className="bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-4 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 transition-colors outline-none cursor-pointer">
-        <i className="fa-solid fa-arrow-left-long text-status-selesai"></i> Kembali
-      </button>
+      {/* HEADER NAVIGASI & TOMBOL SHARE ADMIN */}
+      <div className="flex flex-wrap gap-2 justify-between items-center mb-2">
+        <button type="button" onClick={() => setSelectedVoteId(null)} className="bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-4 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 transition-colors outline-none cursor-pointer">
+          <i className="fa-solid fa-arrow-left-long text-status-selesai"></i> Kembali
+        </button>
+
+        {isAdminLogged && (
+          <button 
+            type="button"
+            onClick={(e) => handleShareVote(e, activeVote)} 
+            className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md rounded-full font-black px-4 py-2 text-[10px] sm:text-xs flex items-center gap-1.5 hover:scale-95 transition-transform outline-none cursor-pointer"
+          >
+            <i className="fa-solid fa-share-nodes"></i> Share Live Link
+          </button>
+        )}
+      </div>
 
       <div className="bg-gradient-to-br from-midnight to-midnight-light rounded-3xl p-6 text-white relative shadow-glossy overflow-hidden">
         <i className="fa-solid fa-check-to-slot absolute -right-4 -bottom-4 text-7xl opacity-10"></i>
