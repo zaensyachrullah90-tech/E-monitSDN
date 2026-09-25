@@ -5,14 +5,19 @@ const LeaderboardMenu = ({ groupedTasks }) => {
   const [selectedRankTask, setSelectedRankTask] = useState(null);
 
   if (selectedRankTask) {
-    const activeGroup = groupedTasks.find(g => g.taskName === selectedRankTask);
+    const activeGroup = (groupedTasks || []).find(g => g.taskName === selectedRankTask);
     if (!activeGroup) {
       setSelectedRankTask(null);
       return null;
     }
 
-    const stats = activeGroup.assignees.map(a => {
-       const percent = a.target === 0 ? 0 : Math.min(Math.round((a.progress / a.target) * 100), 100);
+    // PROTEKSI: Padukan assignees atau items agar tidak error map
+    const safeAssignees = activeGroup.assignees || activeGroup.items || [];
+    
+    const stats = safeAssignees.map(a => {
+       const targetVal = Number(a.target || 0);
+       const progressVal = Number(a.progress || 0);
+       const percent = targetVal === 0 ? 0 : Math.min(Math.round((progressVal / targetVal) * 100), 100);
        return { ...a, percent };
     }).sort((a, b) => b.percent - a.percent);
 
@@ -51,7 +56,7 @@ const LeaderboardMenu = ({ groupedTasks }) => {
                     </td>
                     <td className="p-4 font-black text-midnight text-sm">{stat.picId}</td>
                     <td className="p-4 text-center">
-                      <span className="bg-slate-100 text-slate-600 border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold">{stat.progress} / {stat.target}</span>
+                      <span className="bg-slate-100 text-slate-600 border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold">{stat.progress || 0} / {stat.target || 0}</span>
                     </td>
                     <td className="p-4 min-w-[120px]">
                       <div className="flex items-center gap-3">
@@ -78,13 +83,13 @@ const LeaderboardMenu = ({ groupedTasks }) => {
         <p className="text-slate-500 text-sm font-bold mt-0.5"><i className="fa-solid fa-hand-pointer text-status-selesai mr-1"></i> Klik kegiatan untuk melihat ranking pegawai.</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {groupedTasks.length === 0 && (
+        {(groupedTasks || []).length === 0 && (
           <div className="col-span-full bg-white rounded-3xl shadow-soft border border-slate-100 text-center py-12">
             <i className="fa-solid fa-box-open text-5xl mb-4 text-slate-300 block"></i>
             <p className="font-black text-slate-500">Belum ada kegiatan terdaftar.</p>
           </div>
         )}
-        {groupedTasks.map(group => <GroupedTaskCard key={group.taskName} group={group} onClick={setSelectedRankTask} />)}
+        {(groupedTasks || []).map(group => <GroupedTaskCard key={group.taskName} group={group} onClick={setSelectedRankTask} />)}
       </div>
     </div>
   );
