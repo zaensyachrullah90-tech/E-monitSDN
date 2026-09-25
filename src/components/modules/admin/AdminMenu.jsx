@@ -16,7 +16,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
   // TAB MENU ADMIN UTAMA
   const [activeSubTab, setActiveSubTab] = useState('tugas'); 
 
-  // ================= STATE DATA SDM (BARU) =================
+  // ================= STATE DATA SDM =================
   const [newEmp, setNewEmp] = useState({ name: '', lp: 'L', kecamatan: '' });
   const [editEmpModal, setEditEmpModal] = useState({ isOpen: false, id: null, name: '', lp: 'L', kecamatan: '' });
 
@@ -118,7 +118,161 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
     );
   }
 
-  // ================= CRUD DATA SDM (DATABASE KARYAWAN) =================
+  // ================= LOGIKA TUGAS (DI PERBAIKI AGAR SYNC DB FIREBASE) =================
+  const handleAddManual = async (e) => {
+    e.preventDefault();
+    if (!newTask.taskName || !newTask.picId || !newTask.deadline) { showToast('error'); return; }
+    setIsSyncing(true);
+    try {
+      const taskUpdates = {};
+      let addedCount = 0;
+      const baseId = Date.now();
+      const today = new Date().toISOString().split('T')[0];
+
+      if (newTask.picId === 'all') {
+         (employees || []).forEach((emp, idx) => {
+            const tgt = parseInt(newTask.multiTargets[emp.id]);
+            if (tgt > 0) {
+               const newId = baseId + idx;
+               taskUpdates[newId] = { id: newId, taskName: newTask.taskName.trim(), picId: emp.name, target: tgt, progress: 0, deadline: newTask.deadline, status: 'On Progress', startDate: today };
+               addedCount++;
+            }
+         });
+      } else {
+         const newId = baseId;
+         taskUpdates[newId] = { id: newId, taskName: newTask.taskName.trim(), picId: newTask.picId.toUpperCase().trim(), target: parseInt(newTask.target), progress: 0, deadline: newTask.deadline, status: 'On Progress', startDate: today };
+         addedCount++;
+      }
+
+      if (addedCount > 0) {
+         await db.ref(`artifacts/${APP_ID}/public/data/tasks`).update(taskUpdates);
+         showToast('success'); 
+         setNewTask({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
+      } else { 
+         showToast('error'); 
+      }
+    } catch (err) { 
+      console.error(err);
+      showToast('error'); 
+    }
+    setIsSyncing(false);
+  };
+
+  const handleExcelUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file || !db) return;
+    setIsSyncing(true);
+    const fileExt = file.name.toLowerCase().split('.').pop();
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+       try {
+         let excelData = [];
+         if (fileExt === 'csv') {
+           const workbook = XLSX.read(event.target.result, { type: 'string' });
+           excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
+         } else {
+           const workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
+           excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
+         }
+
+         const taskUpdates = {}; 
+         let addedCount = 0; 
+         const today = new Date().toISOString().split('T')[0];
+
+         for (let i = 1; i < excelData.length; i++) {
+           const row = excelData[i];
+           if (!row || row.length === 0) continue; 
+           const taskName = String(row[0] || "").trim(); const picIndicator = String(row[1] || "").trim(); const target = parseInt(row[2]);
+           if (!taskName || !picIndicator || isNaN(target)) continue;
+
+           let finalDeadline = new Date().toISOString().split('T')[0];
+           const rawDeadline = row[3];
+           if (rawDeadline) {
+             if (typeof rawDeadline === 'number') {
+               const dateObj = new Date((rawDeadline - (25567 + 2)) * 86400 * 1000);
+               if (!isNaN(dateObj.getTime())) finalDeadline = dateObj.toISOString().split('T')[0];
+             } else {
+               const parts = String(rawDeadline).trim().split(/[-/]/);
+               if (parts.length === 3) finalDeadline = parts[0].length <= 2 ? `${parts[2]}-${parts[1]}-${parts[0]}` : new Date(String(rawDeadline)).toISOString().split('T')[0];
+             }
+           }
+           const newId = Date.now() + Math.floor(Math.random() * 10000) + i;
+           taskUpdates[newId] = { id: newId, taskName: taskName, picId: picIndicator.toUpperCase(), target: target, progress: 0, deadline: finalDeadline, status: 'On Progress', startDate: today };
+           addedCount++;
+         }
+         
+         if (addedCount > 0) { 
+           await db.ref(`artifacts/${APP_ID}/public/data/tasks`).update(taskUpdates); 
+           showToast('success'); 
+         } else { 
+           showToast('error'); 
+         }
+       } catch (error) { showToast('error'); } 
+       finally { setIsSyncing(false); if(fileInputRef.current) fileInputRef.current.value = ''; }
+    };
+    if (fileExt === 'csv') reader.readAsText(file); else reader.readAsArrayBuffer(file);
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    setIsSyncing(true);
+    try {
+      const taskUpdates = {};
+      if (editModal.type === 'group') {
+         (tasks || []).filter(t => t.taskName === editModal.oldTaskName).forEach(t => { 
+            taskUpdates[`${t.id}/taskName`] = editModal.data.taskName.trim(); 
+            taskUpdates[`${t.id}/deadline`] = editModal.data.deadline; 
+         });
+      } else {
+         const target = parseInt(editModal.data.target); 
+         const progress = parseInt(editModal.data.progress); 
+         const isDone = progress >= target; 
+         const oldTask = (tasks || []).find(t => t.id === editModal.data.id);
+         
+         taskUpdates[editModal.data.id] = { ...oldTask, taskName: editModal.data.taskName.trim(), picId: editModal.data.picId.toUpperCase().trim(), target: target, progress: progress, deadline: editModal.data.deadline, status: isDone ? 'Selesai' : 'On Progress' };
+      }
+      await db.ref(`artifacts/${APP_ID}/public/data/tasks`).update(taskUpdates); 
+      showToast('success'); 
+      setEditModal({ isOpen: false, type: '', data: {}, oldTaskName: '' });
+    } catch (err) { showToast('error'); }
+    setIsSyncing(false);
+  };
+
+  const handleDeleteGroup = async (taskName) => { 
+    if (window.confirm(`Hapus kegiatan "${taskName}"?`)) { 
+      setIsSyncing(true); 
+      const taskUpdates = {}; 
+      (tasks || []).filter(t => t.taskName === taskName).forEach(t => { taskUpdates[t.id] = null; }); 
+      await db.ref(`artifacts/${APP_ID}/public/data/tasks`).update(taskUpdates); 
+      showToast('success'); setIsSyncing(false); 
+    } 
+  };
+  const handleResetGroupProgress = async (taskName) => { 
+    if (window.confirm(`Reset progress "${taskName}" ke 0?`)) { 
+      setIsSyncing(true); 
+      const taskUpdates = {}; 
+      (tasks || []).filter(t => t.taskName === taskName).forEach(t => { taskUpdates[`${t.id}/progress`] = 0; taskUpdates[`${t.id}/status`] = 'On Progress'; }); 
+      await db.ref(`artifacts/${APP_ID}/public/data/tasks`).update(taskUpdates); 
+      showToast('success'); setIsSyncing(false); 
+    } 
+  };
+  const handleResetIndividualProgress = async (id) => { 
+    if (window.confirm(`Reset progress pegawai ke 0?`)) { 
+      setIsSyncing(true); 
+      await db.ref(`artifacts/${APP_ID}/public/data/tasks/${id}`).update({ progress: 0, status: 'On Progress' }); 
+      showToast('success'); setIsSyncing(false); 
+    } 
+  };
+  const handleDeletePerson = async (id) => { 
+    if (window.confirm(`Hapus pegawai ini dari tugas?`)) { 
+      setIsSyncing(true); 
+      await db.ref(`artifacts/${APP_ID}/public/data/tasks/${id}`).remove(); 
+      showToast('success'); setIsSyncing(false); 
+    } 
+  };
+
+  // ================= CRUD DATA SDM =================
   const handleAddEmployee = async (e) => {
     e.preventDefault();
     if(!newEmp.name || !db) return showToast('error');
@@ -310,7 +464,6 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
       let tsk = { sel: 0, kur: 0, tid: 0 };
       let vts = { v: 0, x: 0 };
 
-      // Kalkulasi Absensi
       validEvents.forEach(ev => {
          const recs = allAttendanceRecords[ev.id] || {};
          const userRec = recs[emp.name];
@@ -324,7 +477,6 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
          }
       });
 
-      // Kalkulasi Tugas
       validTasks.forEach(t => {
          if (t.picId.toUpperCase() === emp.name.toUpperCase()) {
            if (t.progress >= t.target) tsk.sel++;
@@ -333,14 +485,12 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
          }
       });
 
-      // Kalkulasi Voting
       validVotes.forEach(v => {
          let hasVoted = false;
          if (v.votes && Object.keys(v.votes).includes(emp.name)) hasVoted = true;
          if (hasVoted) vts.v++; else vts.x++;
       });
 
-      // Sistem Scoring
       const score = (abs.h * 10) + ((abs.i + abs.s) * 5) + (tsk.sel * 20) + (tsk.kur * 10) + (vts.v * 5);
       const lpStr = emp.lp || emp.gender || emp.jk || "";
 
@@ -353,7 +503,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
   const handleExportRekapPDF = () => {
     const data = getRekapData();
     const sigToUse = (signatures || []).find(s => s.id === activeSigId) || { jabatan: 'Pejabat', nama: 'Nama Pejabat', nip: '-' };
-    const doc = new jsPDF('l', 'mm', [330, 215.9]); // Landscape F4
+    const doc = new jsPDF('l', 'mm', [330, 215.9]); 
     
     doc.setFontSize(14); doc.setFont("helvetica", "bold");
     doc.text("REKAPITULASI & RANKING KINERJA SDM PKH", 165, 20, { align: "center" });
@@ -392,104 +542,6 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
     doc.save(`Rekap_Kinerja_${periodStr.replace(/\s+/g, '_')}.pdf`);
   };
 
-  // ================= LOGIKA TUGAS =================
-  const handleAddManual = async (e) => {
-    e.preventDefault();
-    if (!newTask.taskName || !newTask.picId || !newTask.deadline) { showToast('error'); return; }
-    setIsSyncing(true);
-    try {
-      const updates = {};
-      let addedCount = 0;
-      const baseId = Date.now();
-      const today = new Date().toISOString().split('T')[0];
-
-      if (newTask.picId === 'all') {
-         (employees || []).forEach((emp, idx) => {
-            const tgt = parseInt(newTask.multiTargets[emp.id]);
-            if (tgt > 0) {
-               const newId = baseId + idx;
-               updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = { id: newId, taskName: newTask.taskName.trim(), picId: emp.name, target: tgt, progress: 0, deadline: newTask.deadline, status: 'On Progress', startDate: today };
-               addedCount++;
-            }
-         });
-      } else {
-         const newId = baseId;
-         updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = { id: newId, taskName: newTask.taskName.trim(), picId: newTask.picId.toUpperCase().trim(), target: parseInt(newTask.target), progress: 0, deadline: newTask.deadline, status: 'On Progress', startDate: today };
-         addedCount++;
-      }
-
-      if (addedCount > 0) {
-         await db.ref().update(updates); showToast('success'); setNewTask({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
-      } else { showToast('error'); }
-    } catch (err) { showToast('error'); }
-    setIsSyncing(false);
-  };
-  const handleExcelUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file || !db) return;
-    setIsSyncing(true);
-    const fileExt = file.name.toLowerCase().split('.').pop();
-    const reader = new FileReader();
-
-    reader.onload = async (event) => {
-       try {
-         let excelData = [];
-         if (fileExt === 'csv') {
-           const workbook = XLSX.read(event.target.result, { type: 'string' });
-           excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
-         } else {
-           const workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
-           excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
-         }
-
-         const updates = {}; let addedCount = 0; const today = new Date().toISOString().split('T')[0];
-
-         for (let i = 1; i < excelData.length; i++) {
-           const row = excelData[i];
-           if (!row || row.length === 0) continue; 
-           const taskName = String(row[0] || "").trim(); const picIndicator = String(row[1] || "").trim(); const target = parseInt(row[2]);
-           if (!taskName || !picIndicator || isNaN(target)) continue;
-
-           let finalDeadline = new Date().toISOString().split('T')[0];
-           const rawDeadline = row[3];
-           if (rawDeadline) {
-             if (typeof rawDeadline === 'number') {
-               const dateObj = new Date((rawDeadline - (25567 + 2)) * 86400 * 1000);
-               if (!isNaN(dateObj.getTime())) finalDeadline = dateObj.toISOString().split('T')[0];
-             } else {
-               const parts = String(rawDeadline).trim().split(/[-/]/);
-               if (parts.length === 3) finalDeadline = parts[0].length <= 2 ? `${parts[2]}-${parts[1]}-${parts[0]}` : new Date(String(rawDeadline)).toISOString().split('T')[0];
-             }
-           }
-           const newId = Date.now() + Math.floor(Math.random() * 10000) + i;
-           updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = { id: newId, taskName: taskName, picId: picIndicator.toUpperCase(), target: target, progress: 0, deadline: finalDeadline, status: 'On Progress', startDate: today };
-           addedCount++;
-         }
-         if (addedCount > 0) { await db.ref().update(updates); showToast('success'); } else { showToast('error'); }
-       } catch (error) { showToast('error'); } finally { setIsSyncing(false); if(fileInputRef.current) fileInputRef.current.value = ''; }
-    };
-    if (fileExt === 'csv') reader.readAsText(file); else reader.readAsArrayBuffer(file);
-  };
-  const handleSaveEdit = async (e) => {
-    e.preventDefault();
-    setIsSyncing(true);
-    try {
-      const updates = {};
-      if (editModal.type === 'group') {
-         (tasks || []).filter(t => t.taskName === editModal.oldTaskName).forEach(t => { updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/taskName`] = editModal.data.taskName.trim(); updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/deadline`] = editModal.data.deadline; });
-      } else {
-         const target = parseInt(editModal.data.target); const progress = parseInt(editModal.data.progress); const isDone = progress >= target; const oldTask = (tasks || []).find(t => t.id === editModal.data.id);
-         updates[`artifacts/${APP_ID}/public/data/tasks/${editModal.data.id}`] = { ...oldTask, taskName: editModal.data.taskName.trim(), picId: editModal.data.picId.toUpperCase().trim(), target: target, progress: progress, deadline: editModal.data.deadline, status: isDone ? 'Selesai' : 'On Progress' };
-      }
-      await db.ref().update(updates); showToast('success'); setEditModal({ isOpen: false, type: '', data: {}, oldTaskName: '' });
-    } catch (err) { showToast('error'); }
-    setIsSyncing(false);
-  };
-  const handleDeleteGroup = async (taskName) => { if (window.confirm(`Hapus kegiatan "${taskName}"?`)) { setIsSyncing(true); const updates = {}; (tasks || []).filter(t => t.taskName === taskName).forEach(t => { updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}`] = null; }); await db.ref().update(updates); showToast('success'); setIsSyncing(false); } };
-  const handleResetGroupProgress = async (taskName) => { if (window.confirm(`Reset progress "${taskName}" ke 0?`)) { setIsSyncing(true); const updates = {}; (tasks || []).filter(t => t.taskName === taskName).forEach(t => { updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/progress`] = 0; updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/status`] = 'On Progress'; }); await db.ref().update(updates); showToast('success'); setIsSyncing(false); } };
-  const handleResetIndividualProgress = async (id) => { if (window.confirm(`Reset progress pegawai ke 0?`)) { setIsSyncing(true); await db.ref(`artifacts/${APP_ID}/public/data/tasks/${id}`).update({ progress: 0, status: 'On Progress' }); showToast('success'); setIsSyncing(false); } };
-  const handleDeletePerson = async (id) => { if (window.confirm(`Hapus pegawai ini dari tugas?`)) { setIsSyncing(true); await db.ref(`artifacts/${APP_ID}/public/data/tasks/${id}`).remove(); showToast('success'); setIsSyncing(false); } };
-  
   // ================= LOGIKA VOTING =================
   const handleCreateVoting = async (e) => {
     e.preventDefault();
@@ -549,7 +601,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
         </button>
       </div>
 
-      {/* NAVIGASI SUB-MENU TAB ADMIN */}
+      {/* NAVIGASI SUB-MENU TAB ADMIN - DIGABUNGKAN */}
       <div className="flex bg-white rounded-2xl p-1.5 shadow-soft border border-slate-100 gap-1 overflow-x-auto hide-scrollbar">
         <button onClick={() => setActiveSubTab('tugas')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap outline-none cursor-pointer ${activeSubTab === 'tugas' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
           <i className="fa-solid fa-list-check"></i> Tugas
@@ -560,90 +612,14 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
         <button onClick={() => setActiveSubTab('absensi')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap outline-none cursor-pointer ${activeSubTab === 'absensi' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
           <i className="fa-solid fa-clipboard-user"></i> Absensi
         </button>
-        <button onClick={() => setActiveSubTab('sdm')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap outline-none cursor-pointer ${activeSubTab === 'sdm' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
-          <i className="fa-solid fa-users text-blue-500"></i> Data SDM
-        </button>
         <button onClick={() => setActiveSubTab('rekap')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap outline-none cursor-pointer ${activeSubTab === 'rekap' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
           <i className="fa-solid fa-chart-line text-emerald-400"></i> Rekap
         </button>
+        {/* Menu Data SDM dihapus dari navigasi dan digabung ke tab DB */}
         <button onClick={() => setActiveSubTab('sistem')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap outline-none cursor-pointer ${activeSubTab === 'sistem' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
-          <i className="fa-solid fa-gears"></i> DB
+          <i className="fa-solid fa-database text-blue-400"></i> DB
         </button>
       </div>
-
-      {/* ==================== SUB-MENU BARU: DATABASE SDM PKH ==================== */}
-      {activeSubTab === 'sdm' && (
-        <div className="space-y-6 animate-fade-in">
-          <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
-            <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
-              <i className="fa-solid fa-user-plus text-status-selesai"></i>
-              <span className="font-black text-midnight text-sm uppercase tracking-wider">Tambah Data SDM Baru</span>
-            </div>
-            <div className="p-5">
-              <form onSubmit={handleAddEmployee} className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Lengkap</label>
-                  <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:ring-1 focus:ring-midnight shadow-inner" value={newEmp.name} onChange={e => setNewEmp({...newEmp, name: e.target.value})} placeholder="Ketik Nama" />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">L/P (Gender)</label>
-                  <select required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none cursor-pointer shadow-inner" value={newEmp.lp} onChange={e => setNewEmp({...newEmp, lp: e.target.value})}>
-                    <option value="L">L (Laki-laki)</option>
-                    <option value="P">P (Perempuan)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Kecamatan</label>
-                  <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:ring-1 focus:ring-midnight shadow-inner" value={newEmp.kecamatan} onChange={e => setNewEmp({...newEmp, kecamatan: e.target.value})} placeholder="Asal Kecamatan" />
-                </div>
-                <div className="md:col-span-3 mt-1">
-                   <button type="submit" disabled={isSyncing} className="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 font-black py-3 rounded-xl active:scale-95 transition-all outline-none cursor-pointer flex justify-center items-center gap-2 shadow-sm">
-                      {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...</> : <><i className="fa-solid fa-plus"></i> Simpan Data SDM</>}
-                   </button>
-                </div>
-              </form>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
-            <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
-              <i className="fa-solid fa-users text-status-proses"></i>
-              <span className="font-black text-midnight text-sm uppercase tracking-wider">Database SDM Terdaftar ({(employees || []).length})</span>
-            </div>
-            <div className="p-0 overflow-x-auto">
-              <table className="w-full text-left text-xs whitespace-nowrap">
-                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-black">
-                   <tr>
-                     <th className="px-4 py-4 text-center">No</th>
-                     <th className="px-4 py-4">Nama SDM</th>
-                     <th className="px-4 py-4 text-center">L/P</th>
-                     <th className="px-4 py-4">Kecamatan</th>
-                     <th className="px-4 py-4 text-center">Aksi</th>
-                   </tr>
-                 </thead>
-                 <tbody className="divide-y divide-slate-100">
-                   {(!employees || employees.length === 0) ? (
-                      <tr><td colSpan="5" className="text-center py-6 font-bold text-slate-400">Database SDM Kosong</td></tr>
-                   ) : (
-                      employees.map((emp, index) => (
-                        <tr key={emp.id || index} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3 text-center font-bold text-slate-400">{index + 1}</td>
-                          <td className="px-4 py-3 font-bold text-midnight">{emp.name}</td>
-                          <td className="px-4 py-3 text-center font-bold text-slate-500">{emp.lp || emp.gender || '-'}</td>
-                          <td className="px-4 py-3 font-bold text-slate-500">{emp.kecamatan || '-'}</td>
-                          <td className="px-4 py-3 text-center flex justify-center gap-1.5">
-                            <button onClick={() => setEditEmpModal({ isOpen: true, id: emp.id, name: emp.name, lp: emp.lp || emp.gender || 'L', kecamatan: emp.kecamatan || '' })} className="bg-white text-status-selesai border border-slate-200 w-8 h-8 rounded-xl flex justify-center items-center hover:bg-blue-50 outline-none cursor-pointer shrink-0"><i className="fa-solid fa-pen text-[10px]"></i></button>
-                            <button onClick={() => handleDeleteEmployee(emp.id)} className="bg-white text-red-500 border border-red-200 w-8 h-8 rounded-xl flex justify-center items-center hover:bg-red-50 outline-none cursor-pointer shrink-0"><i className="fa-solid fa-trash text-[10px]"></i></button>
-                          </td>
-                        </tr>
-                      ))
-                   )}
-                 </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ==================== SUB-MENU REKAP KINERJA & RANKING ==================== */}
       {activeSubTab === 'rekap' && (
@@ -1033,13 +1009,79 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
         </div>
       )}
 
-      {/* ==================== SUB-MENU 4: SISTEM ==================== */}
+      {/* ==================== SUB-MENU 4: DB (GABUNGAN DATA SDM & SISTEM) ==================== */}
       {activeSubTab === 'sistem' && (
         <div className="space-y-6 animate-fade-in">
+          
+          {/* PANEL KELOLA DATABASE SDM */}
+          <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
+            <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
+              <i className="fa-solid fa-user-plus text-status-selesai"></i>
+              <span className="font-black text-midnight text-sm uppercase tracking-wider">Kelola Database SDM</span>
+            </div>
+            <div className="p-5">
+              <form onSubmit={handleAddEmployee} className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Lengkap</label>
+                  <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:ring-1 focus:ring-midnight shadow-inner" value={newEmp.name} onChange={e => setNewEmp({...newEmp, name: e.target.value})} placeholder="Ketik Nama" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">L/P (Gender)</label>
+                  <select required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none cursor-pointer shadow-inner" value={newEmp.lp} onChange={e => setNewEmp({...newEmp, lp: e.target.value})}>
+                    <option value="L">L (Laki-laki)</option>
+                    <option value="P">P (Perempuan)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Kecamatan</label>
+                  <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:ring-1 focus:ring-midnight shadow-inner" value={newEmp.kecamatan} onChange={e => setNewEmp({...newEmp, kecamatan: e.target.value})} placeholder="Asal Kecamatan" />
+                </div>
+                <div className="md:col-span-3 mt-1">
+                   <button type="submit" disabled={isSyncing} className="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 font-black py-3 rounded-xl active:scale-95 transition-all outline-none cursor-pointer flex justify-center items-center gap-2 shadow-sm">
+                      {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...</> : <><i className="fa-solid fa-plus"></i> Tambah / Simpan Data SDM</>}
+                   </button>
+                </div>
+              </form>
+
+              <div className="p-0 overflow-x-auto border border-slate-100 rounded-xl">
+                <table className="w-full text-left text-xs whitespace-nowrap">
+                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-black">
+                     <tr>
+                       <th className="px-4 py-3 text-center">No</th>
+                       <th className="px-4 py-3">Nama SDM</th>
+                       <th className="px-4 py-3 text-center">L/P</th>
+                       <th className="px-4 py-3">Kecamatan</th>
+                       <th className="px-4 py-3 text-center">Aksi</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-100">
+                     {(!employees || employees.length === 0) ? (
+                        <tr><td colSpan="5" className="text-center py-6 font-bold text-slate-400">Database SDM Kosong</td></tr>
+                     ) : (
+                        employees.map((emp, index) => (
+                          <tr key={emp.id || index} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-4 py-2 text-center font-bold text-slate-400">{index + 1}</td>
+                            <td className="px-4 py-2 font-bold text-midnight">{emp.name}</td>
+                            <td className="px-4 py-2 text-center font-bold text-slate-500">{emp.lp || emp.gender || '-'}</td>
+                            <td className="px-4 py-2 font-bold text-slate-500">{emp.kecamatan || '-'}</td>
+                            <td className="px-4 py-2 text-center flex justify-center gap-1.5">
+                              <button onClick={() => setEditEmpModal({ isOpen: true, id: emp.id, name: emp.name, lp: emp.lp || emp.gender || 'L', kecamatan: emp.kecamatan || '' })} className="bg-slate-50 text-status-selesai border border-slate-200 w-7 h-7 rounded-lg flex justify-center items-center hover:bg-blue-50 outline-none cursor-pointer shrink-0"><i className="fa-solid fa-pen text-[10px]"></i></button>
+                              <button onClick={() => handleDeleteEmployee(emp.id)} className="bg-red-50 text-red-500 border border-red-200 w-7 h-7 rounded-lg flex justify-center items-center hover:bg-red-100 outline-none cursor-pointer shrink-0"><i className="fa-solid fa-trash text-[10px]"></i></button>
+                            </td>
+                          </tr>
+                        ))
+                     )}
+                   </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* PANEL PEMELIHARAAN SISTEM */}
           <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
             <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
               <i className="fa-solid fa-gears text-midnight"></i> 
-              <span className="font-black text-midnight text-sm uppercase tracking-wider">Pemeliharaan & Reset Database</span>
+              <span className="font-black text-midnight text-sm uppercase tracking-wider">Pemeliharaan & Reset Sistem</span>
             </div>
             <div className="p-5 space-y-4">
                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs font-bold text-slate-600 space-y-2">
@@ -1058,6 +1100,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
                </div>
             </div>
           </div>
+
         </div>
       )}
 
