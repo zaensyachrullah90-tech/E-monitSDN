@@ -16,6 +16,10 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
   // TAB MENU ADMIN UTAMA
   const [activeSubTab, setActiveSubTab] = useState('tugas'); 
 
+  // ================= STATE DATA SDM (BARU) =================
+  const [newEmp, setNewEmp] = useState({ name: '', lp: 'L', kecamatan: '' });
+  const [editEmpModal, setEditEmpModal] = useState({ isOpen: false, id: null, name: '', lp: 'L', kecamatan: '' });
+
   // ================= STATE TUGAS =================
   const [newTask, setNewTask] = useState({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
   const [editModal, setEditModal] = useState({ isOpen: false, type: '', data: {}, oldTaskName: '' });
@@ -44,7 +48,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
   const [editSigModal, setEditSigModal] = useState({ isOpen: false, id: null, jabatan: '', nama: '', nip: '' });
 
   // ================= STATE REKAP KINERJA =================
-  const [rekapPeriod, setRekapPeriod] = useState('all'); // all, 1m, 3m, 6m, 1y
+  const [rekapPeriod, setRekapPeriod] = useState('all');
 
   // FETCH DATA EVENT & RECORDS ABSENSI (REALTIME)
   useEffect(() => {
@@ -113,6 +117,52 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
       </div>
     );
   }
+
+  // ================= CRUD DATA SDM (DATABASE KARYAWAN) =================
+  const handleAddEmployee = async (e) => {
+    e.preventDefault();
+    if(!newEmp.name || !db) return showToast('error');
+    setIsSyncing(true);
+    try {
+      const newId = Date.now().toString();
+      await db.ref(`artifacts/${APP_ID}/public/data/employees/${newId}`).set({
+        id: newId,
+        name: newEmp.name.toUpperCase().trim(),
+        lp: newEmp.lp,
+        kecamatan: newEmp.kecamatan.trim()
+      });
+      showToast('success');
+      setNewEmp({ name: '', lp: 'L', kecamatan: '' });
+    } catch(err) { showToast('error'); }
+    setIsSyncing(false);
+  };
+
+  const handleEditEmployee = async (e) => {
+    e.preventDefault();
+    if(!editEmpModal.name || !db) return showToast('error');
+    setIsSyncing(true);
+    try {
+      await db.ref(`artifacts/${APP_ID}/public/data/employees/${editEmpModal.id}`).update({
+        name: editEmpModal.name.toUpperCase().trim(),
+        lp: editEmpModal.lp,
+        kecamatan: editEmpModal.kecamatan.trim()
+      });
+      showToast('success');
+      setEditEmpModal({ isOpen: false, id: null, name: '', lp: 'L', kecamatan: '' });
+    } catch(err) { showToast('error'); }
+    setIsSyncing(false);
+  };
+
+  const handleDeleteEmployee = async (id) => {
+    if(window.confirm('Yakin ingin menghapus permanen data SDM ini dari Database?')) {
+      setIsSyncing(true);
+      try {
+        await db.ref(`artifacts/${APP_ID}/public/data/employees/${id}`).remove();
+        showToast('success');
+      } catch(err) { showToast('error'); }
+      setIsSyncing(false);
+    }
+  };
 
   // ================= CRUD PENGATURAN TANDA TANGAN =================
   const handleAddSignature = async (e) => {
@@ -206,9 +256,8 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
     let currentNo = 1;
 
     (employees || []).forEach((emp) => {
-      // Format zig-zag murni untuk tanda tangan agar PDF bisa diprint & ditandatangani basah
       let signatureStr = currentNo % 2 !== 0 ? `${currentNo}. ` : `           ${currentNo}. `;
-      const lpStr = emp.lp || emp.gender || emp.jk || ""; // Ambil dinamis dari database jika diedit
+      const lpStr = emp.lp || emp.gender || emp.jk || ""; 
       
       tableRows.push([currentNo, emp.name, lpStr, "SDM PKH", signatureStr]);
       currentNo++;
@@ -291,14 +340,14 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
          if (hasVoted) vts.v++; else vts.x++;
       });
 
-      // Sistem Scoring: Adil dan Tepat
+      // Sistem Scoring
       const score = (abs.h * 10) + ((abs.i + abs.s) * 5) + (tsk.sel * 20) + (tsk.kur * 10) + (vts.v * 5);
       const lpStr = emp.lp || emp.gender || emp.jk || "";
 
       return { name: emp.name, lpStr, abs, tsk, vts, score };
     });
 
-    return stats.sort((a, b) => b.score - a.score); // Ranking Kinerja (Tertinggi ke Terendah)
+    return stats.sort((a, b) => b.score - a.score);
   };
 
   const handleExportRekapPDF = () => {
@@ -343,92 +392,105 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
     doc.save(`Rekap_Kinerja_${periodStr.replace(/\s+/g, '_')}.pdf`);
   };
 
-  // ================= LOGIKA TUGAS (TETAP UTUH) =================
- const handleAddManual = async (e) => {
+  // ================= LOGIKA TUGAS =================
+  const handleAddManual = async (e) => {
     e.preventDefault();
-    
-    // 1. Validasi Input Dasar dengan Alert Spesifik
-    const { taskName, picId, deadline, target, multiTargets } = newTask;
-    if (!taskName || !picId || !deadline) { 
-      alert("⚠️ GAGAL: Harap lengkapi Nama Kegiatan, Tugaskan Ke, dan Tenggat Waktu!");
-      showToast('error'); 
-      return; 
-    }
-
+    if (!newTask.taskName || !newTask.picId || !newTask.deadline) { showToast('error'); return; }
     setIsSyncing(true);
     try {
       const updates = {};
       let addedCount = 0;
       const baseId = Date.now();
       const today = new Date().toISOString().split('T')[0];
-      const cleanTaskName = taskName.trim();
 
-      if (picId === 'all') {
-         // 2. Logika Multi-Target: Loop aman dengan fallback parsing
+      if (newTask.picId === 'all') {
          (employees || []).forEach((emp, idx) => {
-            // Tangkap nilai dari state, pastikan terkonversi ke angka dengan aman (fallback ke 0)
-            const rawTarget = multiTargets[emp.id] || 0;
-            const tgt = parseInt(rawTarget) || 0;
-
+            const tgt = parseInt(newTask.multiTargets[emp.id]);
             if (tgt > 0) {
                const newId = baseId + idx;
-               updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = { 
-                 id: newId, 
-                 taskName: cleanTaskName, 
-                 picId: emp.name, 
-                 target: tgt, 
-                 progress: 0, 
-                 deadline: deadline, 
-                 status: 'On Progress', 
-                 startDate: today 
-               };
+               updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = { id: newId, taskName: newTask.taskName.trim(), picId: emp.name, target: tgt, progress: 0, deadline: newTask.deadline, status: 'On Progress', startDate: today };
                addedCount++;
             }
          });
       } else {
-         // 3. Logika Single-Target: Keamanan tipe data angka
-         const singleTarget = parseInt(target) || 0;
-         
-         if (singleTarget <= 0) {
-             alert("⚠️ GAGAL: Target Angka harus lebih dari 0!");
-             setIsSyncing(false);
-             showToast('error');
-             return;
-         }
-
          const newId = baseId;
-         updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = { 
-           id: newId, 
-           taskName: cleanTaskName, 
-           picId: picId.toUpperCase().trim(), 
-           target: singleTarget, 
-           progress: 0, 
-           deadline: deadline, 
-           status: 'On Progress', 
-           startDate: today 
-         };
+         updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = { id: newId, taskName: newTask.taskName.trim(), picId: newTask.picId.toUpperCase().trim(), target: parseInt(newTask.target), progress: 0, deadline: newTask.deadline, status: 'On Progress', startDate: today };
          addedCount++;
       }
 
-      // 4. Finalisasi Sinkronisasi Database
       if (addedCount > 0) {
-         await db.ref().update(updates); 
-         showToast('success'); 
-         // Reset state agar form bersih kembali
-         setNewTask({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
-      } else { 
-         alert("⚠️ GAGAL: Pastikan minimal ada 1 target angka yang diisi lebih dari 0.");
-         showToast('error'); 
-      }
-    } catch (err) { 
-      console.error("Firebase Sync Error:", err);
-      alert("⚠️ GAGAL: Terjadi kesalahan koneksi database.");
-      showToast('error'); 
-    }
+         await db.ref().update(updates); showToast('success'); setNewTask({ taskName: '', picId: '', target: '', deadline: '', multiTargets: {} });
+      } else { showToast('error'); }
+    } catch (err) { showToast('error'); }
     setIsSyncing(false);
   };
+  const handleExcelUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file || !db) return;
+    setIsSyncing(true);
+    const fileExt = file.name.toLowerCase().split('.').pop();
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+       try {
+         let excelData = [];
+         if (fileExt === 'csv') {
+           const workbook = XLSX.read(event.target.result, { type: 'string' });
+           excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
+         } else {
+           const workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
+           excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
+         }
+
+         const updates = {}; let addedCount = 0; const today = new Date().toISOString().split('T')[0];
+
+         for (let i = 1; i < excelData.length; i++) {
+           const row = excelData[i];
+           if (!row || row.length === 0) continue; 
+           const taskName = String(row[0] || "").trim(); const picIndicator = String(row[1] || "").trim(); const target = parseInt(row[2]);
+           if (!taskName || !picIndicator || isNaN(target)) continue;
+
+           let finalDeadline = new Date().toISOString().split('T')[0];
+           const rawDeadline = row[3];
+           if (rawDeadline) {
+             if (typeof rawDeadline === 'number') {
+               const dateObj = new Date((rawDeadline - (25567 + 2)) * 86400 * 1000);
+               if (!isNaN(dateObj.getTime())) finalDeadline = dateObj.toISOString().split('T')[0];
+             } else {
+               const parts = String(rawDeadline).trim().split(/[-/]/);
+               if (parts.length === 3) finalDeadline = parts[0].length <= 2 ? `${parts[2]}-${parts[1]}-${parts[0]}` : new Date(String(rawDeadline)).toISOString().split('T')[0];
+             }
+           }
+           const newId = Date.now() + Math.floor(Math.random() * 10000) + i;
+           updates[`artifacts/${APP_ID}/public/data/tasks/${newId}`] = { id: newId, taskName: taskName, picId: picIndicator.toUpperCase(), target: target, progress: 0, deadline: finalDeadline, status: 'On Progress', startDate: today };
+           addedCount++;
+         }
+         if (addedCount > 0) { await db.ref().update(updates); showToast('success'); } else { showToast('error'); }
+       } catch (error) { showToast('error'); } finally { setIsSyncing(false); if(fileInputRef.current) fileInputRef.current.value = ''; }
+    };
+    if (fileExt === 'csv') reader.readAsText(file); else reader.readAsArrayBuffer(file);
+  };
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    setIsSyncing(true);
+    try {
+      const updates = {};
+      if (editModal.type === 'group') {
+         (tasks || []).filter(t => t.taskName === editModal.oldTaskName).forEach(t => { updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/taskName`] = editModal.data.taskName.trim(); updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/deadline`] = editModal.data.deadline; });
+      } else {
+         const target = parseInt(editModal.data.target); const progress = parseInt(editModal.data.progress); const isDone = progress >= target; const oldTask = (tasks || []).find(t => t.id === editModal.data.id);
+         updates[`artifacts/${APP_ID}/public/data/tasks/${editModal.data.id}`] = { ...oldTask, taskName: editModal.data.taskName.trim(), picId: editModal.data.picId.toUpperCase().trim(), target: target, progress: progress, deadline: editModal.data.deadline, status: isDone ? 'Selesai' : 'On Progress' };
+      }
+      await db.ref().update(updates); showToast('success'); setEditModal({ isOpen: false, type: '', data: {}, oldTaskName: '' });
+    } catch (err) { showToast('error'); }
+    setIsSyncing(false);
+  };
+  const handleDeleteGroup = async (taskName) => { if (window.confirm(`Hapus kegiatan "${taskName}"?`)) { setIsSyncing(true); const updates = {}; (tasks || []).filter(t => t.taskName === taskName).forEach(t => { updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}`] = null; }); await db.ref().update(updates); showToast('success'); setIsSyncing(false); } };
+  const handleResetGroupProgress = async (taskName) => { if (window.confirm(`Reset progress "${taskName}" ke 0?`)) { setIsSyncing(true); const updates = {}; (tasks || []).filter(t => t.taskName === taskName).forEach(t => { updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/progress`] = 0; updates[`artifacts/${APP_ID}/public/data/tasks/${t.id}/status`] = 'On Progress'; }); await db.ref().update(updates); showToast('success'); setIsSyncing(false); } };
+  const handleResetIndividualProgress = async (id) => { if (window.confirm(`Reset progress pegawai ke 0?`)) { setIsSyncing(true); await db.ref(`artifacts/${APP_ID}/public/data/tasks/${id}`).update({ progress: 0, status: 'On Progress' }); showToast('success'); setIsSyncing(false); } };
+  const handleDeletePerson = async (id) => { if (window.confirm(`Hapus pegawai ini dari tugas?`)) { setIsSyncing(true); await db.ref(`artifacts/${APP_ID}/public/data/tasks/${id}`).remove(); showToast('success'); setIsSyncing(false); } };
   
-  // ================= LOGIKA VOTING (TETAP UTUH) =================
+  // ================= LOGIKA VOTING =================
   const handleCreateVoting = async (e) => {
     e.preventDefault();
     const cleanOptions = (voteOptions || []).map(o => o.trim()).filter(o => o !== '');
@@ -487,7 +549,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
         </button>
       </div>
 
-      {/* NAVIGASI SUB-MENU TAB ADMIN DENGAN TAMBAHAN "REKAP" */}
+      {/* NAVIGASI SUB-MENU TAB ADMIN */}
       <div className="flex bg-white rounded-2xl p-1.5 shadow-soft border border-slate-100 gap-1 overflow-x-auto hide-scrollbar">
         <button onClick={() => setActiveSubTab('tugas')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap outline-none cursor-pointer ${activeSubTab === 'tugas' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
           <i className="fa-solid fa-list-check"></i> Tugas
@@ -498,15 +560,92 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
         <button onClick={() => setActiveSubTab('absensi')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap outline-none cursor-pointer ${activeSubTab === 'absensi' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
           <i className="fa-solid fa-clipboard-user"></i> Absensi
         </button>
+        <button onClick={() => setActiveSubTab('sdm')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap outline-none cursor-pointer ${activeSubTab === 'sdm' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
+          <i className="fa-solid fa-users text-blue-500"></i> Data SDM
+        </button>
         <button onClick={() => setActiveSubTab('rekap')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap outline-none cursor-pointer ${activeSubTab === 'rekap' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
-          <i className="fa-solid fa-chart-line text-emerald-400"></i> Rekap Kinerja
+          <i className="fa-solid fa-chart-line text-emerald-400"></i> Rekap
         </button>
         <button onClick={() => setActiveSubTab('sistem')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap outline-none cursor-pointer ${activeSubTab === 'sistem' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
           <i className="fa-solid fa-gears"></i> DB
         </button>
       </div>
 
-      {/* ==================== SUB-MENU BARU: REKAP KINERJA & RANKING ==================== */}
+      {/* ==================== SUB-MENU BARU: DATABASE SDM PKH ==================== */}
+      {activeSubTab === 'sdm' && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
+            <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
+              <i className="fa-solid fa-user-plus text-status-selesai"></i>
+              <span className="font-black text-midnight text-sm uppercase tracking-wider">Tambah Data SDM Baru</span>
+            </div>
+            <div className="p-5">
+              <form onSubmit={handleAddEmployee} className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Lengkap</label>
+                  <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:ring-1 focus:ring-midnight shadow-inner" value={newEmp.name} onChange={e => setNewEmp({...newEmp, name: e.target.value})} placeholder="Ketik Nama" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">L/P (Gender)</label>
+                  <select required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none cursor-pointer shadow-inner" value={newEmp.lp} onChange={e => setNewEmp({...newEmp, lp: e.target.value})}>
+                    <option value="L">L (Laki-laki)</option>
+                    <option value="P">P (Perempuan)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Kecamatan</label>
+                  <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:ring-1 focus:ring-midnight shadow-inner" value={newEmp.kecamatan} onChange={e => setNewEmp({...newEmp, kecamatan: e.target.value})} placeholder="Asal Kecamatan" />
+                </div>
+                <div className="md:col-span-3 mt-1">
+                   <button type="submit" disabled={isSyncing} className="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 font-black py-3 rounded-xl active:scale-95 transition-all outline-none cursor-pointer flex justify-center items-center gap-2 shadow-sm">
+                      {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...</> : <><i className="fa-solid fa-plus"></i> Simpan Data SDM</>}
+                   </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
+            <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
+              <i className="fa-solid fa-users text-status-proses"></i>
+              <span className="font-black text-midnight text-sm uppercase tracking-wider">Database SDM Terdaftar ({(employees || []).length})</span>
+            </div>
+            <div className="p-0 overflow-x-auto">
+              <table className="w-full text-left text-xs whitespace-nowrap">
+                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-black">
+                   <tr>
+                     <th className="px-4 py-4 text-center">No</th>
+                     <th className="px-4 py-4">Nama SDM</th>
+                     <th className="px-4 py-4 text-center">L/P</th>
+                     <th className="px-4 py-4">Kecamatan</th>
+                     <th className="px-4 py-4 text-center">Aksi</th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-slate-100">
+                   {(!employees || employees.length === 0) ? (
+                      <tr><td colSpan="5" className="text-center py-6 font-bold text-slate-400">Database SDM Kosong</td></tr>
+                   ) : (
+                      employees.map((emp, index) => (
+                        <tr key={emp.id || index} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3 text-center font-bold text-slate-400">{index + 1}</td>
+                          <td className="px-4 py-3 font-bold text-midnight">{emp.name}</td>
+                          <td className="px-4 py-3 text-center font-bold text-slate-500">{emp.lp || emp.gender || '-'}</td>
+                          <td className="px-4 py-3 font-bold text-slate-500">{emp.kecamatan || '-'}</td>
+                          <td className="px-4 py-3 text-center flex justify-center gap-1.5">
+                            <button onClick={() => setEditEmpModal({ isOpen: true, id: emp.id, name: emp.name, lp: emp.lp || emp.gender || 'L', kecamatan: emp.kecamatan || '' })} className="bg-white text-status-selesai border border-slate-200 w-8 h-8 rounded-xl flex justify-center items-center hover:bg-blue-50 outline-none cursor-pointer shrink-0"><i className="fa-solid fa-pen text-[10px]"></i></button>
+                            <button onClick={() => handleDeleteEmployee(emp.id)} className="bg-white text-red-500 border border-red-200 w-8 h-8 rounded-xl flex justify-center items-center hover:bg-red-50 outline-none cursor-pointer shrink-0"><i className="fa-solid fa-trash text-[10px]"></i></button>
+                          </td>
+                        </tr>
+                      ))
+                   )}
+                 </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== SUB-MENU REKAP KINERJA & RANKING ==================== */}
       {activeSubTab === 'rekap' && (
         <div className="space-y-6 animate-fade-in">
           <div className="bg-gradient-to-br from-emerald-600 to-teal-800 rounded-3xl shadow-soft p-5 text-white relative overflow-hidden">
@@ -581,7 +720,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
         </div>
       )}
 
-      {/* ==================== SUB-MENU 1: TUGAS ==================== */}
+      {/* ==================== SUB-MENU TUGAS ==================== */}
       {activeSubTab === 'tugas' && (
         <div className="space-y-6 animate-fade-in">
           <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
@@ -692,7 +831,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
         </div>
       )}
 
-      {/* ==================== SUB-MENU 2: VOTING ==================== */}
+      {/* ==================== SUB-MENU VOTING ==================== */}
       {activeSubTab === 'voting' && (
         <div className="space-y-6 animate-fade-in">
            <div className="bg-gradient-to-br from-indigo-600 to-blue-800 rounded-3xl shadow-soft p-5 text-white relative overflow-hidden">
@@ -752,7 +891,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
         </div>
       )}
 
-      {/* ==================== SUB-MENU 3: ABSENSI (FULL CRUD & PDF F4) ==================== */}
+      {/* ==================== SUB-MENU ABSENSI (FULL CRUD & PDF F4) ==================== */}
       {activeSubTab === 'absensi' && (
         <div className="space-y-6 animate-fade-in">
           
@@ -909,6 +1048,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
                  <div className="flex justify-between"><span>Total Event Voting:</span><span className="text-midnight font-black">{votings ? votings.length : 0} Topik</span></div>
                  <div className="flex justify-between"><span>Total Event Absensi:</span><span className="text-midnight font-black">{attendanceEvents?.length || 0} Event</span></div>
                  <div className="flex justify-between"><span>Total Pejabat TTD:</span><span className="text-midnight font-black">{signatures?.length || 0} Pejabat</span></div>
+                 <div className="flex justify-between"><span>Total SDM Terdaftar:</span><span className="text-midnight font-black">{(employees || []).length} Orang</span></div>
                </div>
                <div className="border-t border-slate-100 pt-4">
                  <p className="text-[11px] font-bold text-red-500 mb-3"><i className="fa-solid fa-triangle-exclamation mr-1"></i> Perhatian: Tindakan ini akan menghapus seluruh data tugas, voting, dan absensi secara permanen.</p>
@@ -917,6 +1057,38 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
                  </button>
                </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== MODAL EDIT DATA SDM ==================== */}
+      {editEmpModal.isOpen && (
+        <div className="fixed inset-0 z-[9999] bg-midnight/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-slide-up">
+             <div className="bg-gradient-to-r from-midnight to-midnight-light p-4 px-5 flex justify-between items-center text-white">
+                <h3 className="font-black text-sm uppercase tracking-wider"><i className="fa-solid fa-pen-to-square mr-2 text-status-selesai"></i> Edit Data SDM</h3>
+                <button type="button" onClick={() => setEditEmpModal({isOpen: false, id:null, name:'', lp:'L', kecamatan:''})} className="opacity-70 hover:opacity-100 outline-none cursor-pointer"><i className="fa-solid fa-xmark text-xl"></i></button>
+             </div>
+             <div className="p-6">
+                <form onSubmit={handleEditEmployee} className="space-y-4">
+                   <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Lengkap</label>
+                      <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:ring-1 focus:ring-midnight" value={editEmpModal.name} onChange={e => setEditEmpModal({...editEmpModal, name: e.target.value})} />
+                   </div>
+                   <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">L/P (Gender)</label>
+                      <select required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none cursor-pointer focus:ring-1 focus:ring-midnight" value={editEmpModal.lp} onChange={e => setEditEmpModal({...editEmpModal, lp: e.target.value})}>
+                        <option value="L">L (Laki-laki)</option>
+                        <option value="P">P (Perempuan)</option>
+                      </select>
+                   </div>
+                   <div>
+                      <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Kecamatan</label>
+                      <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:ring-1 focus:ring-midnight" value={editEmpModal.kecamatan} onChange={e => setEditEmpModal({...editEmpModal, kecamatan: e.target.value})} />
+                   </div>
+                   <div className="pt-2"><button type="submit" disabled={isSyncing} className="w-full bg-status-selesai text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none flex justify-center items-center gap-2 cursor-pointer">{isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...</> : <><i className="fa-solid fa-floppy-disk"></i> Simpan Perubahan</>}</button></div>
+                </form>
+             </div>
           </div>
         </div>
       )}
