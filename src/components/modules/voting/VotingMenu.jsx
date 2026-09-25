@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatDateId, encodeSafeKey } from '../../../utils/formatters';
 import { APP_ID } from '../../../config/firebase';
 import LiveCountdown from '../../common/LiveCountdown';
@@ -20,7 +20,29 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
     setTimeout(() => setToast(null), 3000);
   };
 
-  // FITUR BARU: SHARE LINK MENGGUNAKAN JUDUL VOTE
+  // FITUR BARU 1: BACA URL DAN ARAHKAN OTOMATIS KE VOTE
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const voteParam = urlParams.get('vote');
+    
+    // Jika ada link spesifik dan belum ada vote yang dipilih, langsung buka
+    if (voteParam && !selectedVoteId && votings.length > 0) {
+      const targetVote = votings.find(v => v.title === voteParam);
+      if (targetVote) {
+        setSelectedVoteId(targetVote.id);
+      }
+    }
+  }, [votings, selectedVoteId, setSelectedVoteId]);
+
+  // FITUR BARU 2: BERSIHKAN URL SAAT KEMBALI AGAR TIDAK LOOP
+  const handleBack = () => {
+    setSelectedVoteId(null);
+    // Hapus parameter ?vote dari URL tanpa me-refresh halaman
+    const url = new URL(window.location);
+    url.searchParams.delete('vote');
+    window.history.pushState({}, '', url);
+  };
+
   const handleShareVote = (e, v) => {
     if(e) e.stopPropagation();
     const url = `${window.location.origin}${window.location.pathname}?vote=${encodeURIComponent(v.title)}`;
@@ -193,7 +215,7 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
 
       {/* HEADER NAVIGASI & TOMBOL SHARE ADMIN */}
       <div className="flex flex-wrap gap-2 justify-between items-center mb-2">
-        <button type="button" onClick={() => setSelectedVoteId(null)} className="bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-4 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 transition-colors outline-none cursor-pointer">
+        <button type="button" onClick={handleBack} className="bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-4 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 transition-colors outline-none cursor-pointer">
           <i className="fa-solid fa-arrow-left-long text-status-selesai"></i> Kembali
         </button>
 
