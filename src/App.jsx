@@ -15,7 +15,9 @@ import LivePreviewView from './components/modules/preview/LivePreviewView';
 export default function App() {
   const urlParams = new URLSearchParams(window.location.search);
   const previewParam = urlParams.get('preview');
-  const voteParam = urlParams.get('vote'); // MENAMBAHKAN PENDETEKSI LINK VOTE
+  const voteParam = urlParams.get('vote'); 
+  const absenParam = urlParams.get('absen'); // MENDETEKSI LINK ABSEN
+  const kegiatanParam = urlParams.get('kegiatan'); // MENDETEKSI LINK KEGIATAN SPESIFIK
 
   // PERBAIKAN: Berikan fallback = [] pada semua data array agar tidak "undefined" dan menyebabkan error 'length'
   const { 
@@ -29,9 +31,13 @@ export default function App() {
     globalError 
   } = useRealtimeData();
 
-  // OTOMATIS BUKA MENU VOTING JIKA ADA LINK VOTE, JIKA TIDAK BUKA DASHBOARD
-  const [activeTab, setActiveTab] = useState(voteParam ? 'voting' : 'dashboard');
-  const [selectedTaskName, setSelectedTaskName] = useState(null);
+  // OTOMATIS BUKA MENU YANG SESUAI DENGAN LINK (PRIORITAS URL PARAMETER)
+  const [activeTab, setActiveTab] = useState(
+    voteParam ? 'voting' : absenParam ? 'absensi' : kegiatanParam ? 'kegiatan' : 'dashboard'
+  );
+  
+  // OTOMATIS BUKA DETAIL KEGIATAN JIKA LINK MEMBAWA PARAMETER KEGIATAN
+  const [selectedTaskName, setSelectedTaskName] = useState(kegiatanParam || null);
   const [selectedVoteId, setSelectedVoteId] = useState(null);
   const [isAdminLogged, setIsAdminLogged] = useState(() => sessionStorage.getItem('adminAuth') === 'true');
 
@@ -141,10 +147,15 @@ export default function App() {
         onTabChange={() => { 
           setSelectedTaskName(null); 
           setSelectedVoteId(null); 
-          // BERSIHKAN URL AGAR TIDAK MENGUNCI SAAT PINDAH MENU
+          // BERSIHKAN SEMUA URL AGAR TIDAK MENGUNCI SAAT PINDAH MENU
           const url = new URL(window.location);
-          if (url.searchParams.has('vote')) {
-            url.searchParams.delete('vote');
+          let urlChanged = false;
+          
+          if (url.searchParams.has('vote')) { url.searchParams.delete('vote'); urlChanged = true; }
+          if (url.searchParams.has('absen')) { url.searchParams.delete('absen'); urlChanged = true; }
+          if (url.searchParams.has('kegiatan')) { url.searchParams.delete('kegiatan'); urlChanged = true; }
+          
+          if (urlChanged) {
             window.history.pushState({}, '', url);
           }
         }} 
