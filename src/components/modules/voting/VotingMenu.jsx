@@ -4,15 +4,14 @@ import { APP_ID } from '../../../config/firebase';
 import LiveCountdown from '../../common/LiveCountdown';
 
 const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelectedVoteId }) => {
-  const [activeTab, setActiveTab] = useState('statistik'); 
+  // PERUBAHAN 1: State awal langsung diarahkan ke tab 'beri_suara'
+  const [activeTab, setActiveTab] = useState('beri_suara'); 
   const [voteEmp, setVoteEmp] = useState('');
   const [selectedOptions, setSelectedOptions] = useState([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [toast, setToast] = useState(null);
 
   const activeVote = (votings || []).find(v => String(v.id) === String(selectedVoteId));
-  
-  // Deteksi status admin dari sesi yang aktif
   const isAdminLogged = sessionStorage.getItem('adminAuth') === 'true'; 
 
   const showToast = (type) => {
@@ -20,27 +19,30 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
     setTimeout(() => setToast(null), 3000);
   };
 
-  // FITUR BARU 1: BACA URL DAN ARAHKAN OTOMATIS KE VOTE
+  // SISTEM PEMBACA LINK OTOMATIS
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const voteParam = urlParams.get('vote');
     
-    // Jika ada link spesifik dan belum ada vote yang dipilih, langsung buka
+    // Jika ada link vote di URL, cari database dan langsung buka tanpa harus klik
     if (voteParam && !selectedVoteId && votings.length > 0) {
       const targetVote = votings.find(v => v.title === voteParam);
       if (targetVote) {
         setSelectedVoteId(targetVote.id);
+        // PERUBAHAN 2: Pastikan saat link terbuka, langsung melompat ke tab Vote!
+        setActiveTab('beri_suara');
       }
     }
   }, [votings, selectedVoteId, setSelectedVoteId]);
 
-  // FITUR BARU 2: BERSIHKAN URL SAAT KEMBALI AGAR TIDAK LOOP
+  // SISTEM PEMBERSIH URL SAAT MENEKAN TOMBOL KEMBALI
   const handleBack = () => {
     setSelectedVoteId(null);
-    // Hapus parameter ?vote dari URL tanpa me-refresh halaman
     const url = new URL(window.location);
-    url.searchParams.delete('vote');
-    window.history.pushState({}, '', url);
+    if (url.searchParams.has('vote')) {
+      url.searchParams.delete('vote');
+      window.history.pushState({}, '', url);
+    }
   };
 
   const handleShareVote = (e, v) => {
@@ -92,6 +94,7 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
         options: selectedOptions
       });
       showToast('success');
+      // Setelah sukses vote, sistem akan otomatis memindahkan ke tab Statistik agar bisa melihat hasil
       setVoteEmp(''); setSelectedOptions([]); setActiveTab('statistik');
     } catch (err) { showToast('error'); }
     setIsSyncing(false);
@@ -127,7 +130,8 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
 
             return (
               <div key={v.id} className="bg-white rounded-3xl shadow-soft border border-slate-100 relative overflow-hidden transition-all duration-300 hover:shadow-md hover:border-blue-300 group">
-                <button type="button" onClick={() => setSelectedVoteId(v.id)} className="w-full p-5 text-left outline-none cursor-pointer">
+                {/* PERUBAHAN 3: Pastikan saat kartu diklik, buka tab 'beri_suara' */}
+                <button type="button" onClick={() => { setSelectedVoteId(v.id); setActiveTab('beri_suara'); }} className="w-full p-5 text-left outline-none cursor-pointer">
                   <div className="flex items-start justify-between mb-3 gap-2">
                     <h5 className="font-black text-midnight text-lg w-3/4 group-hover:text-status-selesai transition-colors">{v.title}</h5>
                     <div className="flex flex-col items-end gap-1">
@@ -152,7 +156,6 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
                   </div>
                 </button>
 
-                {/* TOMBOL SHARE LINK KHUSUS ADMIN DI LUAR KARTU */}
                 {isAdminLogged && (
                   <div className="px-5 pb-5 pt-0">
                     <button 
@@ -160,7 +163,7 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
                       onClick={(e) => handleShareVote(e, v)}
                       className="w-full bg-blue-50 text-status-selesai border border-blue-200 font-black py-2.5 rounded-xl text-[10px] sm:text-xs hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 outline-none cursor-pointer shadow-sm"
                     >
-                      <i className="fa-solid fa-share-nodes"></i> Salin Link ({v.title})
+                      <i className="fa-solid fa-share-nodes"></i> Salin Link Akses Langsung
                     </button>
                   </div>
                 )}
@@ -172,14 +175,12 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
     );
   }
 
-  // --- PEMROSESAN DATA VOTING (SIMETRIS) ---
   const votesObj = activeVote.votes || {};
   const votesArray = Object.values(votesObj);
   const sudahVoteNames = votesArray.map(v => v.name).sort((a,b) => a.localeCompare(b));
   const voters = activeVote.voters || [];
   const belumVoteNames = voters.filter(v => !sudahVoteNames.includes(v)).sort((a,b) => a.localeCompare(b));
 
-  // Menampung siapa saja yang vote di masing-masing opsi
   const optionData = {};
   activeVote.options.forEach(o => {
     optionData[o] = { count: 0, voters: [] };
@@ -198,7 +199,6 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
      }
   });
 
-  // Urutkan opsi berdasarkan suara terbanyak
   const sortedOptions = activeVote.options.sort((a, b) => optionData[b].count - optionData[a].count);
   const isExpired = activeVote.deadline && new Date().getTime() > new Date(`${activeVote.deadline}T23:59:59`).getTime();
 
@@ -213,7 +213,7 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
         </div>
       )}
 
-      {/* HEADER NAVIGASI & TOMBOL SHARE ADMIN */}
+      {/* HEADER NAVIGASI DENGAN FUNGSI PEMBERSIH URL */}
       <div className="flex flex-wrap gap-2 justify-between items-center mb-2">
         <button type="button" onClick={handleBack} className="bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-4 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 transition-colors outline-none cursor-pointer">
           <i className="fa-solid fa-arrow-left-long text-status-selesai"></i> Kembali
@@ -260,12 +260,11 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
                 const count = optionData[opt].count;
                 const votersList = optionData[opt].voters;
                 const pct = totalSuaraMasuk === 0 ? 0 : Math.round((count / totalSuaraMasuk) * 100);
-                const isWinner = i === 0 && count > 0; // Opsi pertama adalah yang terbanyak (karena sudah di-sort)
+                const isWinner = i === 0 && count > 0;
 
                 return (
                   <div key={i} className={`relative p-4 rounded-2xl border transition-all duration-300 hover:shadow-md ${isWinner ? 'bg-blue-50/50 border-blue-200' : 'bg-slate-50 border-slate-100'}`}>
                      
-                     {/* BAGIAN ATAS: JUDUL OPSI & PERSENTASE */}
                      <div className="flex justify-between items-end mb-3 gap-4">
                         <div className="flex-1">
                           <h5 className={`font-black text-base sm:text-lg leading-tight mb-1 ${isWinner ? 'text-status-selesai' : 'text-midnight'}`}>
@@ -283,7 +282,6 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
                         </div>
                      </div>
 
-                     {/* BAR PROGRESS */}
                      <div className="w-full bg-slate-200 rounded-full h-2.5 mb-4 overflow-hidden shadow-inner">
                         <div 
                           className={`${isWinner ? 'bg-gradient-to-r from-blue-500 to-status-selesai' : 'bg-slate-400'} h-2.5 rounded-full transition-all duration-1000 ease-out`} 
@@ -291,7 +289,6 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
                         ></div>
                      </div>
 
-                     {/* DAFTAR PEMILIH (SIMETRIS & RAPI) */}
                      {votersList.length > 0 && (
                        <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
                          <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
@@ -313,7 +310,6 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
         </div>
       )}
 
-      {/* --- TAB SUDAH VOTE (RINCIAN MASUK) --- */}
       {activeTab === 'sudah' && (
         <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 sm:p-6 space-y-4 animate-fade-in">
            <h4 className="font-black text-midnight text-sm uppercase tracking-wider border-b border-slate-100 pb-3 flex items-center gap-2">
