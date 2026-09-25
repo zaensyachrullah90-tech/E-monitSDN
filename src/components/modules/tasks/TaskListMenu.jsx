@@ -5,15 +5,14 @@ import { exportGroupToExcel } from '../../../utils/excel';
 
 // 1. KOMPONEN GROUPED TASK CARD
 export const GroupedTaskCard = memo(({ group, onClick }) => {
-  // Pengaman data assignees agar tidak undefined
-  const assignees = group?.assignees || [];
+  // PROTEKSI: Padukan assignees atau items
+  const assignees = group?.assignees || group?.items || [];
 
   const percent = group?.target > 0 
     ? Math.min(Math.round(((group?.progress || 0) / group.target) * 100), 100) 
     : 0;
   const isDone = percent >= 100 || String(group?.status).toLowerCase() === 'selesai';
   
-  // Hitung apakah deadline mendesak (<= 2 hari & belum selesai)
   const targetDate = group?.deadline ? new Date(`${group.deadline}T23:59:59`).getTime() : 0;
   const now = new Date().getTime();
   const diffDays = group?.deadline ? Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24)) : 99;
@@ -37,7 +36,6 @@ export const GroupedTaskCard = memo(({ group, onClick }) => {
       }`} 
       onClick={() => onClick(group?.taskName)}
     >
-      {/* BADGE ANIMASI MENDESAK */}
       {isUrgent && (
         <div className="bg-red-600 text-white text-[9px] font-black uppercase tracking-wider px-3 py-1 rounded-bl-2xl absolute top-0 right-0 flex items-center gap-1.5 shadow-md z-10">
           <span className="w-2 h-2 rounded-full bg-white animate-ping"></span>
@@ -134,7 +132,8 @@ const TaskListMenu = ({ groupedTasks = [], selectedTaskName, setSelectedTaskName
   };
 
   if (activeGroup) {
-    const assignees = activeGroup.assignees || [];
+    // PROTEKSI UTAMA
+    const assignees = activeGroup.assignees || activeGroup.items || [];
     const totalPelaksana = assignees.length;
     const selesaiCount = assignees.filter(a => Number(a.progress || 0) >= Number(a.target || 0)).length;
     const belumCount = totalPelaksana - selesaiCount;
