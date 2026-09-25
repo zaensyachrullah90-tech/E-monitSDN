@@ -15,6 +15,7 @@ import LivePreviewView from './components/modules/preview/LivePreviewView';
 export default function App() {
   const urlParams = new URLSearchParams(window.location.search);
   const previewParam = urlParams.get('preview');
+  const voteParam = urlParams.get('vote'); // MENAMBAHKAN PENDETEKSI LINK VOTE
 
   // PERBAIKAN: Berikan fallback = [] pada semua data array agar tidak "undefined" dan menyebabkan error 'length'
   const { 
@@ -28,7 +29,8 @@ export default function App() {
     globalError 
   } = useRealtimeData();
 
-  const [activeTab, setActiveTab] = useState('dashboard');
+  // OTOMATIS BUKA MENU VOTING JIKA ADA LINK VOTE, JIKA TIDAK BUKA DASHBOARD
+  const [activeTab, setActiveTab] = useState(voteParam ? 'voting' : 'dashboard');
   const [selectedTaskName, setSelectedTaskName] = useState(null);
   const [selectedVoteId, setSelectedVoteId] = useState(null);
   const [isAdminLogged, setIsAdminLogged] = useState(() => sessionStorage.getItem('adminAuth') === 'true');
@@ -139,6 +141,12 @@ export default function App() {
         onTabChange={() => { 
           setSelectedTaskName(null); 
           setSelectedVoteId(null); 
+          // BERSIHKAN URL AGAR TIDAK MENGUNCI SAAT PINDAH MENU
+          const url = new URL(window.location);
+          if (url.searchParams.has('vote')) {
+            url.searchParams.delete('vote');
+            window.history.pushState({}, '', url);
+          }
         }} 
       />
     </div>
