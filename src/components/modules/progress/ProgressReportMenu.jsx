@@ -1,18 +1,29 @@
 import React, { useState } from 'react';
 import { APP_ID } from '../../../config/firebase';
 
-const ProgressReportMenu = ({ tasks, employees, db }) => {
+const ProgressReportMenu = ({ tasks = [], employees = [], db }) => {
   const [selectedEmp, setSelectedEmp] = useState('');
   const [selectedTask, setSelectedTask] = useState('');
   const [amount, setAmount] = useState('');
   const [toast, setToast] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // PROTEKSI UTAMA: Mengabaikan huruf besar/kecil & spasi agar tidak meleset saat mencari tugas
+  // PROTEKSI SUPER KETAT: Abaikan spasi ekstra dan huruf besar/kecil dari Admin
   const availableTasks = (tasks || []).filter(t => {
-    const matchPic = String(t.picId || '').trim().toUpperCase() === String(selectedEmp || '').trim().toUpperCase();
-    const matchStatus = String(t.status || '').toLowerCase() !== 'selesai'; // Ambil semua yang belum selesai
-    return matchPic && matchStatus;
+    const dbPicId = String(t.picId || '').replace(/\s+/g, '').toUpperCase();
+    const inputEmp = String(selectedEmp || '').replace(/\s+/g, '').toUpperCase();
+    
+    // Pastikan nama cocok
+    const matchPic = (dbPicId === inputEmp) && (inputEmp !== '');
+    
+    const targetInt = parseInt(t.target) || 0;
+    const progressInt = parseInt(t.progress) || 0;
+    const dbStatus = String(t.status || '').trim().toLowerCase();
+    
+    // Tugas dianggap aktif jika status belum selesai ATAU progress masih kurang dari target
+    const isNotDone = dbStatus !== 'selesai' && progressInt < targetInt; 
+    
+    return matchPic && isNotDone;
   });
 
   const showToast = (type) => {
@@ -33,8 +44,8 @@ const ProgressReportMenu = ({ tasks, employees, db }) => {
       if (!task) { showToast('error'); setIsSyncing(false); return; }
 
       const amountInt = parseInt(amount);
-      const newProgress = Math.min((task.progress || 0) + amountInt, (task.target || 1));
-      const isDone = newProgress >= (task.target || 1);
+      const newProgress = Math.min((parseInt(task.progress) || 0) + amountInt, (parseInt(task.target) || 1));
+      const isDone = newProgress >= (parseInt(task.target) || 1);
       const today = new Date().toISOString().split('T')[0];
 
       const currentDaily = (task.daily && task.daily[today]) ? parseInt(task.daily[today]) : 0;
@@ -52,6 +63,7 @@ const ProgressReportMenu = ({ tasks, employees, db }) => {
       await db.ref(`artifacts/${APP_ID}/public/data/tasks/${task.id}`).update(updates);
 
       setAmount('');
+      setSelectedTask('');
       showToast('success');
     } catch (err) { showToast('error'); }
     setIsSyncing(false);
@@ -90,8 +102,15 @@ const ProgressReportMenu = ({ tasks, employees, db }) => {
             <div className="animate-slide-up">
               <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-list-check text-slate-400 mr-2"></i>Pilih Pekerjaan Aktif</label>
               <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight outline-none cursor-pointer" value={selectedTask} onChange={(e) => setSelectedTask(e.target.value)}>
-                <option value="">-- Pilih Pekerjaan --</option>
-                {availableTasks.map(t => <option key={t.id} value={t.id}>{t.taskName} (Sisa target: {(t.target || 0) - (t.progress || 0)})</option>)}
+                {/* Fallback Indikator Visual Jika Tugas Kosong */}
+                {availableTasks.length === 0 ? (
+                  <option value="">Tidak ada tugas aktif untuk Anda</option>
+                ) : (
+                  <>
+                    <option value="">-- Pilih Pekerjaan --</option>
+                    {availableTasks.map(t => <option key={t.id} value={t.id}>{t.taskName} (Sisa target: {(t.target || 0) - (t.progress || 0)})</option>)}
+                  </>
+                )}
               </select>
             </div>
           )}
@@ -99,12 +118,12 @@ const ProgressReportMenu = ({ tasks, employees, db }) => {
           {selectedTask && (
             <div className="animate-slide-up">
               <label className="block text-xs font-black text-midnight mb-2 uppercase tracking-wider"><i className="fa-solid fa-arrow-up-9-1 text-slate-400 mr-2"></i>Jumlah Diselesaikan Hari Ini</label>
-              <input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-3xl text-center font-black text-status-selesai outline-none placeholder:text-slate-300" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
+              <input type="number" min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-3xl text-center font-black text-status-selesai outline-none placeholder:text-slate-300" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
             </div>
           )}
           
-          <button type="submit" disabled={isSyncing} className="w-full bg-gradient-to-r from-midnight to-midnight-light text-white font-bold py-4 rounded-xl shadow-glossy hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-2 mt-2 outline-none cursor-pointer">
-            {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin text-white"></i> Memproses...</> : <><i className="fa-solid fa-paper-plane text-status-selesai"></i> Kirim Laporan</>}
+          <button type="submit" disabled={isSyncing || !selectedTask} className={`w-full text-white font-bold py-4 rounded-xl shadow-glossy transition-all flex justify-center items-center gap-2 mt-2 outline-none cursor-pointer ${(!selectedTask || isSyncing) ? 'bg-slate-400 cursor-not-allowed opacity-70' : 'bg-gradient-to-r from-midnight to-midnight-light hover:opacity-90 active:scale-95'}`}>
+            {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin text-white"></i> Memproses...</> : <><i className="fa-solid fa-paper-plane"></i> Kirim Laporan</>}
           </button>
         </form>
       </div>
