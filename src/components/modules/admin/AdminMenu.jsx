@@ -7,11 +7,13 @@ import { ADMIN_PASSWORD_HASH } from '../../../config/constants';
 import { downloadExcelTemplate } from '../../../utils/excel';
 import { formatDateId } from '../../../utils/formatters';
 
-const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged, setIsAdminLogged }) => {
+const AdminMenu = ({ db, tasks = [], groupedTasks = [], employees = [], votings = [], isAdminLogged, setIsAdminLogged }) => {
   const [pwd, setPwd] = useState('');
   const [toast, setToast] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const fileInputRef = useRef(null);
+  
+  const fileInputRef = useRef(null); // Ref untuk Upload Excel Tugas
+  const sdmFileInputRef = useRef(null); // Ref untuk Upload Excel SDM
 
   // TAB MENU ADMIN UTAMA
   const [activeSubTab, setActiveSubTab] = useState('tugas'); 
@@ -118,7 +120,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
     );
   }
 
-  // ================= LOGIKA TUGAS (DI PERBAIKI TOTAL AGAR 100% SYNC FIREBASE) =================
+  // ================= LOGIKA TUGAS (SYNC FIREBASE) =================
   const handleAddManual = async (e) => {
     e.preventDefault();
     if (!newTask.taskName || !newTask.picId || !newTask.deadline) { showToast('error'); return; }
@@ -162,8 +164,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
          showToast('error'); 
       }
     } catch (err) { 
-      console.error(err);
-      showToast('error'); 
+      console.error(err); showToast('error'); 
     }
     setIsSyncing(false);
   };
@@ -215,11 +216,9 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
          }
          
          if (addedCount > 0) { 
-           await Promise.all(promises);
-           showToast('success'); 
+           await Promise.all(promises); showToast('success'); 
          } else { 
-           alert("GAGAL: File Excel kosong atau format tidak sesuai.");
-           showToast('error'); 
+           alert("GAGAL: File Excel kosong atau format tidak sesuai."); showToast('error'); 
          }
        } catch (error) { showToast('error'); } 
        finally { setIsSyncing(false); if(fileInputRef.current) fileInputRef.current.value = ''; }
@@ -290,7 +289,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
     } 
   };
 
-  // ================= CRUD DATA SDM =================
+  // ================= CRUD DATA SDM & UPLOAD EXCEL =================
   const handleAddEmployee = async (e) => {
     e.preventDefault();
     if(!newEmp.name || !db) return showToast('error');
@@ -307,6 +306,63 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
       setNewEmp({ name: '', lp: 'L', kecamatan: '' });
     } catch(err) { showToast('error'); }
     setIsSyncing(false);
+  };
+
+  // ALGORITMA BARU: UPLOAD EXCEL DATABASE SDM
+  const handleExcelUploadSDM = (e) => {
+    const file = e.target.files[0];
+    if (!file || !db) return;
+    setIsSyncing(true);
+    const fileExt = file.name.toLowerCase().split('.').pop();
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+       try {
+         let excelData = [];
+         if (fileExt === 'csv') {
+           const workbook = XLSX.read(event.target.result, { type: 'string' });
+           excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
+         } else {
+           const workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
+           excelData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1, defval: "" });
+         }
+
+         const promises = [];
+         let addedCount = 0; 
+
+         for (let i = 1; i < excelData.length; i++) {
+           const row = excelData[i];
+           if (!row || row.length === 0) continue; 
+           
+           // Format Kolom: A (Nama), B (L/P), C (Kecamatan)
+           const nama = String(row[0] || "").toUpperCase().trim();
+           const lp = String(row[1] || "L").toUpperCase().trim();
+           const kecamatan = String(row[2] || "").trim();
+           
+           if (!nama) continue; // Nama wajib ada
+
+           const finalLp = (lp === 'P' || lp === 'PEREMPUAN') ? 'P' : 'L';
+           const newId = String(Date.now() + Math.floor(Math.random() * 10000) + i);
+           
+           promises.push(db.ref(`artifacts/${APP_ID}/public/data/employees/${newId}`).set({ 
+             id: newId, 
+             name: nama, 
+             lp: finalLp, 
+             kecamatan: kecamatan 
+           }));
+           addedCount++;
+         }
+         
+         if (addedCount > 0) { 
+           await Promise.all(promises); 
+           showToast('success'); 
+         } else { 
+           alert("GAGAL: File Excel kosong atau format tidak sesuai (Isi Nama di Kolom A)."); showToast('error'); 
+         }
+       } catch (error) { console.error(error); showToast('error'); } 
+       finally { setIsSyncing(false); if(sdmFileInputRef.current) sdmFileInputRef.current.value = ''; }
+    };
+    if (fileExt === 'csv') reader.readAsText(file); else reader.readAsArrayBuffer(file);
   };
 
   const handleEditEmployee = async (e) => {
@@ -344,8 +400,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
       const id = Date.now();
       await db.ref(`artifacts/${APP_ID}/public/data/settings/signatures/${id}`).set({ id, ...newSig });
       if (!activeSigId) await db.ref(`artifacts/${APP_ID}/public/data/settings/activeSignatureId`).set(id);
-      showToast('success');
-      setNewSig({ jabatan: '', nama: '', nip: '' });
+      showToast('success'); setNewSig({ jabatan: '', nama: '', nip: '' });
     } catch (err) { showToast('error'); }
     setIsSyncing(false);
   };
@@ -463,7 +518,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
     doc.save(`Daftar_Hadir_${event.title.replace(/\s+/g, '_')}.pdf`);
   };
 
-  // ================= ALGORITMA REKAPITULASI KINERJA =================
+  // ================= ALGORITMA REKAPITULASI KINERJA (SUDAH DI-BULLETPROOF) =================
   const getRekapData = () => {
     let startDate = new Date(0);
     const now = new Date();
@@ -473,9 +528,10 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
     else if (rekapPeriod === '6m') startDate = new Date(now.setMonth(now.getMonth() - 6));
     else if (rekapPeriod === '1y') startDate = new Date(now.setFullYear(now.getFullYear() - 1));
 
+    // PROTEKSI UNDEFINED: Gunakan fallback (array || []) untuk setiap manipulasi data
     const validEvents = (attendanceEvents || []).filter(e => new Date(e.date) >= startDate);
     const validTasks = (tasks || []).filter(t => new Date(t.deadline || t.startDate) >= startDate);
-    const validVotes = votings ? votings.filter(v => new Date(v.createdAt) >= startDate) : [];
+    const validVotes = (votings || []).filter(v => new Date(v.createdAt) >= startDate);
 
     const stats = (employees || []).map(emp => {
       let abs = { h: 0, i: 0, s: 0, a: 0 };
@@ -496,7 +552,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
       });
 
       validTasks.forEach(t => {
-         if (t.picId.toUpperCase() === emp.name.toUpperCase()) {
+         if (t.picId && t.picId.toUpperCase() === emp.name.toUpperCase()) {
            if (t.progress >= t.target) tsk.sel++;
            else if (t.progress > 0) tsk.kur++;
            else tsk.tid++;
@@ -621,7 +677,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
         </button>
       </div>
 
-      {/* NAVIGASI SUB-MENU TAB ADMIN - DIGABUNGKAN */}
+      {/* NAVIGASI SUB-MENU TAB ADMIN */}
       <div className="flex bg-white rounded-2xl p-1.5 shadow-soft border border-slate-100 gap-1 overflow-x-auto hide-scrollbar">
         <button onClick={() => setActiveSubTab('tugas')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 whitespace-nowrap outline-none cursor-pointer ${activeSubTab === 'tugas' ? 'bg-midnight text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>
           <i className="fa-solid fa-list-check"></i> Tugas
@@ -683,31 +739,35 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-slate-100">
-                   {getRekapData().map((d, index) => (
-                     <tr key={index} className="hover:bg-slate-50 transition-colors">
-                       <td className="px-4 py-3 text-center">
-                         {index === 0 ? <i className="fa-solid fa-medal text-yellow-400 text-xl drop-shadow-md"></i> :
-                          index === 1 ? <i className="fa-solid fa-medal text-slate-300 text-xl drop-shadow-md"></i> :
-                          index === 2 ? <i className="fa-solid fa-medal text-amber-600 text-xl drop-shadow-md"></i> :
-                          <span className="font-black text-slate-400">{index + 1}</span>}
-                       </td>
-                       <td className="px-4 py-3 font-bold text-midnight">
-                         {d.name} <span className="text-[9px] text-slate-400 ml-1">({d.lpStr || '?'})</span>
-                       </td>
-                       <td className="px-4 py-3 text-center font-bold">
-                         <span className="text-emerald-500">{d.abs.h}</span> / <span className="text-blue-500">{d.abs.i}</span> / <span className="text-orange-400">{d.abs.s}</span> / <span className="text-red-500">{d.abs.a}</span>
-                       </td>
-                       <td className="px-4 py-3 text-center font-bold">
-                         <span className="text-emerald-500">{d.tsk.sel}</span> / <span className="text-orange-400">{d.tsk.kur}</span> / <span className="text-red-500">{d.tsk.tid}</span>
-                       </td>
-                       <td className="px-4 py-3 text-center font-bold">
-                         <span className="text-status-selesai">{d.vts.v}</span> / <span className="text-slate-400">{d.vts.x}</span>
-                       </td>
-                       <td className="px-4 py-3 text-center">
-                         <span className="bg-midnight text-white px-3 py-1 rounded-full font-black drop-shadow-sm">{d.score}</span>
-                       </td>
-                     </tr>
-                   ))}
+                   {(getRekapData() || []).length === 0 ? (
+                     <tr><td colSpan="6" className="text-center py-6 font-bold text-slate-400">Belum ada data tersedia.</td></tr>
+                   ) : (
+                     getRekapData().map((d, index) => (
+                       <tr key={index} className="hover:bg-slate-50 transition-colors">
+                         <td className="px-4 py-3 text-center">
+                           {index === 0 ? <i className="fa-solid fa-medal text-yellow-400 text-xl drop-shadow-md"></i> :
+                            index === 1 ? <i className="fa-solid fa-medal text-slate-300 text-xl drop-shadow-md"></i> :
+                            index === 2 ? <i className="fa-solid fa-medal text-amber-600 text-xl drop-shadow-md"></i> :
+                            <span className="font-black text-slate-400">{index + 1}</span>}
+                         </td>
+                         <td className="px-4 py-3 font-bold text-midnight">
+                           {d.name} <span className="text-[9px] text-slate-400 ml-1">({d.lpStr || '?'})</span>
+                         </td>
+                         <td className="px-4 py-3 text-center font-bold">
+                           <span className="text-emerald-500">{d.abs.h}</span> / <span className="text-blue-500">{d.abs.i}</span> / <span className="text-orange-400">{d.abs.s}</span> / <span className="text-red-500">{d.abs.a}</span>
+                         </td>
+                         <td className="px-4 py-3 text-center font-bold">
+                           <span className="text-emerald-500">{d.tsk.sel}</span> / <span className="text-orange-400">{d.tsk.kur}</span> / <span className="text-red-500">{d.tsk.tid}</span>
+                         </td>
+                         <td className="px-4 py-3 text-center font-bold">
+                           <span className="text-status-selesai">{d.vts.v}</span> / <span className="text-slate-400">{d.vts.x}</span>
+                         </td>
+                         <td className="px-4 py-3 text-center">
+                           <span className="bg-midnight text-white px-3 py-1 rounded-full font-black drop-shadow-sm">{d.score}</span>
+                         </td>
+                       </tr>
+                     ))
+                   )}
                  </tbody>
                </table>
              </div>
@@ -867,7 +927,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
              <div className="p-5 space-y-4">
                {(!votings || votings.length === 0) && <p className="text-center py-6 text-slate-400 font-bold text-sm bg-slate-50 rounded-xl">Belum ada voting terdaftar.</p>}
                <div className="space-y-3">
-                 {votings && (votings || []).map(v => (
+                 {(votings || []).map(v => (
                    <div key={v.id} className="flex justify-between items-center bg-slate-50 border border-slate-200 p-4 rounded-2xl shadow-sm">
                      <div>
                        <h5 className="font-bold text-midnight text-sm">{v.title}</h5>
@@ -886,11 +946,10 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
         </div>
       )}
 
-      {/* ==================== SUB-MENU ABSENSI (FULL CRUD & PDF F4) ==================== */}
+      {/* ==================== SUB-MENU ABSENSI ==================== */}
       {activeSubTab === 'absensi' && (
         <div className="space-y-6 animate-fade-in">
           
-          {/* ----- 1. CRUD PEJABAT PENANDATANGAN PDF ----- */}
           <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
             <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
               <i className="fa-solid fa-signature text-status-selesai"></i> 
@@ -941,7 +1000,6 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
             </div>
           </div>
 
-          {/* ----- 2. CRUD EVENT ABSENSI ----- */}
           <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
             <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
               <i className="fa-solid fa-calendar-plus text-status-selesai"></i> 
@@ -1034,12 +1092,37 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
           
           {/* PANEL KELOLA DATABASE SDM */}
           <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
-            <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center gap-2">
-              <i className="fa-solid fa-user-plus text-status-selesai"></i>
-              <span className="font-black text-midnight text-sm uppercase tracking-wider">Kelola Database SDM</span>
+            <div className="bg-slate-50 border-b border-slate-100 p-4 px-5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <i className="fa-solid fa-user-plus text-status-selesai"></i>
+                <span className="font-black text-midnight text-sm uppercase tracking-wider">Kelola Database SDM</span>
+              </div>
             </div>
-            <div className="p-5">
-              <form onSubmit={handleAddEmployee} className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+            
+            <div className="p-5 space-y-6">
+              
+              {/* UPLOAD EXCEL SDM BARU */}
+              <div className="bg-gradient-to-br from-blue-900 to-indigo-900 rounded-2xl p-5 text-white relative overflow-hidden shadow-md">
+                 <i className="fa-solid fa-users-viewfinder absolute -right-4 -bottom-6 text-7xl opacity-10"></i>
+                 <div className="relative z-10">
+                   <h6 className="font-black text-sm mb-1"><i className="fa-solid fa-cloud-arrow-up mr-2 text-emerald-400"></i>Upload Database via Excel</h6>
+                   <p className="text-white/70 text-[10px] font-bold mb-4">Format 3 Kolom: A (Nama Lengkap), B (L/P), C (Kecamatan)</p>
+                   <div className="flex gap-2">
+                     <input type="file" accept=".xlsx, .csv" ref={sdmFileInputRef} onChange={handleExcelUploadSDM} className="hidden" />
+                     <button onClick={() => sdmFileInputRef.current.click()} disabled={isSyncing || !db} className="w-full bg-white text-blue-900 font-black py-2.5 rounded-xl shadow-soft hover:bg-blue-50 transition-colors flex justify-center items-center gap-2 text-xs outline-none cursor-pointer">
+                        {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Membaca File...</> : <><i className="fa-solid fa-file-excel text-emerald-500"></i> Upload File SDM</>}
+                     </button>
+                   </div>
+                 </div>
+              </div>
+
+              <div className="relative flex py-1 items-center">
+                <div className="flex-grow border-t border-slate-200"></div>
+                <span className="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-bold uppercase">Atau Input Manual</span>
+                <div className="flex-grow border-t border-slate-200"></div>
+              </div>
+
+              <form onSubmit={handleAddEmployee} className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Nama Lengkap</label>
                   <input type="text" required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none focus:ring-1 focus:ring-midnight shadow-inner" value={newEmp.name} onChange={e => setNewEmp({...newEmp, name: e.target.value})} placeholder="Ketik Nama" />
@@ -1057,7 +1140,7 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
                 </div>
                 <div className="md:col-span-3 mt-1">
                    <button type="submit" disabled={isSyncing} className="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 font-black py-3 rounded-xl active:scale-95 transition-all outline-none cursor-pointer flex justify-center items-center gap-2 shadow-sm">
-                      {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...</> : <><i className="fa-solid fa-plus"></i> Tambah / Simpan Data SDM</>}
+                      {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...</> : <><i className="fa-solid fa-plus"></i> Tambah Manual</>}
                    </button>
                 </div>
               </form>
@@ -1105,10 +1188,10 @@ const AdminMenu = ({ db, tasks, groupedTasks, employees, votings, isAdminLogged,
             <div className="p-5 space-y-4">
                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs font-bold text-slate-600 space-y-2">
                  <div className="flex justify-between"><span>Status Koneksi:</span><span className="text-emerald-600 font-black flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Connected (Realtime)</span></div>
-                 <div className="flex justify-between"><span>Total Kegiatan Tugas:</span><span className="text-midnight font-black">{groupedTasks?.length || 0} Group</span></div>
-                 <div className="flex justify-between"><span>Total Event Voting:</span><span className="text-midnight font-black">{votings ? votings.length : 0} Topik</span></div>
-                 <div className="flex justify-between"><span>Total Event Absensi:</span><span className="text-midnight font-black">{attendanceEvents?.length || 0} Event</span></div>
-                 <div className="flex justify-between"><span>Total Pejabat TTD:</span><span className="text-midnight font-black">{signatures?.length || 0} Pejabat</span></div>
+                 <div className="flex justify-between"><span>Total Kegiatan Tugas:</span><span className="text-midnight font-black">{(groupedTasks || []).length} Group</span></div>
+                 <div className="flex justify-between"><span>Total Event Voting:</span><span className="text-midnight font-black">{(votings || []).length} Topik</span></div>
+                 <div className="flex justify-between"><span>Total Event Absensi:</span><span className="text-midnight font-black">{(attendanceEvents || []).length} Event</span></div>
+                 <div className="flex justify-between"><span>Total Pejabat TTD:</span><span className="text-midnight font-black">{(signatures || []).length} Pejabat</span></div>
                  <div className="flex justify-between"><span>Total SDM Terdaftar:</span><span className="text-midnight font-black">{(employees || []).length} Orang</span></div>
                </div>
                <div className="border-t border-slate-100 pt-4">
