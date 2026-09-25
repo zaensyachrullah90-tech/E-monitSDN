@@ -3,7 +3,8 @@ import LiveCountdown from '../../common/LiveCountdown';
 import { formatDateId } from '../../../utils/formatters';
 
 const GroupedTaskCard = memo(({ group, onClick }) => {
-  const percent = Math.min(Math.round((group.progress / group.target) * 100), 100);
+  // Ditambahkan fallback (|| 0) dan (|| 1) agar tidak error membagi angka nol (NaN)
+  const percent = Math.min(Math.round(((group.progress || 0) / (group.target || 1)) * 100), 100);
   const isDone = percent >= 100;
   
   // Hitung apakah deadline mendesak (<= 2 hari & belum selesai)
@@ -19,6 +20,9 @@ const GroupedTaskCard = memo(({ group, onClick }) => {
       : 'border-status-proses';
   const progressBg = isDone ? 'bg-status-selesai' : 'bg-status-proses';
   const percentColor = isDone ? 'text-status-selesai' : 'text-status-proses';
+
+  // PROTEKSI UTAMA: Menggabungkan deteksi assignees atau items dengan fallback array kosong
+  const safeAssignees = group.assignees || group.items || [];
 
   return (
     <button 
@@ -55,7 +59,7 @@ const GroupedTaskCard = memo(({ group, onClick }) => {
 
         <div className="mb-4">
           <div className="flex justify-between text-xs font-bold mb-1.5">
-            <span className="text-slate-500">Progress ({group.progress}/{group.target})</span>
+            <span className="text-slate-500">Progress ({group.progress || 0}/{group.target || 0})</span>
             <span className={`font-black text-sm ${percentColor}`}>{percent}%</span>
           </div>
           <div className="w-full bg-slate-100 rounded-full h-2.5 shadow-inner overflow-hidden">
@@ -65,10 +69,10 @@ const GroupedTaskCard = memo(({ group, onClick }) => {
 
         <div className="flex justify-between items-center pt-4 border-t border-slate-100/80">
           <div className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
-            <i className="fa-solid fa-users text-slate-400"></i> {group.assignees.length} Pelaksana
+            <i className="fa-solid fa-users text-slate-400"></i> {safeAssignees.length} Pelaksana
           </div>
           <div className="text-xs font-black text-white bg-midnight px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5">
-            <i className="fa-solid fa-check-double text-blue-400"></i> Selesai: {group.assignees.filter(a => a.progress >= a.target).length}
+            <i className="fa-solid fa-check-double text-blue-400"></i> Selesai: {safeAssignees.filter(a => (a.progress || 0) >= (a.target || 0)).length}
           </div>
         </div>
       </div>
