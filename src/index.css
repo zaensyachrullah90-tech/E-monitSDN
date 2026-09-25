@@ -1,6 +1,3 @@
-@tailwindcss base;
-@tailwindcss components;
-@tailwindcss utilities;
 
 body {
   background-color: #f4f6f9;
