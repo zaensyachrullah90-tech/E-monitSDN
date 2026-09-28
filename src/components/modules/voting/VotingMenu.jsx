@@ -1,35 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { formatDateId, encodeSafeKey } from '../../../utils/formatters';
 import { APP_ID } from '../../../config/firebase';
 import LiveCountdown from '../../common/LiveCountdown';
 
 const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelectedVoteId }) => {
-  // PERUBAHAN 1: State awal langsung diarahkan ke tab 'beri_suara'
   const [activeTab, setActiveTab] = useState('beri_suara'); 
   const [voteEmp, setVoteEmp] = useState('');
   const [selectedOptions, setSelectedOptions] = useState([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [toast, setToast] = useState(null);
+  const toastTimeoutRef = useRef(null);
 
   const activeVote = (votings || []).find(v => String(v.id) === String(selectedVoteId));
   const isAdminLogged = sessionStorage.getItem('adminAuth') === 'true'; 
 
   const showToast = (type) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     setToast(type);
-    setTimeout(() => setToast(null), 3000);
+    toastTimeoutRef.current = setTimeout(() => setToast(null), 3000);
   };
 
-  // SISTEM PEMBACA LINK OTOMATIS
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    };
+  }, []);
+
+  // SISTEM PEMBACA LINK OTOMATIS VIA URL QUERY
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const voteParam = urlParams.get('vote');
     
-    // Jika ada link vote di URL, cari database dan langsung buka tanpa harus klik
     if (voteParam && !selectedVoteId && votings.length > 0) {
       const targetVote = votings.find(v => v.title === voteParam);
       if (targetVote) {
         setSelectedVoteId(targetVote.id);
-        // PERUBAHAN 2: Pastikan saat link terbuka, langsung melompat ke tab Vote!
         setActiveTab('beri_suara');
       }
     }
@@ -38,6 +43,8 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
   // SISTEM PEMBERSIH URL SAAT MENEKAN TOMBOL KEMBALI
   const handleBack = () => {
     setSelectedVoteId(null);
+    setVoteEmp('');
+    setSelectedOptions([]);
     const url = new URL(window.location);
     if (url.searchParams.has('vote')) {
       url.searchParams.delete('vote');
@@ -46,7 +53,7 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
   };
 
   const handleShareVote = (e, v) => {
-    if(e) e.stopPropagation();
+    if (e) e.stopPropagation();
     const url = `${window.location.origin}${window.location.pathname}?vote=${encodeURIComponent(v.title)}`;
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(url).then(() => {
@@ -84,16 +91,17 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
     const voters = activeVote.voters || [];
     const belumVoteNames = voters.filter(v => !sudahVoteNames.includes(v)).sort((a,b) => a.localeCompare(b));
 
+    const optionsList = activeVote.options || [];
     const optionData = {};
-    activeVote.options.forEach(o => {
+    optionsList.forEach(o => {
       optionData[o] = { count: 0, voters: [] };
     });
 
     let totalSuaraMasuk = 0;
     votesArray.forEach(vote => {
-       if(vote.options && Array.isArray(vote.options)) {
+       if (vote.options && Array.isArray(vote.options)) {
          vote.options.forEach(p => { 
-           if(optionData[p]) {
+           if (optionData[p]) {
              optionData[p].count++; 
              optionData[p].voters.push(vote.name);
              totalSuaraMasuk++; 
@@ -102,7 +110,8 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
        }
     });
 
-    const sortedOptions = activeVote.options.sort((a, b) => optionData[b].count - optionData[a].count);
+    // Gunakan spread operator agar tidak memutasi array asli props/state
+    const sortedOptions = [...optionsList].sort((a, b) => optionData[b].count - optionData[a].count);
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -267,9 +276,13 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
         votedAt: new Date().toISOString()
       });
       showToast('success');
-      // Setelah sukses vote, sistem akan otomatis memindahkan ke tab Statistik agar bisa melihat hasil
-      setVoteEmp(''); setSelectedOptions([]); setActiveTab('statistik');
-    } catch (err) { showToast('error'); }
+      // Setelah sukses vote, sistem otomatis memindahkan ke tab Statistik agar pengguna melihat hasil
+      setVoteEmp(''); 
+      setSelectedOptions([]); 
+      setActiveTab('statistik');
+    } catch (err) { 
+      showToast('error'); 
+    }
     setIsSyncing(false);
   };
 
@@ -303,8 +316,11 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
 
             return (
               <div key={v.id} className="bg-white rounded-3xl shadow-soft border border-slate-100 relative overflow-hidden transition-all duration-300 hover:shadow-md hover:border-blue-300 group">
-                {/* PERUBAHAN 3: Pastikan saat kartu diklik, buka tab 'beri_suara' */}
-                <button type="button" onClick={() => { setSelectedVoteId(v.id); setActiveTab('beri_suara'); }} className="w-full p-5 text-left outline-none cursor-pointer">
+                <button 
+                  type="button" 
+                  onClick={() => { setSelectedVoteId(v.id); setActiveTab('beri_suara'); }} 
+                  className="w-full p-5 text-left outline-none cursor-pointer"
+                >
                   <div className="flex items-start justify-between mb-3 gap-2">
                     <h5 className="font-black text-midnight text-lg w-3/4 group-hover:text-status-selesai transition-colors">{v.title}</h5>
                     <div className="flex flex-col items-end gap-1">
@@ -354,16 +370,17 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
   const voters = activeVote.voters || [];
   const belumVoteNames = voters.filter(v => !sudahVoteNames.includes(v)).sort((a,b) => a.localeCompare(b));
 
+  const optionsList = activeVote.options || [];
   const optionData = {};
-  activeVote.options.forEach(o => {
+  optionsList.forEach(o => {
     optionData[o] = { count: 0, voters: [] };
   });
 
   let totalSuaraMasuk = 0;
   votesArray.forEach(vote => {
-     if(vote.options && Array.isArray(vote.options)) {
+     if (vote.options && Array.isArray(vote.options)) {
        vote.options.forEach(p => { 
-         if(optionData[p]) {
+         if (optionData[p]) {
            optionData[p].count++; 
            optionData[p].voters.push(vote.name);
            totalSuaraMasuk++; 
@@ -372,7 +389,8 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
      }
   });
 
-  const sortedOptions = activeVote.options.sort((a, b) => optionData[b].count - optionData[a].count);
+  // Mencegah mutasi langsung pada activeVote.options
+  const sortedOptions = [...optionsList].sort((a, b) => optionData[b].count - optionData[a].count);
   const isExpired = activeVote.deadline && new Date().getTime() > new Date(`${activeVote.deadline}T23:59:59`).getTime();
   const isAllowMultiple = activeVote.allowMultipleSubmissions || activeVote.allowMultiple;
 
@@ -631,7 +649,7 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
                  <div className="animate-slide-up bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm">
                     <label className="block text-[10px] font-black text-midnight mb-3 uppercase tracking-wider flex items-center gap-2"><i className="fa-solid fa-list-check text-status-selesai"></i> Tentukan Pilihan Anda</label>
                     <div className="space-y-3">
-                       {activeVote.options.map(opt => {
+                       {(activeVote.options || []).map(opt => {
                          const isSelected = selectedOptions.includes(opt);
                          return (
                            <button type="button" key={opt} onClick={() => toggleOption(opt)} className={`w-full flex items-center justify-between p-4 rounded-xl border-2 text-sm font-black transition-all duration-300 outline-none cursor-pointer ${isSelected ? 'bg-blue-50 border-status-selesai text-status-selesai shadow-md scale-[1.01]' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
