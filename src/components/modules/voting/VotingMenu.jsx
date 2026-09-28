@@ -1049,7 +1049,7 @@ const FormInputSection = ({
 // ============================================================================
 
 const DeadlineEditModal = ({ isOpen, onClose, currentDeadline, onSave }) => {
-  const [newDeadline, setNewDeadline] = useState(currentDeadline || '');
+  const [newDeadline, currentDeadlineState] = useState(currentDeadline || '');
 
   if (!isOpen) return null;
 
@@ -1070,7 +1070,7 @@ const DeadlineEditModal = ({ isOpen, onClose, currentDeadline, onSave }) => {
           <input
             type="date"
             value={newDeadline}
-            onChange={(e) => setNewDeadline(e.target.value)}
+            onChange={(e) => currentDeadlineState(e.target.value)}
             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-midnight outline-none focus:border-blue-500"
           />
         </div>
@@ -1151,6 +1151,29 @@ const VotingMenu = ({
       }
     }
   }, [votings, selectedVoteId, setSelectedVoteId]);
+
+  // ==========================================================================
+  // [PENYEMPURNAAN] SISTEM AUTO-FILL UNTUK EDIT DATA
+  // Berfungsi menarik history saat nama diklik agar form tidak kosong lagi
+  // ==========================================================================
+  useEffect(() => {
+    if (voteEmp && activeVote && activeVote.votes) {
+      const isAllowMultiple = activeVote.allowMultipleSubmissions || activeVote.allowMultiple;
+      if (!isAllowMultiple) {
+        const safeKey = encodeSafeKey(voteEmp);
+        const existing = activeVote.votes[safeKey];
+        if (existing && existing.options) {
+           setSelectedOptions(existing.options);
+        } else {
+           setSelectedOptions([]);
+        }
+      } else {
+        setSelectedOptions([]);
+      }
+    } else {
+      setSelectedOptions([]);
+    }
+  }, [voteEmp, activeVote]);
 
   // AKSI KEMBALI KE DAFTAR
   const handleBack = () => {
@@ -1329,7 +1352,9 @@ const VotingMenu = ({
     }
   };
 
-  // EKSPOR PDF LAPORAN DENGAN TOTAL DAN DAFTAR BELUM MEMILIH
+  // ==========================================================================
+  // [PENYEMPURNAAN] LAPORAN PDF RESMI SESUAI BLUEPRINT REFERENSI
+  // ==========================================================================
   const handleExportPDF = () => {
     if (!activeVote) return;
 
@@ -1351,7 +1376,7 @@ const VotingMenu = ({
           if (optionData[p]) {
             optionData[p].count++; 
             let displayName = vote.name;
-            if (vote.isAdminOverride) displayName += ' 🛡️(Admin)';
+            if (vote.isAdminOverride) displayName += ' (Admin)';
             if (!optionData[p].votersMap[displayName]) optionData[p].votersMap[displayName] = 0;
             optionData[p].votersMap[displayName]++;
             totalSuaraMasuk++; 
@@ -1367,6 +1392,52 @@ const VotingMenu = ({
       return;
     }
 
+    const isAllowMultiple = activeVote.allowMultipleSubmissions || activeVote.allowMultiple;
+    const isAllowUpdate = activeVote.allowUpdate;
+    
+    const aturanSistem = isAllowMultiple 
+        ? 'Mode Rekapan Terakumulasi (SDM bisa input berulang)' 
+        : isAllowUpdate 
+          ? 'Bisa Perbarui (Pilihan baru menimpa lama)' 
+          : 'Kunci Mati (Satu kali pengisian)';
+
+    // Generate baris untuk Tabel 1
+    const table1Rows = sortedOptions.map((opt, i) => {
+      const count = optionData[opt].count;
+      const pct = calculatePercentage(count, totalSuaraMasuk);
+      const vMap = optionData[opt].votersMap;
+      
+      const vList = Object.keys(vMap).length > 0 
+         ? Object.entries(vMap).map(([n, q]) => `${n}${q > 1 ? ` (${q}x)` : ''}`).join('<br/>') 
+         : '-';
+      
+      const isWinner = i === 0 && count > 0;
+      
+      return `
+        <tr>
+          <td class="text-center">${i + 1}</td>
+          <td>${opt} ${isWinner ? '<br/><span class="rank">Terbanyak</span>' : ''}</td>
+          <td class="text-center">${count}</td>
+          <td class="text-center">${pct}%</td>
+          <td>${vList}</td>
+        </tr>
+      `;
+    }).join('');
+
+    // Generate baris untuk Tabel 2
+    const table2Rows = belumVoteNames.map((name, i) => `
+      <tr>
+        <td class="text-center">${i + 1}</td>
+        <td>${name}</td>
+        <td class="text-center">Belum Memilih</td>
+      </tr>
+    `).join('');
+
+    const tglBikin = formatDateId(new Date().toISOString());
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const footerStr = `Laporan Resmi Dicetak Otomatis pada ${tglBikin} pukul ${timeStr}`;
+
     const htmlContent = `
       <!DOCTYPE html>
       <html lang="id">
@@ -1374,70 +1445,81 @@ const VotingMenu = ({
         <meta charset="UTF-8">
         <title>Laporan Rekapitulasi Data - ${activeVote.title}</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 25px; color: #0f172a; line-height: 1.5; font-size: 11px; }
-          .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 15px; }
-          .title { font-size: 18px; font-weight: bold; text-transform: uppercase; }
-          .subtitle { font-size: 12px; color: #2563eb; font-weight: bold; margin-top: 4px; }
+          body { font-family: Arial, sans-serif; padding: 30px; color: #000; line-height: 1.4; font-size: 12px; }
+          .header { text-align: center; margin-bottom: 20px; }
+          .title { font-size: 16px; font-weight: bold; }
+          .subtitle { font-size: 18px; font-weight: bold; margin-top: 5px; text-transform: uppercase; }
+          .info-box { margin-bottom: 20px; }
+          .info-box div { margin-bottom: 4px; }
           table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-          th { background: #0f172a; color: white; padding: 8px; text-align: left; font-size: 10px; }
-          td { border-bottom: 1px solid #e2e8f0; padding: 8px; }
-          .tag { display: inline-block; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 2px 5px; border-radius: 4px; margin: 2px; font-size: 9px; }
+          th, td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; }
+          th { font-weight: bold; text-align: center; background-color: #f8f9fa; }
+          .section-title { font-weight: bold; font-size: 14px; margin-bottom: 10px; margin-top: 20px; text-transform: uppercase; }
+          .text-center { text-align: center; }
+          .rank { font-weight: bold; font-style: italic; font-size: 10px; color: #555; }
+          .signature { float: right; width: 250px; text-align: center; margin-top: 40px; page-break-inside: avoid; }
+          .footer { margin-top: 50px; font-style: italic; font-size: 10px; text-align: left; clear: both; }
+          @media print {
+            @page { size: A4; margin: 15mm; }
+            body { padding: 0; }
+            table { page-break-inside: auto; }
+            tr { page-break-inside: avoid; page-break-after: auto; }
+          }
         </style>
       </head>
       <body>
         <div class="header">
-          <div class="title">LAPORAN REKAPITULASI HASIL VOTING</div>
+          <div class="title">LAPORAN REKAPITULASI HASIL DATA</div>
           <div class="subtitle">${activeVote.title}</div>
         </div>
         
-        <div style="margin-bottom: 15px;">
-          <div style="font-size: 12px; margin-bottom: 5px;">
-            <strong>Total Keseluruhan Pilihan Masuk:</strong> 
-            <span style="background: #2563eb; color: white; padding: 3px 8px; border-radius: 4px; margin-left: 5px;">${totalSuaraMasuk} Suara</span>
-          </div>
+        <div class="info-box">
+          <div><strong>Tanggal Pembuatan:</strong> ${tglBikin}</div>
+          <div><strong>Tipe Pemilihan:</strong> ${activeVote.isMulti ? 'Multi Pilihan (Bisa pilih beberapa opsi)' : 'Single Pilihan (Pilih satu opsi)'}</div>
+          <div><strong>Aturan Sistem:</strong> ${aturanSistem}</div>
+          <div><strong>Total Target Partisipan:</strong> ${voters.length} SDM</div>
+          <div><strong>Total Respon Masuk (Data):</strong> ${votesArray.length} Data (Dari ${sudahVoteNames.length} SDM)</div>
+          <div><strong>Belum Merespon:</strong> ${belumVoteNames.length} SDM</div>
         </div>
 
+        <div class="section-title">1. HASIL REKAPITULASI OPSI</div>
         <table>
           <thead>
             <tr>
-              <th style="width: 30px;">NO</th>
-              <th>OPSI PILIHAN</th>
-              <th style="width: 80px; text-align: center;">JUMLAH</th>
-              <th style="width: 80px; text-align: center;">PERSEN</th>
-              <th>DAFTAR PENGISI</th>
+              <th style="width: 40px;">NO</th>
+              <th style="width: 150px;">OPSI PILIHAN</th>
+              <th style="width: 100px;">JUMLAH INPUT</th>
+              <th style="width: 100px;">PERSENTASE</th>
+              <th>DAFTAR NAMA PENGISI (KUANTITAS)</th>
             </tr>
           </thead>
           <tbody>
-            ${sortedOptions.map((opt, i) => {
-              const count = optionData[opt].count;
-              const pct = calculatePercentage(count, totalSuaraMasuk);
-              const vList = Object.entries(optionData[opt].votersMap).map(([n, q]) => `<span class="tag">${n}${q > 1 ? ` (${q}x)` : ''}</span>`).join('');
-              return `
-                <tr>
-                  <td style="text-align: center;">${i + 1}</td>
-                  <td><strong>${opt}</strong></td>
-                  <td style="text-align: center; font-weight: bold;">${count}</td>
-                  <td style="text-align: center;">${pct}%</td>
-                  <td>${vList || '-'}</td>
-                </tr>
-              `;
-            }).join('')}
+            ${table1Rows}
           </tbody>
         </table>
 
-        <div style="margin-top: 30px; page-break-inside: avoid;">
-          <h3 style="font-size: 12px; color: #dc2626; border-bottom: 2px solid #fca5a5; padding-bottom: 5px; margin-bottom: 10px;">
-            DAFTAR SDM YANG BELUM MEMILIH / MERESPON (${belumVoteNames.length} ORANG)
-          </h3>
-          ${belumVoteNames.length > 0 ? `
-            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-              ${belumVoteNames.map(name => `<span style="background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">${name}</span>`).join('')}
-            </div>
-          ` : `
-            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center;">
-              Luar Biasa! 100% SDM telah memberikan pilihan (Tidak ada yang belum memilih).
-            </div>
-          `}
+        <div class="section-title" style="page-break-before: auto;">2. DAFTAR SDM BELUM MERESPON (${belumVoteNames.length} SDM)</div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40px;">NO</th>
+              <th>NAMA SDM</th>
+              <th style="width: 150px;">STATUS</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${table2Rows.length > 0 ? table2Rows : '<tr><td colspan="3" class="text-center">- Semua SDM Telah Merespon -</td></tr>'}
+          </tbody>
+        </table>
+
+        <div class="signature">
+          <p>Tapin, ${tglBikin}</p>
+          <p style="margin-bottom: 70px;"><strong>Ketua Tim PKH Tapin</strong></p>
+          <p style="text-decoration: underline; font-weight: bold;">M. ZAEN SYACHRULLAH</p>
+        </div>
+
+        <div class="footer">
+          ${footerStr}
         </div>
 
         <script>window.onload = function() { window.print(); };</script>
