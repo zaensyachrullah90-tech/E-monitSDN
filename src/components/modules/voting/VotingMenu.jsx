@@ -74,13 +74,180 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
     }
   };
 
+  // FITUR KHUSUS ADMIN: EKSPOR REPORT / REKAPAN BERBENTUK PDF
+  const handleExportPDF = () => {
+    if (!activeVote) return;
+
+    const votesObj = activeVote.votes || {};
+    const votesArray = Object.values(votesObj);
+    const sudahVoteNames = votesArray.map(v => v.name).sort((a,b) => a.localeCompare(b));
+    const voters = activeVote.voters || [];
+    const belumVoteNames = voters.filter(v => !sudahVoteNames.includes(v)).sort((a,b) => a.localeCompare(b));
+
+    const optionData = {};
+    activeVote.options.forEach(o => {
+      optionData[o] = { count: 0, voters: [] };
+    });
+
+    let totalSuaraMasuk = 0;
+    votesArray.forEach(vote => {
+       if(vote.options && Array.isArray(vote.options)) {
+         vote.options.forEach(p => { 
+           if(optionData[p]) {
+             optionData[p].count++; 
+             optionData[p].voters.push(vote.name);
+             totalSuaraMasuk++; 
+           }
+         });
+       }
+    });
+
+    const sortedOptions = activeVote.options.sort((a, b) => optionData[b].count - optionData[a].count);
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Mohon izinkan pop-up browser untuk mengekspor Laporan PDF.");
+      return;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="id">
+      <head>
+        <meta charset="UTF-8">
+        <title>Laporan Rekapitulasi Voting - ${activeVote.title}</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #1e293b; background: #fff; }
+          .header { text-align: center; border-bottom: 3px double #0f172a; padding-bottom: 15px; margin-bottom: 20px; }
+          .title { font-size: 20px; font-weight: 900; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
+          .subtitle { font-size: 14px; font-weight: 700; color: #2563eb; margin-top: 5px; }
+          .meta-container { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; margin-bottom: 25px; font-size: 12px; display: flex; justify-content: space-between; }
+          .meta-item { line-height: 1.8; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 12px; }
+          th { background-color: #0f172a; color: #ffffff; font-weight: 700; padding: 10px 12px; text-align: left; text-transform: uppercase; font-size: 11px; }
+          td { border-bottom: 1px solid #e2e8f0; padding: 10px 12px; }
+          tr:nth-child(even) { background-color: #f8fafc; }
+          .badge-winner { background-color: #dbeafe; color: #1d4ed8; font-weight: bold; padding: 2px 8px; border-radius: 4px; font-size: 10px; display: inline-block; margin-left: 6px; }
+          .section-title { font-size: 13px; font-weight: 800; color: #0f172a; margin-bottom: 12px; border-left: 4px solid #2563eb; padding-left: 8px; text-transform: uppercase; }
+          .voter-tag { display: inline-block; background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin: 2px; }
+          .footer { margin-top: 40px; font-size: 11px; text-align: right; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 15px; }
+          @media print {
+            .no-print { display: none !important; }
+            body { padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="margin-bottom: 20px; text-align: right;">
+          <button onclick="window.print()" style="padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+            🖨️ Cetak / Simpan PDF
+          </button>
+        </div>
+
+        <div class="header">
+          <div class="title">LAPORAN REKAPITULASI HASIL VOTING</div>
+          <div class="subtitle">${activeVote.title}</div>
+        </div>
+
+        <div class="meta-container">
+          <div class="meta-item">
+            <strong>Tanggal Pembuatan:</strong> ${formatDateId(activeVote.createdAt)}<br/>
+            <strong>Tipe Pemilihan:</strong> ${activeVote.isMulti ? 'Multi Pilihan (Bisa pilih beberapa)' : 'Tunggal (Satu Pilihan)'}<br/>
+            <strong>Aturan Multi-Vote:</strong> ${(activeVote.allowMultipleSubmissions || activeVote.allowMultiple) ? 'Diizinkan Voting Berulang' : 'Kunci Mati (1 Suara/SDM)'}
+          </div>
+          <div class="meta-item" style="text-align: right;">
+            <strong>Total Kuota Pemilih:</strong> ${voters.length} SDM<br/>
+            <strong>Suara Masuk:</strong> ${sudahVoteNames.length} SDM<br/>
+            <strong>Belum Voting:</strong> ${belumVoteNames.length} SDM
+          </div>
+        </div>
+
+        <div class="section-title">1. HASIL PEROLEHAN SUARA & OPSI</div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40px; text-align: center;">NO</th>
+              <th>OPSI PILIHAN</th>
+              <th style="width: 110px; text-align: center;">JUMLAH SUARA</th>
+              <th style="width: 100px; text-align: center;">PERSENTASE</th>
+              <th>DAFTAR PEMILIH</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sortedOptions.map((opt, i) => {
+              const count = optionData[opt].count;
+              const votersList = optionData[opt].voters;
+              const pct = totalSuaraMasuk === 0 ? 0 : Math.round((count / totalSuaraMasuk) * 100);
+              const isWinner = i === 0 && count > 0;
+              return `
+                <tr>
+                  <td style="text-align: center; font-weight: bold;">${i + 1}</td>
+                  <td>
+                    <strong>${opt}</strong>${isWinner ? '<span class="badge-winner">👑 Unggul</span>' : ''}
+                  </td>
+                  <td style="text-align: center; font-weight: bold; color: #2563eb;">${count} Suara</td>
+                  <td style="text-align: center; font-weight: bold;">${pct}%</td>
+                  <td>
+                    ${votersList.length > 0 
+                      ? votersList.map(v => `<span class="voter-tag">${v}</span>`).join('') 
+                      : '<em style="color: #94a3b8;">Belum ada suara</em>'}
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+
+        <div class="section-title">2. DAFTAR SDM BELUM VOTING (${belumVoteNames.length} SDM)</div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40px; text-align: center;">NO</th>
+              <th>NAMA SDM</th>
+              <th style="width: 150px; text-align: center;">STATUS</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${belumVoteNames.length === 0 
+              ? '<tr><td colspan="3" style="text-align: center; color: #16a34a; font-weight: bold;">Seluruh SDM telah memberikan suaranya!</td></tr>'
+              : belumVoteNames.map((name, idx) => `
+                <tr>
+                  <td style="text-align: center;">${idx + 1}</td>
+                  <td><strong>${name}</strong></td>
+                  <td style="text-align: center; color: #dc2626; font-weight: bold;">Belum Memilih</td>
+                </tr>
+              `).join('')
+            }
+          </tbody>
+        </table>
+
+        <div class="footer">
+          Laporan Resmi - Dicetak Otomatis pada ${new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' })}
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 600);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   const handleCastVote = async (e) => {
     e.preventDefault();
     if (!db || !voteEmp || selectedOptions.length === 0) { showToast('error'); return; }
 
     if (activeVote.deadline) {
       const targetTime = new Date(`${activeVote.deadline}T23:59:59`).getTime();
-      if (new Date().getTime() > targetTime) {
+      // FITUR TINDAK LANJUT ADMIN: ADMIN BISA MEMILIH WALAUPUN HABIS
+      if (new Date().getTime() > targetTime && !isAdminLogged) {
         alert("Maaf, waktu untuk voting ini sudah habis!");
         return;
       }
@@ -88,10 +255,16 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
 
     setIsSyncing(true);
     try {
-      const safeKey = encodeSafeKey(voteEmp);
+      // LOGIKA MULTI VOTING ATU KUNCI MATI
+      const isAllowMultiple = activeVote.allowMultipleSubmissions || activeVote.allowMultiple;
+      const safeKey = isAllowMultiple 
+        ? `${encodeSafeKey(voteEmp)}_${Date.now()}` 
+        : encodeSafeKey(voteEmp);
+
       await db.ref(`artifacts/${APP_ID}/public/data/votings/${activeVote.id}/votes/${safeKey}`).set({
         name: voteEmp,
-        options: selectedOptions
+        options: selectedOptions,
+        votedAt: new Date().toISOString()
       });
       showToast('success');
       // Setelah sukses vote, sistem akan otomatis memindahkan ke tab Statistik agar bisa melihat hasil
@@ -201,6 +374,7 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
 
   const sortedOptions = activeVote.options.sort((a, b) => optionData[b].count - optionData[a].count);
   const isExpired = activeVote.deadline && new Date().getTime() > new Date(`${activeVote.deadline}T23:59:59`).getTime();
+  const isAllowMultiple = activeVote.allowMultipleSubmissions || activeVote.allowMultiple;
 
   return (
     <div className="animate-slide-up space-y-4 relative pb-10">
@@ -213,21 +387,33 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
         </div>
       )}
 
-      {/* HEADER NAVIGASI DENGAN FUNGSI PEMBERSIH URL */}
+      {/* HEADER NAVIGASI DENGAN FUNGSI PEMBERSIH URL & TOMBOL EKSKLUSIF ADMIN */}
       <div className="flex flex-wrap gap-2 justify-between items-center mb-2">
         <button type="button" onClick={handleBack} className="bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-4 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 transition-colors outline-none cursor-pointer">
           <i className="fa-solid fa-arrow-left-long text-status-selesai"></i> Kembali
         </button>
 
-        {isAdminLogged && (
-          <button 
-            type="button"
-            onClick={(e) => handleShareVote(e, activeVote)} 
-            className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md rounded-full font-black px-4 py-2 text-[10px] sm:text-xs flex items-center gap-1.5 hover:scale-95 transition-transform outline-none cursor-pointer"
-          >
-            <i className="fa-solid fa-share-nodes"></i> Share Live Link
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {isAdminLogged && (
+            <>
+              <button 
+                type="button"
+                onClick={handleExportPDF}
+                className="bg-red-600 text-white shadow-md rounded-full font-black px-4 py-2 text-[10px] sm:text-xs flex items-center gap-1.5 hover:bg-red-700 transition-all outline-none cursor-pointer"
+              >
+                <i className="fa-solid fa-file-pdf"></i> Ekspor PDF Report
+              </button>
+              
+              <button 
+                type="button"
+                onClick={(e) => handleShareVote(e, activeVote)} 
+                className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md rounded-full font-black px-4 py-2 text-[10px] sm:text-xs flex items-center gap-1.5 hover:scale-95 transition-transform outline-none cursor-pointer"
+              >
+                <i className="fa-solid fa-share-nodes"></i> Share Live Link
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="bg-gradient-to-br from-midnight to-midnight-light rounded-3xl p-6 text-white relative shadow-glossy overflow-hidden">
@@ -251,9 +437,20 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
 
       {activeTab === 'statistik' && (
         <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 sm:p-6 space-y-6 animate-fade-in">
-           <h4 className="font-black text-midnight text-sm uppercase tracking-wider border-b border-slate-100 pb-3 flex items-center gap-2">
-             <i className="fa-solid fa-chart-bar text-status-selesai"></i> Rekapitulasi Akhir Pilihan
-           </h4>
+           <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+             <h4 className="font-black text-midnight text-sm uppercase tracking-wider flex items-center gap-2">
+               <i className="fa-solid fa-chart-bar text-status-selesai"></i> Rekapitulasi Akhir Pilihan
+             </h4>
+             {isAdminLogged && (
+               <button 
+                 type="button" 
+                 onClick={handleExportPDF}
+                 className="bg-red-50 text-red-600 border border-red-200 text-[10px] font-black px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1 cursor-pointer"
+               >
+                 <i className="fa-solid fa-file-pdf"></i> Unduh Rekapan PDF
+               </button>
+             )}
+           </div>
            
            <div className="space-y-5">
              {sortedOptions.map((opt, i) => {
@@ -360,8 +557,19 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
            
            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
              {belumVoteNames.map(name => (
-               <div key={name} className="bg-orange-50/50 p-3.5 rounded-2xl border border-orange-100 font-bold text-orange-800 text-xs flex items-center gap-2 shadow-sm transition-transform hover:scale-[1.02]">
-                  <i className="fa-solid fa-circle-exclamation text-orange-500 animate-pulse text-lg"></i> {name}
+               <div key={name} className="bg-orange-50/50 p-3.5 rounded-2xl border border-orange-100 font-bold text-orange-800 text-xs flex items-center justify-between gap-2 shadow-sm transition-transform hover:scale-[1.02]">
+                  <span className="flex items-center gap-2">
+                    <i className="fa-solid fa-circle-exclamation text-orange-500 animate-pulse text-lg"></i> {name}
+                  </span>
+                  {isAdminLogged && (
+                    <button 
+                      type="button"
+                      onClick={() => { setVoteEmp(name); setActiveTab('beri_suara'); }}
+                      className="bg-orange-500 text-white font-black text-[9px] px-2 py-1 rounded hover:bg-orange-600 transition-colors cursor-pointer"
+                    >
+                      Bantu Vote
+                    </button>
+                  )}
                </div>
              ))}
            </div>
@@ -375,18 +583,47 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Sistem Otomatis Terkunci Saat Deadline</p>
            </div>
 
-           {isExpired ? (
+           {/* LOGIKA TINDAK LANJUT ADMIN VS USER BIASA SAAT DEADLINE HABIS */}
+           {isExpired && !isAdminLogged ? (
              <div className="p-6 bg-red-50 border border-red-200 text-red-600 rounded-2xl text-center font-black text-sm shadow-sm flex flex-col items-center justify-center gap-3">
                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-red-500 text-3xl shadow-inner"><i className="fa-solid fa-lock"></i></div>
                WAKTU VOTING TELAH HABIS!
              </div>
            ) : (
              <>
+               {isExpired && isAdminLogged && (
+                 <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl font-bold text-xs flex items-center gap-2">
+                   <i className="fa-solid fa-user-shield text-amber-600 text-base"></i>
+                   <span><strong>Mode Tindak Lanjut Admin:</strong> Waktu voting telah habis, namun Anda memiliki akses khusus Admin untuk memilihkan SDM yang belum voting.</span>
+                 </div>
+               )}
+
                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm">
                   <label className="block text-[10px] font-black text-midnight mb-2 uppercase tracking-wider flex items-center gap-2"><i className="fa-solid fa-user-tag text-status-selesai"></i> Verifikasi Identitas SDM</label>
                   <select className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight outline-none cursor-pointer shadow-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all" value={voteEmp} onChange={(e) => setVoteEmp(e.target.value)}>
                     <option value="">-- Ketuk Untuk Memilih Nama Anda --</option>
-                    {voters.map(v => <option key={v} value={v}>{v} {sudahVoteNames.includes(v) ? '(Timpa Pilihan Lama)' : ''}</option>)}
+                    {voters.map(v => {
+                      const isAlreadyVoted = sudahVoteNames.includes(v);
+                      // KUNCI MATI USER BIASA: Jika sudah voting, bukan multi-vote, dan bukan admin -> Kunci/Disabled!
+                      const isDisabled = isAlreadyVoted && !isAllowMultiple && !isAdminLogged;
+
+                      let labelExtra = '';
+                      if (isAlreadyVoted) {
+                        if (isAllowMultiple) {
+                          labelExtra = '(Boleh Vote Lagi)';
+                        } else if (isAdminLogged) {
+                          labelExtra = '(Admin: Tindak Lanjut / Ubah)';
+                        } else {
+                          labelExtra = '(Sudah Memilih - Terkunci)';
+                        }
+                      }
+
+                      return (
+                        <option key={v} value={v} disabled={isDisabled}>
+                          {v} {labelExtra}
+                        </option>
+                      );
+                    })}
                   </select>
                </div>
                
