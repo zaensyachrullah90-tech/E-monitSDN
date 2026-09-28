@@ -58,9 +58,9 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(url).then(() => {
         showToast('success');
-        alert(`Berhasil! Link Voting telah disalin.\n\nSilakan Paste di Grup WhatsApp:\n${url}`);
+        alert(`Berhasil! Link Akses telah disalin.\n\nSilakan Paste di Grup WhatsApp:\n${url}`);
       }).catch(() => {
-        window.prompt("Salin link voting berikut manual:", url);
+        window.prompt("Salin link akses berikut manual:", url);
       });
     } else {
       const textArea = document.createElement("textarea");
@@ -73,11 +73,34 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
       try {
         document.execCommand('copy');
         showToast('success');
-        alert(`Berhasil! Link Voting telah disalin.\n\nSilakan Paste di Grup WhatsApp:\n${url}`);
+        alert(`Berhasil! Link Akses telah disalin.\n\nSilakan Paste di Grup WhatsApp:\n${url}`);
       } catch (err) {
-        window.prompt("Salin link voting berikut manual:", url);
+        window.prompt("Salin link akses berikut manual:", url);
       }
       document.body.removeChild(textArea);
+    }
+  };
+
+  // FUNGSI ADMIN: LIVE TOGGLE ATURAN MULTI-OPSI
+  const toggleIsMulti = async () => {
+    if (!db || !activeVote) return;
+    try {
+      await db.ref(`artifacts/${APP_ID}/public/data/votings/${activeVote.id}/isMulti`).set(!activeVote.isMulti);
+      showToast('success');
+    } catch (err) { 
+      showToast('error'); 
+    }
+  };
+
+  // FUNGSI ADMIN: LIVE TOGGLE ATURAN SUBMIT BERULANG
+  const toggleAllowMultiple = async () => {
+    if (!db || !activeVote) return;
+    const currentVal = activeVote.allowMultipleSubmissions || activeVote.allowMultiple;
+    try {
+      await db.ref(`artifacts/${APP_ID}/public/data/votings/${activeVote.id}/allowMultipleSubmissions`).set(!currentVal);
+      showToast('success');
+    } catch (err) { 
+      showToast('error'); 
     }
   };
 
@@ -110,7 +133,6 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
        }
     });
 
-    // Gunakan spread operator agar tidak memutasi array asli props/state
     const sortedOptions = [...optionsList].sort((a, b) => optionData[b].count - optionData[a].count);
 
     const printWindow = window.open('', '_blank');
@@ -124,7 +146,7 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
       <html lang="id">
       <head>
         <meta charset="UTF-8">
-        <title>Laporan Rekapitulasi Voting - ${activeVote.title}</title>
+        <title>Laporan Rekapitulasi Data - ${activeVote.title}</title>
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #1e293b; background: #fff; }
           .header { text-align: center; border-bottom: 3px double #0f172a; padding-bottom: 15px; margin-bottom: 20px; }
@@ -154,7 +176,7 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
         </div>
 
         <div class="header">
-          <div class="title">LAPORAN REKAPITULASI HASIL VOTING</div>
+          <div class="title">LAPORAN REKAPITULASI HASIL DATA</div>
           <div class="subtitle">${activeVote.title}</div>
         </div>
 
@@ -162,24 +184,24 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
           <div class="meta-item">
             <strong>Tanggal Pembuatan:</strong> ${formatDateId(activeVote.createdAt)}<br/>
             <strong>Tipe Pemilihan:</strong> ${activeVote.isMulti ? 'Multi Pilihan (Bisa pilih beberapa)' : 'Tunggal (Satu Pilihan)'}<br/>
-            <strong>Aturan Multi-Vote:</strong> ${(activeVote.allowMultipleSubmissions || activeVote.allowMultiple) ? 'Diizinkan Voting Berulang' : 'Kunci Mati (1 Suara/SDM)'}
+            <strong>Aturan Submit:</strong> ${(activeVote.allowMultipleSubmissions || activeVote.allowMultiple) ? 'Diizinkan Submit Berulang' : 'Kunci Mati (1 Suara/SDM)'}
           </div>
           <div class="meta-item" style="text-align: right;">
-            <strong>Total Kuota Pemilih:</strong> ${voters.length} SDM<br/>
-            <strong>Suara Masuk:</strong> ${sudahVoteNames.length} SDM<br/>
-            <strong>Belum Voting:</strong> ${belumVoteNames.length} SDM
+            <strong>Total Partisipan:</strong> ${voters.length} SDM<br/>
+            <strong>Total Input Masuk:</strong> ${sudahVoteNames.length} Data<br/>
+            <strong>Belum Merespon:</strong> ${belumVoteNames.length} SDM
           </div>
         </div>
 
-        <div class="section-title">1. HASIL PEROLEHAN SUARA & OPSI</div>
+        <div class="section-title">1. HASIL REKAPITULASI OPSI</div>
         <table>
           <thead>
             <tr>
               <th style="width: 40px; text-align: center;">NO</th>
               <th>OPSI PILIHAN</th>
-              <th style="width: 110px; text-align: center;">JUMLAH SUARA</th>
+              <th style="width: 110px; text-align: center;">JUMLAH INPUT</th>
               <th style="width: 100px; text-align: center;">PERSENTASE</th>
-              <th>DAFTAR PEMILIH</th>
+              <th>DAFTAR NAMA PENGISI</th>
             </tr>
           </thead>
           <tbody>
@@ -192,14 +214,14 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
                 <tr>
                   <td style="text-align: center; font-weight: bold;">${i + 1}</td>
                   <td>
-                    <strong>${opt}</strong>${isWinner ? '<span class="badge-winner">👑 Unggul</span>' : ''}
+                    <strong>${opt}</strong>${isWinner ? '<span class="badge-winner">👑 Terbanyak</span>' : ''}
                   </td>
-                  <td style="text-align: center; font-weight: bold; color: #2563eb;">${count} Suara</td>
+                  <td style="text-align: center; font-weight: bold; color: #2563eb;">${count}</td>
                   <td style="text-align: center; font-weight: bold;">${pct}%</td>
                   <td>
                     ${votersList.length > 0 
                       ? votersList.map(v => `<span class="voter-tag">${v}</span>`).join('') 
-                      : '<em style="color: #94a3b8;">Belum ada suara</em>'}
+                      : '<em style="color: #94a3b8;">Belum ada data</em>'}
                   </td>
                 </tr>
               `;
@@ -207,7 +229,7 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
           </tbody>
         </table>
 
-        <div class="section-title">2. DAFTAR SDM BELUM VOTING (${belumVoteNames.length} SDM)</div>
+        <div class="section-title">2. DAFTAR SDM BELUM MERESPON (${belumVoteNames.length} SDM)</div>
         <table>
           <thead>
             <tr>
@@ -218,7 +240,7 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
           </thead>
           <tbody>
             ${belumVoteNames.length === 0 
-              ? '<tr><td colspan="3" style="text-align: center; color: #16a34a; font-weight: bold;">Seluruh SDM telah memberikan suaranya!</td></tr>'
+              ? '<tr><td colspan="3" style="text-align: center; color: #16a34a; font-weight: bold;">Seluruh SDM telah merespon!</td></tr>'
               : belumVoteNames.map((name, idx) => `
                 <tr>
                   <td style="text-align: center;">${idx + 1}</td>
@@ -255,16 +277,15 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
 
     if (activeVote.deadline) {
       const targetTime = new Date(`${activeVote.deadline}T23:59:59`).getTime();
-      // FITUR TINDAK LANJUT ADMIN: ADMIN BISA MEMILIH WALAUPUN HABIS
       if (new Date().getTime() > targetTime && !isAdminLogged) {
-        alert("Maaf, waktu untuk voting ini sudah habis!");
+        alert("Maaf, waktu untuk pengisian ini sudah habis!");
         return;
       }
     }
 
     setIsSyncing(true);
     try {
-      // LOGIKA MULTI VOTING ATU KUNCI MATI
+      // LOGIKA MULTI-VOTE / REKAPAN BERULANG ATU KUNCI MATI
       const isAllowMultiple = activeVote.allowMultipleSubmissions || activeVote.allowMultiple;
       const safeKey = isAllowMultiple 
         ? `${encodeSafeKey(voteEmp)}_${Date.now()}` 
@@ -276,7 +297,6 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
         votedAt: new Date().toISOString()
       });
       showToast('success');
-      // Setelah sukses vote, sistem otomatis memindahkan ke tab Statistik agar pengguna melihat hasil
       setVoteEmp(''); 
       setSelectedOptions([]); 
       setActiveTab('statistik');
@@ -297,8 +317,8 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
       <div className="animate-slide-up space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h3 className="text-2xl font-black text-midnight tracking-tight">Kotak Suara</h3>
-            <p className="text-slate-500 text-sm font-bold mt-0.5">Pemilihan & Voting Bersama (Terbaru)</p>
+            <h3 className="text-2xl font-black text-midnight tracking-tight">Kotak Rekapan & Suara</h3>
+            <p className="text-slate-500 text-sm font-bold mt-0.5">Pemilihan & Pendataan Bersama</p>
           </div>
         </div>
 
@@ -306,13 +326,14 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
           {(votings || []).length === 0 && (
             <div className="bg-white rounded-3xl shadow-soft border border-slate-100 text-center py-12">
               <i className="fa-solid fa-check-to-slot text-5xl mb-4 text-slate-300 block"></i>
-              <p className="font-black text-slate-500">Belum ada voting aktif.</p>
+              <p className="font-black text-slate-500">Belum ada data aktif.</p>
             </div>
           )}
           {(votings || []).map(v => {
             const totalVoters = v.voters ? v.voters.length : 0;
             const totalVotes = v.votes ? Object.keys(v.votes).length : 0;
             const isExpired = v.deadline && new Date().getTime() > new Date(`${v.deadline}T23:59:59`).getTime();
+            const allowMult = v.allowMultipleSubmissions || v.allowMultiple;
 
             return (
               <div key={v.id} className="bg-white rounded-3xl shadow-soft border border-slate-100 relative overflow-hidden transition-all duration-300 hover:shadow-md hover:border-blue-300 group">
@@ -324,7 +345,8 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
                   <div className="flex items-start justify-between mb-3 gap-2">
                     <h5 className="font-black text-midnight text-lg w-3/4 group-hover:text-status-selesai transition-colors">{v.title}</h5>
                     <div className="flex flex-col items-end gap-1">
-                      <span className="bg-blue-50 text-status-selesai text-[10px] font-black px-2 py-1 rounded-md border border-blue-100 uppercase">{v.isMulti ? 'Multi' : 'Single'}</span>
+                      <span className="bg-blue-50 text-status-selesai text-[10px] font-black px-2 py-0.5 rounded border border-blue-100 uppercase">{v.isMulti ? 'Multi Opsi' : 'Single Opsi'}</span>
+                      {allowMult && <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black px-2 py-0.5 rounded border border-emerald-100 uppercase">Input Berulang</span>}
                       {isExpired && <span className="bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase shadow-sm">Ditutup</span>}
                     </div>
                   </div>
@@ -337,11 +359,11 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
                   </div>
 
                   <div className="w-full bg-slate-100 rounded-full h-1.5 mb-1.5 overflow-hidden">
-                    <div className="bg-status-selesai h-1.5 rounded-full transition-all duration-1000 ease-out" style={{ width: `${totalVoters === 0 ? 0 : (totalVotes / totalVoters) * 100}%` }}></div>
+                    <div className="bg-status-selesai h-1.5 rounded-full transition-all duration-1000 ease-out" style={{ width: `${totalVoters === 0 ? 0 : Math.min(100, (totalVotes / totalVoters) * 100)}%` }}></div>
                   </div>
                   <div className="text-[10px] font-black text-slate-400 flex justify-between">
-                    <span>SUARA MASUK</span> 
-                    <span className="text-midnight">{totalVotes} / {totalVoters} SDM</span>
+                    <span>DATA MASUK</span> 
+                    <span className="text-midnight">{totalVotes} Input / {totalVoters} SDM</span>
                   </div>
                 </button>
 
@@ -389,7 +411,6 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
      }
   });
 
-  // Mencegah mutasi langsung pada activeVote.options
   const sortedOptions = [...optionsList].sort((a, b) => optionData[b].count - optionData[a].count);
   const isExpired = activeVote.deadline && new Date().getTime() > new Date(`${activeVote.deadline}T23:59:59`).getTime();
   const isAllowMultiple = activeVote.allowMultipleSubmissions || activeVote.allowMultiple;
@@ -405,59 +426,107 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
         </div>
       )}
 
-      {/* HEADER NAVIGASI DENGAN FUNGSI PEMBERSIH URL & TOMBOL EKSKLUSIF ADMIN */}
+      {/* HEADER NAVIGASI & KONTROL ADMIN */}
       <div className="flex flex-wrap gap-2 justify-between items-center mb-2">
         <button type="button" onClick={handleBack} className="bg-white text-midnight border border-slate-200 shadow-sm rounded-full font-bold px-4 py-2 text-xs flex items-center gap-2 hover:bg-slate-50 transition-colors outline-none cursor-pointer">
           <i className="fa-solid fa-arrow-left-long text-status-selesai"></i> Kembali
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {isAdminLogged && (
             <>
               <button 
                 type="button"
                 onClick={handleExportPDF}
-                className="bg-red-600 text-white shadow-md rounded-full font-black px-4 py-2 text-[10px] sm:text-xs flex items-center gap-1.5 hover:bg-red-700 transition-all outline-none cursor-pointer"
+                className="bg-red-600 text-white shadow-md rounded-full font-black px-3.5 py-2 text-[10px] sm:text-xs flex items-center gap-1.5 hover:bg-red-700 transition-all outline-none cursor-pointer"
               >
-                <i className="fa-solid fa-file-pdf"></i> Ekspor PDF Report
+                <i className="fa-solid fa-file-pdf"></i> Ekspor PDF
               </button>
               
               <button 
                 type="button"
                 onClick={(e) => handleShareVote(e, activeVote)} 
-                className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md rounded-full font-black px-4 py-2 text-[10px] sm:text-xs flex items-center gap-1.5 hover:scale-95 transition-transform outline-none cursor-pointer"
+                className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md rounded-full font-black px-3.5 py-2 text-[10px] sm:text-xs flex items-center gap-1.5 hover:scale-95 transition-transform outline-none cursor-pointer"
               >
-                <i className="fa-solid fa-share-nodes"></i> Share Live Link
+                <i className="fa-solid fa-share-nodes"></i> Share Link
               </button>
             </>
           )}
         </div>
       </div>
 
+      {/* PANEL PENGATURAN PENGUBAH ATURAN SECARA LIVE (KHUSUS ADMIN) */}
+      {isAdminLogged && (
+        <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-md border border-slate-700 space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span className="text-[11px] font-black uppercase text-amber-400 tracking-wider flex items-center gap-2">
+              <i className="fa-solid fa-sliders text-amber-400"></i> Pengaturan Aturan Data (Admin Live Control)
+            </span>
+            <span className="text-[9px] bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded border border-amber-500/30">Realtime Update</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            {/* TOGGLE MULTI OPSI */}
+            <button 
+              type="button"
+              onClick={toggleIsMulti}
+              className={`p-3 rounded-xl border font-bold flex items-center justify-between transition-all cursor-pointer ${activeVote.isMulti ? 'bg-blue-600/30 border-blue-500 text-blue-200' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+            >
+              <div className="text-left">
+                <div className="font-black">Bisa Pilih Banyak Opsi</div>
+                <div className="text-[9px] opacity-80">{activeVote.isMulti ? 'Multi-Opsi Aktif (Ceklis)' : 'Hanya 1 Opsi (Radio)'}</div>
+              </div>
+              <i className={`fa-solid ${activeVote.isMulti ? 'fa-toggle-on text-2xl text-blue-400' : 'fa-toggle-off text-2xl text-slate-500'}`}></i>
+            </button>
+
+            {/* TOGGLE SUBMIT BERULANG */}
+            <button 
+              type="button"
+              onClick={toggleAllowMultiple}
+              className={`p-3 rounded-xl border font-bold flex items-center justify-between transition-all cursor-pointer ${isAllowMultiple ? 'bg-emerald-600/30 border-emerald-500 text-emerald-200' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+            >
+              <div className="text-left">
+                <div className="font-black">Submit Berulang Kali</div>
+                <div className="text-[9px] opacity-80">{isAllowMultiple ? 'Mode Rekapan Data (Bisa >1x Input)' : 'Kunci Mati (1 SDM = 1 Input)'}</div>
+              </div>
+              <i className={`fa-solid ${isAllowMultiple ? 'fa-toggle-on text-2xl text-emerald-400' : 'fa-toggle-off text-2xl text-slate-500'}`}></i>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* BANNER DETAIL REKAPAN */}
       <div className="bg-gradient-to-br from-midnight to-midnight-light rounded-3xl p-6 text-white relative shadow-glossy overflow-hidden">
-        <i className="fa-solid fa-check-to-slot absolute -right-4 -bottom-4 text-7xl opacity-10"></i>
+        <i className="fa-solid fa-list-check absolute -right-4 -bottom-4 text-7xl opacity-10"></i>
         <div className="flex justify-between items-start mb-2 relative z-10 gap-2">
           <h3 className="text-2xl font-black leading-tight flex-1">{activeVote.title}</h3>
           {activeVote.deadline && <LiveCountdown deadline={activeVote.deadline} />}
         </div>
-        <p className="text-white/60 font-bold text-xs relative z-10 uppercase tracking-widest bg-white/10 w-max px-3 py-1 rounded-full border border-white/20">
-          <i className="fa-solid fa-fingerprint text-yellow-300 mr-1.5"></i> 
-          {activeVote.isMulti ? 'Bisa pilih lebih dari satu' : 'Hanya boleh pilih satu'}
-        </p>
+        
+        <div className="flex flex-wrap gap-2 mt-3 relative z-10">
+          <span className="text-white/80 font-extrabold text-[10px] uppercase tracking-wider bg-white/10 px-3 py-1 rounded-full border border-white/20">
+            <i className="fa-solid fa-square-check text-sky-400 mr-1.5"></i> 
+            {activeVote.isMulti ? 'Bisa Pilih Banyak Opsi' : 'Hanya Boleh Pilih Satu'}
+          </span>
+          <span className="text-white/80 font-extrabold text-[10px] uppercase tracking-wider bg-white/10 px-3 py-1 rounded-full border border-white/20">
+            <i className="fa-solid fa-rotate-right text-emerald-400 mr-1.5"></i> 
+            {isAllowMultiple ? 'Mode Rekapan (Bisa Submit Berulang)' : '1 SDM Kunci 1 Suara'}
+          </span>
+        </div>
       </div>
 
       <div className="flex bg-white rounded-xl shadow-sm border border-slate-100 p-1.5 sticky top-20 z-20">
          <button type="button" onClick={()=>setActiveTab('statistik')} className={`flex-1 py-2.5 px-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all duration-300 outline-none cursor-pointer ${activeTab==='statistik' ? 'bg-midnight text-white shadow-md transform scale-[1.02]' : 'text-slate-500 hover:bg-slate-50'}`}>Statistik</button>
          <button type="button" onClick={()=>setActiveTab('sudah')} className={`flex-1 py-2.5 px-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all duration-300 outline-none cursor-pointer ${activeTab==='sudah' ? 'bg-midnight text-white shadow-md transform scale-[1.02]' : 'text-slate-500 hover:bg-slate-50'}`}>Masuk ({sudahVoteNames.length})</button>
          <button type="button" onClick={()=>setActiveTab('belum')} className={`flex-1 py-2.5 px-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all duration-300 outline-none cursor-pointer ${activeTab==='belum' ? 'bg-midnight text-white shadow-md transform scale-[1.02]' : 'text-slate-500 hover:bg-slate-50'}`}>Belum ({belumVoteNames.length})</button>
-         <button type="button" onClick={()=>setActiveTab('beri_suara')} className={`flex-[1.2] py-2.5 px-2 text-[10px] sm:text-xs font-black rounded-lg transition-all duration-300 outline-none cursor-pointer flex justify-center items-center gap-1.5 ${activeTab==='beri_suara' ? 'bg-status-selesai text-white shadow-md transform scale-[1.02]' : 'text-status-selesai border border-blue-100 bg-blue-50 hover:bg-blue-100'}`}><i className="fa-solid fa-paper-plane"></i> VOTE!</button>
+         <button type="button" onClick={()=>setActiveTab('beri_suara')} className={`flex-[1.2] py-2.5 px-2 text-[10px] sm:text-xs font-black rounded-lg transition-all duration-300 outline-none cursor-pointer flex justify-center items-center gap-1.5 ${activeTab==='beri_suara' ? 'bg-status-selesai text-white shadow-md transform scale-[1.02]' : 'text-status-selesai border border-blue-100 bg-blue-50 hover:bg-blue-100'}`}><i className="fa-solid fa-paper-plane"></i> FORM INPUT</button>
       </div>
 
       {activeTab === 'statistik' && (
         <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 sm:p-6 space-y-6 animate-fade-in">
            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
              <h4 className="font-black text-midnight text-sm uppercase tracking-wider flex items-center gap-2">
-               <i className="fa-solid fa-chart-bar text-status-selesai"></i> Rekapitulasi Akhir Pilihan
+               <i className="fa-solid fa-chart-bar text-status-selesai"></i> Rekapitulasi Total Opsi
              </h4>
              {isAdminLogged && (
                <button 
@@ -465,7 +534,7 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
                  onClick={handleExportPDF}
                  className="bg-red-50 text-red-600 border border-red-200 text-[10px] font-black px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1 cursor-pointer"
                >
-                 <i className="fa-solid fa-file-pdf"></i> Unduh Rekapan PDF
+                 <i className="fa-solid fa-file-pdf"></i> Unduh PDF
                </button>
              )}
            </div>
@@ -487,7 +556,7 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
                             {opt}
                           </h5>
                           <div className="text-[10px] sm:text-xs font-bold text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded inline-block shadow-sm">
-                            <span className="text-midnight font-black">{count}</span> Suara Terkumpul
+                            <span className="text-midnight font-black">{count}</span> Total Terkumpul
                           </div>
                         </div>
                         <div className="text-right shrink-0">
@@ -507,7 +576,7 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
                      {votersList.length > 0 && (
                        <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
                          <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                           <i className="fa-solid fa-users text-slate-300"></i> Daftar Pemilih Opsi Ini:
+                           <i className="fa-solid fa-users text-slate-300"></i> Daftar Nama Pengisi Opsi Ini:
                          </div>
                          <div className="flex flex-wrap gap-1.5">
                            {votersList.map((voterName, vIdx) => (
@@ -528,13 +597,13 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
       {activeTab === 'sudah' && (
         <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 sm:p-6 space-y-4 animate-fade-in">
            <h4 className="font-black text-midnight text-sm uppercase tracking-wider border-b border-slate-100 pb-3 flex items-center gap-2">
-             <i className="fa-solid fa-inbox text-status-selesai"></i> Log Suara Masuk Terperinci
+             <i className="fa-solid fa-inbox text-status-selesai"></i> Log Data Masuk ({votesArray.length} Respon)
            </h4>
 
            {votesArray.length === 0 && (
              <div className="text-center text-xs font-bold text-slate-400 py-10 bg-slate-50 rounded-2xl border border-slate-100">
                <i className="fa-solid fa-envelope-open text-4xl mb-3 text-slate-300 block"></i>
-               Belum ada suara masuk.
+               Belum ada data yang masuk.
              </div>
            )}
 
@@ -546,6 +615,11 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
                       <div className="w-6 h-6 rounded-full bg-blue-100 text-status-selesai flex items-center justify-center text-[10px] shadow-sm"><i className="fa-solid fa-check"></i></div>
                       {voteData.name}
                     </span>
+                    {voteData.votedAt && (
+                      <span className="text-[9px] font-bold text-slate-400">
+                        {new Date(voteData.votedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
                   </div>
                   <div className="bg-white rounded-xl border border-slate-100 p-2.5 shadow-inner flex flex-wrap gap-1.5">
                     {voteData.options && voteData.options.map((opt, oIdx) => (
@@ -563,13 +637,13 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
       {activeTab === 'belum' && (
         <div className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 sm:p-6 space-y-4 animate-fade-in">
            <h4 className="font-black text-midnight text-sm uppercase tracking-wider border-b border-slate-100 pb-3 flex items-center gap-2">
-             <i className="fa-solid fa-hourglass-half text-orange-500"></i> Menunggu Pemilih ({belumVoteNames.length})
+             <i className="fa-solid fa-hourglass-half text-orange-500"></i> SDM Belum Mengisi ({belumVoteNames.length})
            </h4>
            
            {belumVoteNames.length === 0 && (
              <div className="text-center text-xs font-bold text-slate-400 py-10 bg-emerald-50 border border-emerald-100 rounded-2xl text-emerald-600">
                <i className="fa-solid fa-check-double text-4xl mb-3 block"></i>
-               Luar biasa! Semua SDM sudah memberikan suaranya!
+               Luar biasa! Semua SDM sudah merespon!
              </div>
            )}
            
@@ -585,7 +659,7 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
                       onClick={() => { setVoteEmp(name); setActiveTab('beri_suara'); }}
                       className="bg-orange-500 text-white font-black text-[9px] px-2 py-1 rounded hover:bg-orange-600 transition-colors cursor-pointer"
                     >
-                      Bantu Vote
+                      Bantu Input
                     </button>
                   )}
                </div>
@@ -597,42 +671,47 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
       {activeTab === 'beri_suara' && (
         <form onSubmit={handleCastVote} className="bg-white rounded-3xl shadow-soft border border-slate-100 p-5 sm:p-6 space-y-6 animate-fade-in">
            <div className="text-center mb-6">
-             <h4 className="font-black text-midnight text-lg tracking-tight">Formulir Suara Rahasia</h4>
+             <h4 className="font-black text-midnight text-lg tracking-tight">Formulir Pendataan & Rekapan</h4>
              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Sistem Otomatis Terkunci Saat Deadline</p>
            </div>
 
-           {/* LOGIKA TINDAK LANJUT ADMIN VS USER BIASA SAAT DEADLINE HABIS */}
            {isExpired && !isAdminLogged ? (
              <div className="p-6 bg-red-50 border border-red-200 text-red-600 rounded-2xl text-center font-black text-sm shadow-sm flex flex-col items-center justify-center gap-3">
                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-red-500 text-3xl shadow-inner"><i className="fa-solid fa-lock"></i></div>
-               WAKTU VOTING TELAH HABIS!
+               WAKTU PENGISIAN TELAH HABIS!
              </div>
            ) : (
              <>
                {isExpired && isAdminLogged && (
                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl font-bold text-xs flex items-center gap-2">
                    <i className="fa-solid fa-user-shield text-amber-600 text-base"></i>
-                   <span><strong>Mode Tindak Lanjut Admin:</strong> Waktu voting telah habis, namun Anda memiliki akses khusus Admin untuk memilihkan SDM yang belum voting.</span>
+                   <span><strong>Mode Admin:</strong> Waktu pengisian telah habis, namun Anda memiliki akses khusus Admin untuk mengisikan data SDM.</span>
                  </div>
                )}
 
                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm">
-                  <label className="block text-[10px] font-black text-midnight mb-2 uppercase tracking-wider flex items-center gap-2"><i className="fa-solid fa-user-tag text-status-selesai"></i> Verifikasi Identitas SDM</label>
-                  <select className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight outline-none cursor-pointer shadow-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all" value={voteEmp} onChange={(e) => setVoteEmp(e.target.value)}>
-                    <option value="">-- Ketuk Untuk Memilih Nama Anda --</option>
+                  <label className="block text-[10px] font-black text-midnight mb-2 uppercase tracking-wider flex items-center gap-2">
+                    <i className="fa-solid fa-user-tag text-status-selesai"></i> Pilih Identitas SDM
+                  </label>
+                  <select 
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-midnight outline-none cursor-pointer shadow-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all" 
+                    value={voteEmp} 
+                    onChange={(e) => setVoteEmp(e.target.value)}
+                  >
+                    <option value="">-- Ketuk Untuk Memilih Nama SDM --</option>
                     {voters.map(v => {
                       const isAlreadyVoted = sudahVoteNames.includes(v);
-                      // KUNCI MATI USER BIASA: Jika sudah voting, bukan multi-vote, dan bukan admin -> Kunci/Disabled!
+                      // KUNCI HANYA BERLAKU JIKA: Sudah pernah vote + Submit Berulang TIDAK aktif + Bukan Admin
                       const isDisabled = isAlreadyVoted && !isAllowMultiple && !isAdminLogged;
 
                       let labelExtra = '';
                       if (isAlreadyVoted) {
                         if (isAllowMultiple) {
-                          labelExtra = '(Boleh Vote Lagi)';
+                          labelExtra = '(Boleh Input Lagi)';
                         } else if (isAdminLogged) {
-                          labelExtra = '(Admin: Tindak Lanjut / Ubah)';
+                          labelExtra = '(Admin Access)';
                         } else {
-                          labelExtra = '(Sudah Memilih - Terkunci)';
+                          labelExtra = '(Sudah Mengisi - Terkunci)';
                         }
                       }
 
@@ -647,12 +726,25 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
                
                {voteEmp && (
                  <div className="animate-slide-up bg-slate-50 p-4 rounded-2xl border border-slate-200 shadow-sm">
-                    <label className="block text-[10px] font-black text-midnight mb-3 uppercase tracking-wider flex items-center gap-2"><i className="fa-solid fa-list-check text-status-selesai"></i> Tentukan Pilihan Anda</label>
+                    <label className="block text-[10px] font-black text-midnight mb-3 uppercase tracking-wider flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <i className="fa-solid fa-list-check text-status-selesai"></i> Tentukan Pilihan Data
+                      </span>
+                      <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                        {activeVote.isMulti ? 'Bisa Pilih Beberapa' : 'Pilih Salah Satu'}
+                      </span>
+                    </label>
+
                     <div className="space-y-3">
                        {(activeVote.options || []).map(opt => {
                          const isSelected = selectedOptions.includes(opt);
                          return (
-                           <button type="button" key={opt} onClick={() => toggleOption(opt)} className={`w-full flex items-center justify-between p-4 rounded-xl border-2 text-sm font-black transition-all duration-300 outline-none cursor-pointer ${isSelected ? 'bg-blue-50 border-status-selesai text-status-selesai shadow-md scale-[1.01]' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
+                           <button 
+                             type="button" 
+                             key={opt} 
+                             onClick={() => toggleOption(opt)} 
+                             className={`w-full flex items-center justify-between p-4 rounded-xl border-2 text-sm font-black transition-all duration-300 outline-none cursor-pointer ${isSelected ? 'bg-blue-50 border-status-selesai text-status-selesai shadow-md scale-[1.01]' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}
+                           >
                               <span>{opt}</span>
                               <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${isSelected ? 'bg-status-selesai border-status-selesai text-white' : 'border-slate-300 text-transparent'}`}>
                                 <i className="fa-solid fa-check text-[10px]"></i>
@@ -664,8 +756,16 @@ const VotingMenu = ({ votings = [], db, employees = [], selectedVoteId, setSelec
                  </div>
                )}
                
-               <button type="submit" disabled={isSyncing || selectedOptions.length === 0} className={`w-full text-white font-black py-4.5 rounded-xl shadow-glossy transition-all text-sm outline-none mt-4 cursor-pointer flex justify-center items-center gap-2 ${(!voteEmp || selectedOptions.length === 0 || isSyncing) ? 'bg-slate-400 opacity-70 cursor-not-allowed' : 'bg-gradient-to-r from-midnight to-midnight-light hover:opacity-90 active:scale-95'}`}>
-                  {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Merekam Suara...</> : <><i className="fa-solid fa-paper-plane text-status-selesai"></i> Masukkan Suara Ke Kotak</>}
+               <button 
+                 type="submit" 
+                 disabled={isSyncing || !voteEmp || selectedOptions.length === 0} 
+                 className={`w-full text-white font-black py-4.5 rounded-xl shadow-glossy transition-all text-sm outline-none mt-4 cursor-pointer flex justify-center items-center gap-2 ${(!voteEmp || selectedOptions.length === 0 || isSyncing) ? 'bg-slate-400 opacity-70 cursor-not-allowed' : 'bg-gradient-to-r from-midnight to-midnight-light hover:opacity-90 active:scale-95'}`}
+               >
+                  {isSyncing ? (
+                    <><i className="fa-solid fa-circle-notch fa-spin"></i> Menyimpan Data...</>
+                  ) : (
+                    <><i className="fa-solid fa-paper-plane text-status-selesai"></i> Kirim Rekapan Data</>
+                  )}
                </button>
              </>
            )}
