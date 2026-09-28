@@ -909,7 +909,7 @@ const FormInputSection = ({
             ? 'Sistem Akumulasi Aktif: Data yang dimasukkan akan menambahkan kuantitas sebelumnya.' 
             : isAllowUpdate 
               ? 'Sistem Perbarui Aktif: Pilihan baru akan menggantikan pilihan lama Anda.' 
-              : 'Sistem Terkunci: Hanya dapat memilih 1x dan tidak dapat diubah setelah disubmit.'}
+              : 'Sistem Terbuka: Semua user dapat mengedit/memperbarui pilihannya kembali.'}
         </p>
       </div>
 
@@ -951,14 +951,15 @@ const FormInputSection = ({
               <option value="">-- Ketuk Untuk Memilih Nama SDM --</option>
               {voters.map(v => {
                 const isAlreadyVoted = sudahVoteNames.includes(v);
-                const isDisabled = isAlreadyVoted && !isAllowMultiple && !isAllowUpdate && !isAdminLogged;
+                
+                // Murni instruksi: User bebas edit/perbaharui sehingga tidak akan pernah disabled
+                const isDisabled = false;
 
                 let labelExtra = '';
                 if (isAlreadyVoted) {
-                  if (isAllowMultiple) labelExtra = ' (Bisa Tambah Data)';
-                  else if (isAllowUpdate) labelExtra = ' (Bisa Edit Pilihan)';
+                  if (isAllowMultiple) labelExtra = ' (Bisa Tambah Data Akumulasi)';
                   else if (isAdminLogged) labelExtra = ' (Akses Admin Override)';
-                  else labelExtra = ' (Sudah Mengisi - Terkunci)';
+                  else labelExtra = ' (Telah Mengisi - Bisa Edit/Perbarui Pilihan)';
                 }
 
                 return (
@@ -1030,8 +1031,8 @@ const FormInputSection = ({
                 <span>
                   {isAllowMultiple && sudahVoteNames.includes(voteEmp) 
                     ? 'Tambah Entri Akumulasi Baru' 
-                    : isAllowUpdate && sudahVoteNames.includes(voteEmp) 
-                      ? 'Simpan Perubahan Pilihan' 
+                    : sudahVoteNames.includes(voteEmp) 
+                      ? 'Simpan Perubahan (Edit Pilihan)' 
                       : 'Kirimkan Data Respon'}
                 </span>
               </>
@@ -1284,14 +1285,12 @@ const VotingMenu = ({
     
     try {
       const isAllowMultiple = activeVote.allowMultipleSubmissions || activeVote.allowMultiple;
-      const isAllowUpdate = activeVote.allowUpdate;
       
       let safeKey = '';
       if (isAllowMultiple) {
         safeKey = `${encodeSafeKey(voteEmp)}_${Date.now()}`;
-      } else if (isAllowUpdate) {
-        safeKey = encodeSafeKey(voteEmp);
       } else {
+        // Menggunakan identitas user sebagai Primary Key, maka akan selalu overwrite (mengedit data lama)
         safeKey = encodeSafeKey(voteEmp);
       }
 
@@ -1330,7 +1329,7 @@ const VotingMenu = ({
     }
   };
 
-  // EKSPOR PDF LAPORAN
+  // EKSPOR PDF LAPORAN DENGAN TOTAL DAN DAFTAR BELUM MEMILIH
   const handleExportPDF = () => {
     if (!activeVote) return;
 
@@ -1376,7 +1375,7 @@ const VotingMenu = ({
         <title>Laporan Rekapitulasi Data - ${activeVote.title}</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 25px; color: #0f172a; line-height: 1.5; font-size: 11px; }
-          .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 20px; }
+          .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 15px; }
           .title { font-size: 18px; font-weight: bold; text-transform: uppercase; }
           .subtitle { font-size: 12px; color: #2563eb; font-weight: bold; margin-top: 4px; }
           table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
@@ -1390,6 +1389,14 @@ const VotingMenu = ({
           <div class="title">LAPORAN REKAPITULASI HASIL VOTING</div>
           <div class="subtitle">${activeVote.title}</div>
         </div>
+        
+        <div style="margin-bottom: 15px;">
+          <div style="font-size: 12px; margin-bottom: 5px;">
+            <strong>Total Keseluruhan Pilihan Masuk:</strong> 
+            <span style="background: #2563eb; color: white; padding: 3px 8px; border-radius: 4px; margin-left: 5px;">${totalSuaraMasuk} Suara</span>
+          </div>
+        </div>
+
         <table>
           <thead>
             <tr>
@@ -1417,6 +1424,22 @@ const VotingMenu = ({
             }).join('')}
           </tbody>
         </table>
+
+        <div style="margin-top: 30px; page-break-inside: avoid;">
+          <h3 style="font-size: 12px; color: #dc2626; border-bottom: 2px solid #fca5a5; padding-bottom: 5px; margin-bottom: 10px;">
+            DAFTAR SDM YANG BELUM MEMILIH / MERESPON (${belumVoteNames.length} ORANG)
+          </h3>
+          ${belumVoteNames.length > 0 ? `
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              ${belumVoteNames.map(name => `<span style="background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">${name}</span>`).join('')}
+            </div>
+          ` : `
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 10px; border-radius: 6px; font-weight: bold; text-align: center;">
+              Luar Biasa! 100% SDM telah memberikan pilihan (Tidak ada yang belum memilih).
+            </div>
+          `}
+        </div>
+
         <script>window.onload = function() { window.print(); };</script>
       </body>
       </html>
