@@ -518,7 +518,7 @@ const AdminMenu = ({ db, tasks = [], groupedTasks = [], employees = [], votings 
     doc.save(`Daftar_Hadir_${event.title.replace(/\s+/g, '_')}.pdf`);
   };
 
-  // ================= ALGORITMA REKAPITULASI KINERJA =================
+  // ================= ALGORITMA REKAPITULASI KINERJA (SUDAH DI-BULLETPROOF) =================
   const getRekapData = () => {
     let startDate = new Date(0);
     const now = new Date();
@@ -528,6 +528,7 @@ const AdminMenu = ({ db, tasks = [], groupedTasks = [], employees = [], votings 
     else if (rekapPeriod === '6m') startDate = new Date(now.setMonth(now.getMonth() - 6));
     else if (rekapPeriod === '1y') startDate = new Date(now.setFullYear(now.getFullYear() - 1));
 
+    // PROTEKSI UNDEFINED: Gunakan fallback (array || []) untuk setiap manipulasi data
     const validEvents = (attendanceEvents || []).filter(e => new Date(e.date) >= startDate);
     const validTasks = (tasks || []).filter(t => new Date(t.deadline || t.startDate) >= startDate);
     const validVotes = (votings || []).filter(v => new Date(v.createdAt) >= startDate);
@@ -1368,7 +1369,7 @@ const AdminMenu = ({ db, tasks = [], groupedTasks = [], employees = [], votings 
                         <input required type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none cursor-pointer" value={editAbsEventModal.date} onChange={e => setEditAbsEventModal({...editAbsEventModal, date: e.target.value})} />
                      </div>
                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Batas Waktu Absen</label>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Batas Waktu Absen (Jam)</label>
                         <input required type="time" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none cursor-pointer" value={editAbsEventModal.timeLimit} onChange={e => setEditAbsEventModal({...editAbsEventModal, timeLimit: e.target.value})} />
                      </div>
                    </div>
@@ -1378,17 +1379,20 @@ const AdminMenu = ({ db, tasks = [], groupedTasks = [], employees = [], votings 
                         <input required type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none" value={editAbsEventModal.location} onChange={e => setEditAbsEventModal({...editAbsEventModal, location: e.target.value})} />
                      </div>
                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Min. Baris</label>
-                        <input required type="number" min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none text-center" value={editAbsEventModal.minRows} onChange={e => setEditAbsEventModal({...editAbsEventModal, minRows: e.target.value})} />
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Target Min. Baris</label>
+                        <input required type="number" min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold text-midnight outline-none text-center shadow-inner" value={editAbsEventModal.minRows} onChange={e => setEditAbsEventModal({...editAbsEventModal, minRows: e.target.value})} />
                      </div>
                    </div>
-                   <div className="pt-2"><button type="submit" disabled={isSyncing} className="w-full bg-status-selesai text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none flex justify-center items-center gap-2 cursor-pointer">{isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...</> : <><i className="fa-solid fa-floppy-disk"></i> Simpan Perubahan</>}</button></div>
+                   <div className="pt-2">
+                     <button type="submit" disabled={isSyncing} className="w-full bg-status-selesai text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition-all text-sm outline-none flex justify-center items-center gap-2 cursor-pointer">
+                       {isSyncing ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Menyimpan...</> : <><i className="fa-solid fa-floppy-disk"></i> Simpan Perubahan</>}
+                     </button>
+                   </div>
                 </form>
              </div>
           </div>
         </div>
       )}
-
     </div>
   );
 };
