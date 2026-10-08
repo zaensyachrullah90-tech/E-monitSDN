@@ -1385,7 +1385,24 @@ const VotingMenu = ({
       }
     });
 
-    const sortedOptions = [...optionsList].sort((a, b) => optionData[b].count - optionData[a].count);
+    // CUSTOM SORTING: Menyusun ukuran baju (S, M, L, XL, dll) berurutan, sisanya alfabetis
+    const sizeOrder = ['S', 'M', 'L', 'XL', 'XXL', '2XL', 'XXXL', '3XL', 'XXXXL', '4XL'];
+    const getSortWeight = (val) => {
+        if (!val) return 999;
+        const v = String(val).trim().toUpperCase();
+        const idx = sizeOrder.indexOf(v);
+        return idx !== -1 ? idx : 999;
+    };
+
+    const sortedOptions = [...optionsList].sort((a, b) => {
+        const weightA = getSortWeight(a);
+        const weightB = getSortWeight(b);
+        if (weightA !== 999 || weightB !== 999) {
+            if (weightA !== weightB) return weightA - weightB;
+        }
+        return a.localeCompare(b);
+    });
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       alert("Mohon izinkan pop-up browser untuk mengekspor Laporan PDF.");
@@ -1401,28 +1418,34 @@ const VotingMenu = ({
           ? 'Bisa Perbarui (Pilihan baru menimpa lama)' 
           : 'Kunci Mati (Satu kali pengisian)';
 
-    // Generate baris untuk Tabel 1
+    // Generate baris untuk Tabel 1 (Persentase Dihapus, Menambahkan Baris Total)
+    const maxCount = optionsList.length > 0 ? Math.max(...optionsList.map(opt => optionData[opt].count)) : 0;
+
     const table1Rows = sortedOptions.map((opt, i) => {
       const count = optionData[opt].count;
-      const pct = calculatePercentage(count, totalSuaraMasuk);
       const vMap = optionData[opt].votersMap;
       
       const vList = Object.keys(vMap).length > 0 
          ? Object.entries(vMap).map(([n, q]) => `${n}${q > 1 ? ` (${q}x)` : ''}`).join('<br/>') 
          : '-';
       
-      const isWinner = i === 0 && count > 0;
+      const isWinner = count > 0 && count === maxCount;
       
       return `
         <tr>
           <td class="text-center">${i + 1}</td>
           <td>${opt} ${isWinner ? '<br/><span class="rank">Terbanyak</span>' : ''}</td>
           <td class="text-center">${count}</td>
-          <td class="text-center">${pct}%</td>
           <td>${vList}</td>
         </tr>
       `;
-    }).join('');
+    }).join('') + `
+        <tr style="font-weight: bold; background-color: #f8f9fa;">
+          <td colspan="2" class="text-center uppercase">TOTAL KESELURUHAN</td>
+          <td class="text-center">${totalSuaraMasuk}</td>
+          <td></td>
+        </tr>
+    `;
 
     // Generate baris untuk Tabel 2
     const table2Rows = belumVoteNames.map((name, i) => `
@@ -1431,9 +1454,17 @@ const VotingMenu = ({
         <td>${name}</td>
         <td class="text-center">Belum Memilih</td>
       </tr>
-    `).join('');
+    `);
 
-    const tglBikin = formatDateId(new Date().toISOString());
+    // FORMAT TANGGAL BARU: DDDD, DD MMMM YYYY (Otomatis format bahasa Indonesia)
+    const dateObj = new Date();
+    const tglBikin = dateObj.toLocaleDateString('id-ID', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    });
+    
     const now = new Date();
     const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     const footerStr = `Laporan Resmi Dicetak Otomatis pada ${tglBikin} pukul ${timeStr}`;
@@ -1456,6 +1487,7 @@ const VotingMenu = ({
           th { font-weight: bold; text-align: center; background-color: #f8f9fa; }
           .section-title { font-weight: bold; font-size: 14px; margin-bottom: 10px; margin-top: 20px; text-transform: uppercase; }
           .text-center { text-align: center; }
+          .uppercase { text-transform: uppercase; }
           .rank { font-weight: bold; font-style: italic; font-size: 10px; color: #555; }
           .signature { float: right; width: 250px; text-align: center; margin-top: 40px; page-break-inside: avoid; }
           .footer { margin-top: 50px; font-style: italic; font-size: 10px; text-align: left; clear: both; }
@@ -1489,7 +1521,6 @@ const VotingMenu = ({
               <th style="width: 40px;">NO</th>
               <th style="width: 150px;">OPSI PILIHAN</th>
               <th style="width: 100px;">JUMLAH INPUT</th>
-              <th style="width: 100px;">PERSENTASE</th>
               <th>DAFTAR NAMA PENGISI (KUANTITAS)</th>
             </tr>
           </thead>
